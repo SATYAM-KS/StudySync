@@ -1122,6 +1122,7 @@ Respond ONLY with valid JSON in this exact structure:
 }
 
 // server.ts
+import { AccessToken } from "livekit-server-sdk";
 var isVercel2 = Boolean(process.env.VERCEL);
 var isProduction = process.env.NODE_ENV === "production";
 var DEFAULT_PORT = parseInt(process.env.PORT || "3000", 10);
@@ -1781,6 +1782,37 @@ app.get("/api/presence", (_req, res) => {
     if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
   }
   res.json({ onlineUserIds: Array.from(activeHeartbeats.keys()) });
+});
+app.post("/api/livekit/token", authMiddleware, async (req, res) => {
+  try {
+    const { campaignId } = req.body;
+    if (!campaignId) return res.status(400).json({ error: "campaignId required" });
+    const apiKey2 = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    if (!apiKey2 || !apiSecret) {
+      return res.status(500).json({ error: "LiveKit not configured" });
+    }
+    const at = new AccessToken(apiKey2, apiSecret, {
+      identity: req.user.id,
+      name: req.user.name,
+      ttl: "4h"
+    });
+    at.addGrant({
+      roomJoin: true,
+      room: `study-${campaignId}`,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true
+    });
+    const token = await at.toJwt();
+    res.json({
+      token,
+      url: process.env.LIVEKIT_URL || "wss://santam-kfcwvgq2.livekit.cloud"
+    });
+  } catch (err) {
+    console.error("LiveKit token error:", err);
+    res.status(500).json({ error: "Failed to generate token" });
+  }
 });
 app.get("/api/calls/:campaignId", async (req, res) => {
   try {

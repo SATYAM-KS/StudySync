@@ -38,6 +38,7 @@ import { generateToken, authMiddleware, optionalAuthMiddleware, AuthRequest } fr
 import { setupSocketServer } from './src/server/socket.ts';
 import { analyzeScreenSnapshot } from './src/server/ai.ts';
 import { User, Campaign, CampaignMembership, StudyBlock, Message } from './src/types/index.ts';
+import { AccessToken } from 'livekit-server-sdk';
 
 const isVercel = Boolean(process.env.VERCEL);
 const isProduction = process.env.NODE_ENV === 'production';
@@ -829,6 +830,42 @@ app.get('/api/presence', (_req, res) => {
     if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
   }
   res.json({ onlineUserIds: Array.from(activeHeartbeats.keys()) });
+});
+
+// 7b. LiveKit Token Generation
+app.post('/api/livekit/token', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { campaignId } = req.body;
+    if (!campaignId) return res.status(400).json({ error: 'campaignId required' });
+
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    if (!apiKey || !apiSecret) {
+      return res.status(500).json({ error: 'LiveKit not configured' });
+    }
+
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: req.user!.id,
+      name: req.user!.name,
+      ttl: '4h'
+    });
+    at.addGrant({
+      roomJoin: true,
+      room: `study-${campaignId}`,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true
+    });
+
+    const token = await at.toJwt();
+    res.json({
+      token,
+      url: process.env.LIVEKIT_URL || 'wss://santam-kfcwvgq2.livekit.cloud'
+    });
+  } catch (err: any) {
+    console.error('LiveKit token error:', err);
+    res.status(500).json({ error: 'Failed to generate token' });
+  }
 });
 
 // 8. Voice Call Status & Signaling
