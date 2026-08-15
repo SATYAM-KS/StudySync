@@ -41,7 +41,7 @@ const rtcConfig: RTCConfiguration = {
 };
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { socket, activeCallSession } = useSocket();
 
   const [isInCall, setIsInCall] = useState(false);
@@ -459,6 +459,29 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
   }, [socket, isInCall]);
 
+  // Periodic REST Call Sync for Serverless
+  useEffect(() => {
+    if (!token || !activeCampaignId || !isInCall) return;
+
+    const pollCallSession = async () => {
+      try {
+        const res = await fetch(`/api/calls/${activeCampaignId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.participants)) {
+            setParticipants(data.participants);
+          }
+        }
+      } catch {}
+    };
+
+    pollCallSession();
+    const interval = setInterval(pollCallSession, 3500);
+    return () => clearInterval(interval);
+  }, [token, activeCampaignId, isInCall]);
+
   const joinCall = async (campaignId: string, campaignName: string) => {
     try {
       getAudioContext();
@@ -501,6 +524,25 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           isScreenSharing: false
         });
       }
+
+      if (token) {
+        fetch(`/api/calls/${campaignId}/join`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            isMuted: false,
+            isDeafened: false,
+            isScreenSharing: false
+          })
+        }).then(res => res.json()).then(session => {
+          if (session && Array.isArray(session.participants)) {
+            setParticipants(session.participants);
+          }
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error('Failed to join voice call:', err);
     }
@@ -510,8 +552,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     stopAudioAnalyzer();
     stopScreenBroadcast();
 
-    if (socket && activeCampaignId) {
-      socket.emit('call:leave', activeCampaignId);
+    const campId = activeCampaignId;
+
+    if (socket && campId) {
+      socket.emit('call:leave', campId);
+    }
+
+    if (token && campId) {
+      fetch(`/api/calls/${campId}/leave`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
     }
 
     if (localAudioRef.current) {
@@ -564,6 +615,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         socket.emit('call:speaking', { campaignId: activeCampaignId, isSpeaking: false });
       }
     }
+
+    if (token && activeCampaignId) {
+      fetch(`/api/calls/${activeCampaignId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          isMuted: nextMuted,
+          isScreenSharing
+        })
+      }).catch(() => {});
+    }
   };
 
   const toggleScreenShare = async () => {
@@ -594,6 +659,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           isMuted,
           isScreenSharing: false
         });
+      }
+
+      if (token && activeCampaignId) {
+        fetch(`/api/calls/${activeCampaignId}/join`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            isMuted,
+            isScreenSharing: false
+          })
+        }).catch(() => {});
       }
     } else {
       try {
@@ -631,6 +710,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             isMuted,
             isScreenSharing: true
           });
+        }
+
+        if (token && activeCampaignId) {
+          fetch(`/api/calls/${activeCampaignId}/join`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              isMuted,
+              isScreenSharing: true
+            })
+          }).catch(() => {});
         }
       } catch (err) {
         console.error('Screen share request cancelled:', err);
