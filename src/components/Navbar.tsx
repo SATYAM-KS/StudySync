@@ -59,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white">
-                StudyCampaign
+                StudySync
               </span>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-full">
                 Cohort

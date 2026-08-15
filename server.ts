@@ -774,7 +774,7 @@ async function startServer() {
   function tryListen(port: number) {
     server.listen(port, '0.0.0.0', () => {
       console.log(`\n========================================`);
-      console.log(` StudyCampaign is running at:`);
+      console.log(` StudySync is running at:`);
       console.log(` http://localhost:${port}`);
       console.log(`========================================\n`);
     });

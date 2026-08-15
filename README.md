@@ -1,6 +1,6 @@
-# 🎓 StudyCampaign — AI-Proctored Student Study Cohorts & Focus Lounge
+# 🎓 StudySync — AI-Proctored Student Study Cohorts & Focus Lounge
 
-StudyCampaign is a real-time collaborative focus and accountability platform for engineering, computer science, and competitive exam cohorts. It pairs flexible daily study goals with automated **AI Screen Verification powered by Google Gemini** to ensure genuine, deep-work focus.
+StudySync is a real-time collaborative focus and accountability platform for engineering, computer science, and competitive exam cohorts. It pairs flexible daily study goals with automated **AI Screen Verification powered by Google Gemini** to ensure genuine, deep-work focus.
 
 ---
 
@@ -49,8 +49,8 @@ StudyCampaign is a real-time collaborative focus and accountability platform for
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/StudyCampaign.git
-   cd StudyCampaign
+   git clone https://github.com/SATYAM-KS/StudySync.git
+   cd StudySync
    ```
 
 2. **Install dependencies**:

@@ -198,7 +198,7 @@ export const AuthScreen: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
-              StudyCampaign
+              StudySync
             </h1>
             <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
               Minimalist Accountability Study Cohorts
@@ -366,7 +366,7 @@ export const AuthScreen: React.FC = () => {
 
               <div className="text-center pt-2">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  New to StudyCampaign?{' '}
+                  New to StudySync?{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -533,7 +533,7 @@ export const AuthScreen: React.FC = () => {
               {forgotStep === 1 ? (
                 <form onSubmit={handleRequestResetCode} className="space-y-4">
                   <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                    Enter the email address registered with your StudyCampaign account. We will generate a secure 6-digit verification code to reset your password.
+                    Enter the email address registered with your StudySync account. We will generate a secure 6-digit verification code to reset your password.
                   </p>
 
                   <div className="space-y-1.5">
