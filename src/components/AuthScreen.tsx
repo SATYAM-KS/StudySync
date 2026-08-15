@@ -176,7 +176,8 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col justify-start sm:justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-y-auto font-sans transition-colors duration-200">
+    <div className="w-full h-full min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto font-sans transition-colors duration-200">
+      <div className="min-h-full flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 relative">
       
       {/* Top Right Theme Toggle */}
       <div className="absolute top-6 right-6 z-20">
@@ -736,7 +737,7 @@ export const AuthScreen: React.FC = () => {
         </div>
 
       </div>
-
     </div>
-  );
+  </div>
+);
 };

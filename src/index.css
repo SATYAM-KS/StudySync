@@ -15,15 +15,16 @@
     border-color: var(--color-zinc-800);
   }
 
-  /* Lock the window from ever scrolling — all scroll happens in content containers */
   html, body {
     height: 100%;
-    overflow: hidden;
-    overscroll-behavior: none;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
   }
 
   #root {
     height: 100%;
+    min-height: 100%;
   }
 }
 
