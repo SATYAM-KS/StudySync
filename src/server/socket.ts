@@ -1,0 +1,302 @@
+import { Server as HttpServer } from 'http';
+import { Server, Socket } from 'socket.io';
+import { createMessage, toggleMessageReaction, addCallParticipant, removeCallParticipant, updateParticipantState, getCallSession } from './db.ts';
+import { Message, CallParticipant, LiveStudySession } from '../types/index.ts';
+
+interface ConnectedUser {
+  socketId: string;
+  userId: string;
+  userName: string;
+  userAvatarUrl?: string;
+  activeCampaignId?: string;
+  inCallCampaignId?: string;
+}
+
+const connectedUsers = new Map<string, ConnectedUser>(); // socketId -> ConnectedUser
+const activeStudySessions = new Map<string, LiveStudySession>(); // userId -> LiveStudySession
+
+export function setupSocketServer(httpServer: HttpServer) {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
+  });
+
+  io.on('connection', (socket: Socket) => {
+    // 1. Presence & User Registration
+    socket.on('user:online', (userData: { userId: string; userName: string; userAvatarUrl?: string }) => {
+      connectedUsers.set(socket.id, {
+        socketId: socket.id,
+        userId: userData.userId,
+        userName: userData.userName,
+        userAvatarUrl: userData.userAvatarUrl,
+      });
+
+      // Join user's private room for direct messages
+      socket.join(`user:${userData.userId}`);
+
+      // Broadcast online list to everyone
+      broadcastOnlineUsers();
+      // Send active study sessions
+      socket.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+    });
+
+    // 2. Campaign Room Join / Leave
+    socket.on('campaign:join_room', (campaignId: string) => {
+      socket.join(`campaign:${campaignId}`);
+      const user = connectedUsers.get(socket.id);
+      if (user) {
+        user.activeCampaignId = campaignId;
+      }
+    });
+
+    socket.on('campaign:leave_room', (campaignId: string) => {
+      socket.leave(`campaign:${campaignId}`);
+      const user = connectedUsers.get(socket.id);
+      if (user && user.activeCampaignId === campaignId) {
+        user.activeCampaignId = undefined;
+      }
+    });
+
+    // 3. Realtime Chat Messages
+    socket.on('message:send', async (messageData: Partial<Message>, callback?: (res: any) => void) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      const newMsg: Message = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        senderId: user.userId,
+        senderName: user.userName,
+        senderAvatarUrl: user.userAvatarUrl,
+        campaignId: messageData.campaignId || null,
+        recipientId: messageData.recipientId || null,
+        content: messageData.content || '',
+        attachmentUrl: messageData.attachmentUrl || null,
+        attachmentType: messageData.attachmentType || null,
+        createdAt: new Date().toISOString(),
+        reactions: []
+      };
+
+      const saved = await createMessage(newMsg);
+
+      if (saved.campaignId) {
+        // Broadcast to all campaign members
+        io.to(`campaign:${saved.campaignId}`).emit('message:new', saved);
+      } else if (saved.recipientId) {
+        // Direct message: emit to both sender and recipient rooms
+        io.to(`user:${saved.senderId}`).to(`user:${saved.recipientId}`).emit('message:new', saved);
+      }
+
+      if (callback) callback({ success: true, message: saved });
+    });
+
+    // 4. Message Reactions
+    socket.on('message:react', async ({ messageId, emoji, campaignId, recipientId }: { messageId: string; emoji: string; campaignId?: string; recipientId?: string }) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      const updated = await toggleMessageReaction(messageId, emoji, user.userId);
+      if (updated) {
+        if (campaignId) {
+          io.to(`campaign:${campaignId}`).emit('message:updated', updated);
+        } else if (recipientId) {
+          io.to(`user:${user.userId}`).to(`user:${recipientId}`).emit('message:updated', updated);
+        }
+      }
+    });
+
+    // 5. Typing Indicators
+    socket.on('typing:start', ({ campaignId, recipientId }: { campaignId?: string; recipientId?: string }) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      if (campaignId) {
+        socket.to(`campaign:${campaignId}`).emit('typing:status', {
+          campaignId,
+          userId: user.userId,
+          userName: user.userName,
+          isTyping: true
+        });
+      } else if (recipientId) {
+        io.to(`user:${recipientId}`).emit('typing:status', {
+          recipientId,
+          userId: user.userId,
+          userName: user.userName,
+          isTyping: true
+        });
+      }
+    });
+
+    socket.on('typing:stop', ({ campaignId, recipientId }: { campaignId?: string; recipientId?: string }) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      if (campaignId) {
+        socket.to(`campaign:${campaignId}`).emit('typing:status', {
+          campaignId,
+          userId: user.userId,
+          userName: user.userName,
+          isTyping: false
+        });
+      } else if (recipientId) {
+        io.to(`user:${recipientId}`).emit('typing:status', {
+          recipientId,
+          userId: user.userId,
+          userName: user.userName,
+          isTyping: false
+        });
+      }
+    });
+
+    // 6. Real-time Live Study Session Status
+    socket.on('study:start_session', (sessionData: { campaignId: string; campaignName: string; subjectNote: string }) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      const session: LiveStudySession = {
+        userId: user.userId,
+        userName: user.userName,
+        userAvatarUrl: user.userAvatarUrl,
+        campaignId: sessionData.campaignId,
+        campaignName: sessionData.campaignName,
+        subjectNote: sessionData.subjectNote,
+        startedAt: new Date().toISOString(),
+        activeMinutes: 0,
+        isScreenSharedLocally: false
+      };
+
+      activeStudySessions.set(user.userId, session);
+      io.emit('study:session_started', session);
+      io.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+    });
+
+    socket.on('study:stop_session', () => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      if (activeStudySessions.has(user.userId)) {
+        activeStudySessions.delete(user.userId);
+        io.emit('study:session_ended', { userId: user.userId });
+        io.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+      }
+    });
+
+    // 7. Live Voice/Video Calls (WebRTC signaling + participant sync)
+    socket.on('call:join', async ({ campaignId, isMuted = false, isVideoOn = false, isScreenSharing = false }: { campaignId: string; isMuted?: boolean; isVideoOn?: boolean; isScreenSharing?: boolean }) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      user.inCallCampaignId = campaignId;
+      socket.join(`call:${campaignId}`);
+
+      const participant: CallParticipant = {
+        userId: user.userId,
+        userName: user.userName,
+        userAvatarUrl: user.userAvatarUrl,
+        socketId: socket.id,
+        isMuted,
+        isVideoOn,
+        isScreenSharing,
+        joinedAt: new Date().toISOString()
+      };
+
+      const session = await addCallParticipant(campaignId, participant);
+      const existingParticipants = session.participants.filter(p => p.socketId !== socket.id);
+      
+      // Notify all campaign members of active call participants
+      io.to(`campaign:${campaignId}`).emit('call:session_updated', session);
+      
+      // Send existing peers to the joiner
+      socket.emit('call:existing_peers', {
+        existingParticipants
+      });
+
+      // Notify others in call room of new peer
+      socket.to(`call:${campaignId}`).emit('call:peer_joined', {
+        participant,
+        existingParticipants
+      });
+    });
+
+    socket.on('call:signal', ({ toSocketId, signal, type }: { toSocketId: string; signal: any; type: string }) => {
+      io.to(toSocketId).emit('call:signal', {
+        fromSocketId: socket.id,
+        signal,
+        type
+      });
+    });
+
+    socket.on('call:video_frame', ({ campaignId, frameData }: { campaignId: string; frameData: string }) => {
+      socket.to(`call:${campaignId}`).to(`campaign:${campaignId}`).emit('call:video_frame', {
+        fromSocketId: socket.id,
+        frameData
+      });
+    });
+
+    socket.on('call:audio_chunk', ({ campaignId, audioData }: { campaignId: string; audioData: string }) => {
+      socket.to(`call:${campaignId}`).to(`campaign:${campaignId}`).emit('call:audio_chunk', {
+        fromSocketId: socket.id,
+        audioData
+      });
+    });
+
+    socket.on('call:speaking', ({ campaignId, isSpeaking }: { campaignId: string; isSpeaking: boolean }) => {
+      socket.to(`call:${campaignId}`).emit('call:participant_speaking', {
+        socketId: socket.id,
+        isSpeaking
+      });
+    });
+
+    socket.on('call:state_change', async ({ campaignId, isMuted, isScreenSharing }: { campaignId: string; isMuted?: boolean; isScreenSharing?: boolean }) => {
+      const session = await updateParticipantState(campaignId, socket.id, {
+        ...(isMuted !== undefined && { isMuted }),
+        ...(isScreenSharing !== undefined && { isScreenSharing }),
+      });
+      if (session) {
+        io.to(`campaign:${campaignId}`).to(`call:${campaignId}`).emit('call:session_updated', session);
+      }
+    });
+
+    socket.on('call:leave', async (campaignId: string) => {
+      handleCallLeave(socket, campaignId);
+    });
+
+    // 8. Disconnect handling
+    socket.on('disconnect', async () => {
+      const user = connectedUsers.get(socket.id);
+      if (user) {
+        // Leave call if any
+        if (user.inCallCampaignId) {
+          handleCallLeave(socket, user.inCallCampaignId);
+        }
+        // Remove study session if disconnected
+        if (activeStudySessions.has(user.userId)) {
+          activeStudySessions.delete(user.userId);
+          io.emit('study:session_ended', { userId: user.userId });
+          io.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+        }
+        connectedUsers.delete(socket.id);
+        broadcastOnlineUsers();
+      }
+    });
+  });
+
+  async function handleCallLeave(socket: Socket, campaignId: string) {
+    socket.leave(`call:${campaignId}`);
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      user.inCallCampaignId = undefined;
+    }
+    const session = await removeCallParticipant(campaignId, socket.id);
+    socket.to(`call:${campaignId}`).emit('call:peer_left', { socketId: socket.id });
+    io.to(`campaign:${campaignId}`).emit('call:session_updated', session);
+  }
+
+  function broadcastOnlineUsers() {
+    const onlineUserIds = Array.from(new Set(Array.from(connectedUsers.values()).map(u => u.userId)));
+    io.emit('presence:online_users', onlineUserIds);
+  }
+
+  return io;
+}

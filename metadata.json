@@ -1,0 +1,1 @@
+{"name":"StudyCampaign","description":"Collaborative study tracking, group campaigns, accountability check-ins, real-time chat, and live voice/video study rooms.","requestFramePermissions":["camera","microphone","display-capture"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}

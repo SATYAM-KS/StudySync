@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StudyCampaign</title>
+    <meta name="description" content="Minimalist collaborative study tracking, focus lounges, real-time chat, and leaderboards." />
+    
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <script>
+      (function() {
+        try {
+          var activeFetch = window.fetch ? window.fetch.bind(window) : null;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return activeFetch;
+            },
+            set: function(newFetch) {
+              activeFetch = newFetch;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (err) {
+          try {
+            var proto = Object.getPrototypeOf(window) || Window.prototype;
+            if (proto) {
+              var activeFetchProto = window.fetch ? window.fetch.bind(window) : null;
+              Object.defineProperty(proto, 'fetch', {
+                get: function() {
+                  return activeFetchProto;
+                },
+                set: function(newFetch) {
+                  activeFetchProto = newFetch;
+                },
+                configurable: true,
+                enumerable: true
+              });
+            }
+          } catch (e2) {}
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-zinc-800 selection:text-white dark:bg-zinc-950 dark:text-zinc-100 font-sans">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
