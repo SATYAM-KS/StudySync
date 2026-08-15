@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import bcrypt from 'bcryptjs';
-import { createServer as createViteServer } from 'vite';
 
 import {
   initDb,
@@ -42,6 +41,17 @@ const DEFAULT_PORT = parseInt(process.env.PORT || '3000', 10);
 let currentPort = DEFAULT_PORT;
 const app = express();
 const server = http.createServer(app);
+
+// CORS middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Enable JSON body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -756,6 +766,7 @@ async function startServer() {
   await initDb();
 
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
