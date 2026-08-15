@@ -95,6 +95,10 @@ function mapCampaignFromDb(row: any): Campaign {
     dailyEndTime: row.daily_end_time || '23:00',
     targetDailyHours: Number(row.target_daily_hours) || 4,
     schedule: Array.isArray(row.schedule) ? row.schedule : [],
+    maxMembers: Number(row.max_members) || 20,
+    isPublic: row.is_public ?? true,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    bannerColor: row.banner_color || '#3b82f6',
     createdAt: row.created_at
   };
 }

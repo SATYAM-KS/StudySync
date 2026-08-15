@@ -254,7 +254,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                     </div>
                     <div>
                       <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold">Members</p>
-                      <p className="font-bold text-zinc-900 dark:text-white">{campaign.memberCount || 1} / {campaign.maxMembers}</p>
+                      <p className="font-bold text-zinc-900 dark:text-white">{campaign.memberCount || 1} / {campaign.maxMembers || 20}</p>
                     </div>
                   </div>
 

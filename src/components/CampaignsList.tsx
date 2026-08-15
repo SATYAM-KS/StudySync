@@ -282,7 +282,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
 
                       <div className="flex items-center space-x-1.5">
                         <Users className="w-3.5 h-3.5 text-zinc-800 dark:text-zinc-200 shrink-0" />
-                        <span>{camp.memberCount || 1} / {camp.maxMembers} members</span>
+                        <span>{camp.memberCount || 1} / {camp.maxMembers || 20} members</span>
                       </div>
 
                       <div className="flex items-center space-x-1.5">
