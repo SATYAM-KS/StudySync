@@ -1787,11 +1787,9 @@ app.post("/api/livekit/token", authMiddleware, async (req, res) => {
   try {
     const { campaignId } = req.body;
     if (!campaignId) return res.status(400).json({ error: "campaignId required" });
-    const apiKey2 = process.env.LIVEKIT_API_KEY;
-    const apiSecret = process.env.LIVEKIT_API_SECRET;
-    if (!apiKey2 || !apiSecret) {
-      return res.status(500).json({ error: "LiveKit not configured" });
-    }
+    const apiKey2 = process.env.LIVEKIT_API_KEY || "API7ZiCFQEGGpYa";
+    const apiSecret = process.env.LIVEKIT_API_SECRET || "mpqMnhk8LejhzDD9OqExRVaWip7GrdqZP6dtEjmbV7S";
+    const livekitUrl = process.env.LIVEKIT_URL || "wss://santam-kfcwvgq2.livekit.cloud";
     const at = new AccessToken(apiKey2, apiSecret, {
       identity: req.user.id,
       name: req.user.name,
@@ -1805,13 +1803,10 @@ app.post("/api/livekit/token", authMiddleware, async (req, res) => {
       canPublishData: true
     });
     const token = await at.toJwt();
-    res.json({
-      token,
-      url: process.env.LIVEKIT_URL || "wss://santam-kfcwvgq2.livekit.cloud"
-    });
+    res.json({ token, url: livekitUrl });
   } catch (err) {
     console.error("LiveKit token error:", err);
-    res.status(500).json({ error: "Failed to generate token" });
+    res.status(500).json({ error: "Failed to generate token", detail: String(err) });
   }
 });
 app.get("/api/calls/:campaignId", async (req, res) => {
