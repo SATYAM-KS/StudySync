@@ -46,7 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
         {/* Brand */}
         <div className="flex items-center space-x-3 cursor-pointer group" onClick={onGoHome}>
@@ -81,23 +81,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Active Voice Call Floating Pill */}
           {isInCall && (
-            <div className="flex items-center space-x-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 rounded-full text-xs">
-              <div className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-ping"></div>
-              <span className="font-medium text-zinc-800 dark:text-zinc-200">Voice: {callCampaignName}</span>
-              <button 
-                onClick={toggleMute} 
-                className={`p-1 rounded-full border ${isMuted ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700' : 'bg-black dark:bg-white text-white dark:text-black border-transparent'}`}
-                title={isMuted ? "Unmute" : "Mute"}
-              >
-                {isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-              </button>
-              <button 
-                onClick={leaveCall} 
-                className="p-1 rounded-full bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700"
-                title="Leave Voice Lounge"
-              >
-                <PhoneOff className="w-3 h-3" />
-              </button>
+            <div className="flex items-center space-x-2 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Voice Channel Live</span>
             </div>
           )}
 

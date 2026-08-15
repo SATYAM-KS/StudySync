@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   LiveKitRoom,
   useLocalParticipant,
@@ -175,12 +175,13 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
 
       {!isConnected ? (
         <div className="space-y-6">
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-black dark:bg-white animate-pulse" />
-              <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{channelParticipants.length > 0 ? `${channelParticipants.length} student${channelParticipants.length > 1 ? "s" : ""} currently in this voice channel` : "Voice channel is open — be the first to join!"}</span>
-            </div>
-            <button onClick={connectToRoom} disabled={isConnecting} className="px-4 py-1.5 rounded-xl bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-bold text-xs transition cursor-pointer disabled:opacity-50">{isConnecting ? "Connecting..." : "Connect"}</button>
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex items-center space-x-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white animate-pulse shrink-0" />
+            <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+              {channelParticipants.length > 0
+                ? `${channelParticipants.length} student${channelParticipants.length > 1 ? "s" : ""} currently active in this voice channel`
+                : "Voice channel is open — click 'Connect to Voice' above to start studying together"}
+            </span>
           </div>
           {channelParticipants.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -195,10 +196,10 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
               ))}
             </div>
           ) : (
-            <div onClick={connectToRoom} className="rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-10 flex flex-col items-center justify-center text-center hover:border-zinc-400 dark:hover:border-zinc-600 transition cursor-pointer">
+            <div className="rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-10 flex flex-col items-center justify-center text-center">
               <Users className="w-7 h-7 text-zinc-400 dark:text-zinc-600 mb-2" />
               <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Voice Channel Empty</p>
-              <p className="text-[10px] text-zinc-500 mt-0.5">Click to enter and study with peers</p>
+              <p className="text-[10px] text-zinc-500 mt-0.5">Click &ldquo;Connect to Voice&rdquo; in the top-right corner to join</p>
             </div>
           )}
         </div>
