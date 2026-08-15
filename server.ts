@@ -37,6 +37,7 @@ import { setupSocketServer } from './src/server/socket.ts';
 import { analyzeScreenSnapshot } from './src/server/ai.ts';
 import { User, Campaign, CampaignMembership, StudyBlock, Message } from './src/types/index.ts';
 
+const isVercel = Boolean(process.env.VERCEL);
 const DEFAULT_PORT = parseInt(process.env.PORT || '3000', 10);
 let currentPort = DEFAULT_PORT;
 const app = express();
@@ -47,7 +48,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Setup file uploads directory
-const uploadsDir = path.join(process.cwd(), 'uploads');
+const uploadsDir = isVercel ? '/tmp/uploads' : path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -795,4 +796,8 @@ async function startServer() {
   tryListen(currentPort);
 }
 
-startServer();
+export { app, server };
+
+if (!isVercel) {
+  startServer();
+}
