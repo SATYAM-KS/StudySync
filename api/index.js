@@ -636,7 +636,7 @@ async function createMessage(message) {
   saveDb();
   return message;
 }
-async function toggleMessageReaction(messageId, emoji, userId, userName) {
+async function toggleMessageReaction2(messageId, emoji, userId, userName) {
   const db = await initDb();
   const msg = db.messages.find((m) => m.id === messageId);
   if (!msg) return null;
@@ -680,7 +680,7 @@ async function saveCallSession(campaignId, session) {
   }
   saveDb();
 }
-async function addCallParticipant(campaignId, participant) {
+async function addCallParticipant2(campaignId, participant) {
   let session = await getCallSession(campaignId);
   if (!session) {
     session = {
@@ -699,7 +699,7 @@ async function addCallParticipant(campaignId, participant) {
   await saveCallSession(campaignId, session);
   return session;
 }
-async function removeCallParticipant(campaignId, userId) {
+async function removeCallParticipant2(campaignId, userId) {
   const session = await getCallSession(campaignId);
   if (!session) return null;
   session.participants = session.participants.filter((p) => p.userId !== userId);
@@ -837,7 +837,7 @@ function setupSocketServer(httpServer) {
     socket.on("message:react", async ({ messageId, emoji, campaignId, recipientId }) => {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
-      const updated = await toggleMessageReaction(messageId, emoji, user.userId);
+      const updated = await toggleMessageReaction2(messageId, emoji, user.userId);
       if (updated) {
         if (campaignId) {
           io2.to(`campaign:${campaignId}`).emit("message:updated", updated);
@@ -926,7 +926,7 @@ function setupSocketServer(httpServer) {
         isScreenSharing,
         joinedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
-      const session = await addCallParticipant(campaignId, participant);
+      const session = await addCallParticipant2(campaignId, participant);
       const existingParticipants = session.participants.filter((p) => p.socketId !== socket.id);
       io2.to(`campaign:${campaignId}`).emit("call:session_updated", session);
       socket.emit("call:existing_peers", {
@@ -996,7 +996,7 @@ function setupSocketServer(httpServer) {
     if (user) {
       user.inCallCampaignId = void 0;
     }
-    const session = await removeCallParticipant(campaignId, socket.id);
+    const session = await removeCallParticipant2(campaignId, socket.id);
     socket.to(`call:${campaignId}`).emit("call:peer_left", { socketId: socket.id });
     io2.to(`campaign:${campaignId}`).emit("call:session_updated", session);
   }
@@ -1700,12 +1700,68 @@ app.post("/api/upload", authMiddleware, upload.single("file"), (req, res) => {
     size: req.file.size
   });
 });
+app.post("/api/messages/:messageId/react", authMiddleware, async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const updated = await toggleMessageReaction(req.params.messageId, emoji, req.user.id, req.user.name);
+    res.json(updated || { success: false });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to toggle reaction" });
+  }
+});
+var activeHeartbeats = /* @__PURE__ */ new Map();
+app.post("/api/presence/heartbeat", authMiddleware, (req, res) => {
+  const userId = req.user.id;
+  activeHeartbeats.set(userId, {
+    userId,
+    userName: req.user.name,
+    lastSeen: Date.now()
+  });
+  const cutoff = Date.now() - 3e4;
+  for (const [id, data] of activeHeartbeats.entries()) {
+    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
+  }
+  const onlineIds = Array.from(activeHeartbeats.keys());
+  res.json({ onlineUserIds: onlineIds });
+});
+app.get("/api/presence", (_req, res) => {
+  const cutoff = Date.now() - 3e4;
+  for (const [id, data] of activeHeartbeats.entries()) {
+    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
+  }
+  res.json({ onlineUserIds: Array.from(activeHeartbeats.keys()) });
+});
 app.get("/api/calls/:campaignId", async (req, res) => {
   try {
     const session = await getCallSession(req.params.campaignId);
     res.json(session || { participants: [] });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch call session" });
+  }
+});
+app.post("/api/calls/:campaignId/join", authMiddleware, async (req, res) => {
+  try {
+    const { isMuted, isDeafened, isScreenSharing } = req.body;
+    const session = await addCallParticipant(req.params.campaignId, {
+      userId: req.user.id,
+      userName: req.user.name,
+      userAvatarUrl: req.user.avatarUrl,
+      isMuted: isMuted ?? false,
+      isDeafened: isDeafened ?? false,
+      isScreenSharing: isScreenSharing ?? false,
+      joinedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    res.json(session);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to join call" });
+  }
+});
+app.post("/api/calls/:campaignId/leave", authMiddleware, async (req, res) => {
+  try {
+    const session = await removeCallParticipant(req.params.campaignId, req.user.id);
+    res.json(session || { participants: [] });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to leave call" });
   }
 });
 async function startServer() {

@@ -750,13 +750,80 @@ app.post('/api/upload', authMiddleware, upload.single('file'), (req: AuthRequest
   });
 });
 
-// 6. Voice Call Status & Signaling
+// 6. Message Reactions REST endpoint
+app.post('/api/messages/:messageId/react', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { emoji } = req.body;
+    const updated = await toggleMessageReaction(req.params.messageId, emoji, req.user!.id, req.user!.name);
+    res.json(updated || { success: false });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to toggle reaction' });
+  }
+});
+
+// 7. Presence Heartbeat REST endpoint (for Serverless/Vercel)
+const activeHeartbeats = new Map<string, { userId: string; userName: string; lastSeen: number }>();
+
+app.post('/api/presence/heartbeat', authMiddleware, (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  activeHeartbeats.set(userId, {
+    userId,
+    userName: req.user!.name,
+    lastSeen: Date.now()
+  });
+
+  // Clean stale heartbeats older than 30s
+  const cutoff = Date.now() - 30000;
+  for (const [id, data] of activeHeartbeats.entries()) {
+    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
+  }
+
+  const onlineIds = Array.from(activeHeartbeats.keys());
+  res.json({ onlineUserIds: onlineIds });
+});
+
+app.get('/api/presence', (_req, res) => {
+  const cutoff = Date.now() - 30000;
+  for (const [id, data] of activeHeartbeats.entries()) {
+    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
+  }
+  res.json({ onlineUserIds: Array.from(activeHeartbeats.keys()) });
+});
+
+// 8. Voice Call Status & Signaling
 app.get('/api/calls/:campaignId', async (req, res) => {
   try {
     const session = await getCallSession(req.params.campaignId);
     res.json(session || { participants: [] });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to fetch call session' });
+  }
+});
+
+app.post('/api/calls/:campaignId/join', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { isMuted, isDeafened, isScreenSharing } = req.body;
+    const session = await addCallParticipant(req.params.campaignId, {
+      userId: req.user!.id,
+      userName: req.user!.name,
+      userAvatarUrl: req.user!.avatarUrl,
+      isMuted: isMuted ?? false,
+      isDeafened: isDeafened ?? false,
+      isScreenSharing: isScreenSharing ?? false,
+      joinedAt: new Date().toISOString()
+    });
+    res.json(session);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to join call' });
+  }
+});
+
+app.post('/api/calls/:campaignId/leave', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const session = await removeCallParticipant(req.params.campaignId, req.user!.id);
+    res.json(session || { participants: [] });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to leave call' });
   }
 });
 

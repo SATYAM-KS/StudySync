@@ -73,44 +73,101 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id]);
 
+  // Presence Heartbeat via REST (ensures online users sync even on Vercel/Serverless)
+  const { token } = useAuth();
+  useEffect(() => {
+    if (!token || !user) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        const res = await fetch('/api/presence/heartbeat', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.onlineUserIds)) {
+            setOnlineUserIds(data.onlineUserIds);
+          }
+        }
+      } catch {}
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 10000);
+    return () => clearInterval(interval);
+  }, [token, user]);
+
   const joinCampaignRoom = (campaignId: string) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit('campaign:join_room', campaignId);
     }
   };
 
   const leaveCampaignRoom = (campaignId: string) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit('campaign:leave_room', campaignId);
     }
   };
 
-  const sendMessage = (data: Partial<Message>): Promise<{ success: boolean; message?: Message }> => {
-    return new Promise((resolve) => {
-      if (!socket) {
-        resolve({ success: false });
-        return;
-      }
-      socket.emit('message:send', data, (res: any) => {
-        resolve(res || { success: true });
+  const sendMessage = async (data: Partial<Message>): Promise<{ success: boolean; message?: Message }> => {
+    if (socket && isConnected) {
+      return new Promise((resolve) => {
+        socket.emit('message:send', data, (res: any) => {
+          resolve(res || { success: true });
+        });
       });
-    });
+    }
+
+    // REST Fallback for Serverless / Vercel
+    if (!token) return { success: false };
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        const msg = await res.json();
+        return { success: true, message: msg };
+      }
+    } catch (e) {
+      console.error('REST sendMessage error:', e);
+    }
+    return { success: false };
   };
 
-  const reactToMessage = (messageId: string, emoji: string, campaignId?: string, recipientId?: string) => {
-    if (socket) {
+  const reactToMessage = async (messageId: string, emoji: string, campaignId?: string, recipientId?: string) => {
+    if (socket && isConnected) {
       socket.emit('message:react', { messageId, emoji, campaignId, recipientId });
+      return;
     }
+
+    // REST Fallback
+    if (!token) return;
+    try {
+      await fetch(`/api/messages/${messageId}/react`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ emoji })
+      });
+    } catch {}
   };
 
   const startTyping = (params: { campaignId?: string; recipientId?: string }) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit('typing:start', params);
     }
   };
 
   const stopTyping = (params: { campaignId?: string; recipientId?: string }) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit('typing:stop', params);
     }
   };

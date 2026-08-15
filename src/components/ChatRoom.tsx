@@ -84,16 +84,27 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAtBottomRef = useRef(true);
 
-  // ── Fetch history ──────────────────────────────────────────────────
+  // ── Fetch history & Polling Fallback ──────────────────────────────
   useEffect(() => {
     if (!token) return;
-    fetch(`/api/messages/campaign/${campaign.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.ok ? r.json() : [])
-      .then((data: Message[]) => setMessages(data))
-      .catch(() => {});
-  }, [campaign.id, token]);
+
+    const fetchMsgs = () => {
+      fetch(`/api/messages/campaign/${campaign.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : [])
+        .then((data: Message[]) => {
+          if (Array.isArray(data)) {
+            setMessages(data);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchMsgs();
+    const interval = setInterval(fetchMsgs, isConnected ? 15000 : 3500);
+    return () => clearInterval(interval);
+  }, [campaign.id, token, isConnected]);
 
   // ── Socket listeners ───────────────────────────────────────────────
   useEffect(() => {
@@ -194,12 +205,15 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     stopTyping({ campaignId: campaign.id });
 
     try {
-      await sendMessage({
+      const res = await sendMessage({
         campaignId: campaign.id,
         content,
         attachmentUrl: currentAttachment?.url ?? null,
         attachmentType: currentAttachment?.type ?? null,
       });
+      if (res?.message) {
+        setMessages(prev => prev.some(m => m.id === res.message!.id) ? prev : [...prev, res.message!]);
+      }
     } catch (err) {
       console.error('Send error:', err);
     }
