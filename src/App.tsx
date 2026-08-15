@@ -9,7 +9,6 @@ import { AuthScreen } from './components/AuthScreen.tsx';
 import { CampaignsList } from './components/CampaignsList.tsx';
 import { CampaignDetail } from './components/CampaignDetail.tsx';
 import { CreateCampaignModal } from './components/CreateCampaignModal.tsx';
-import { DirectMessagesModal } from './components/DirectMessagesModal.tsx';
 import { EditProfileModal } from './components/EditProfileModal.tsx';
 import { Campaign } from './types/index.ts';
 import { 
@@ -29,7 +28,6 @@ const MainApp: React.FC = () => {
     return sessionStorage.getItem('study_active_campaign') || null;
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDMModalOpen, setIsDMModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
 
@@ -128,7 +126,6 @@ const MainApp: React.FC = () => {
       {/* Top Navigation */}
       <Navbar
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
-        onOpenDMs={() => setIsDMModalOpen(true)}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onGoHome={() => handleSelectCampaign(null)}
       />
@@ -190,12 +187,6 @@ const MainApp: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCampaignCreated={handleCampaignCreated}
-      />
-
-      {/* Direct Messages Modal */}
-      <DirectMessagesModal
-        isOpen={isDMModalOpen}
-        onClose={() => setIsDMModalOpen(false)}
       />
 
       {/* Edit Profile Modal */}

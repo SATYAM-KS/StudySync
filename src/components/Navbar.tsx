@@ -8,7 +8,6 @@ import { useTheme } from '../context/ThemeContext.tsx';
 import { 
   BookOpen, 
   Clock, 
-  MessageSquare, 
   Mic, 
   MicOff, 
   PhoneOff, 
@@ -21,14 +20,12 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  onOpenDMs: () => void;
   onOpenProfile: () => void;
   onGoHome: () => void;
   onOpenCreateModal: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
-  onOpenDMs, 
   onOpenProfile, 
   onGoHome, 
   onOpenCreateModal 
@@ -140,16 +137,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Campaign</span>
-          </button>
-
-          {/* Direct Messages Button */}
-          <button
-            onClick={onOpenDMs}
-            className="relative p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 transition cursor-pointer"
-            title="Direct Messages"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-black dark:bg-white ring-2 ring-white dark:ring-zinc-950"></span>
           </button>
 
           {/* User Profile Menu */}
