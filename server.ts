@@ -809,6 +809,7 @@ async function startServer() {
 }
 
 export { app, server };
+export default app;
 
 if (!isVercel) {
   startServer();
