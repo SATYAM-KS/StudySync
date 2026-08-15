@@ -774,14 +774,14 @@ async function startServer() {
   function tryListen(port: number) {
     server.listen(port, '0.0.0.0', () => {
       console.log(`\n========================================`);
-      console.log(` StudySync is running at:`);
-      console.log(` http://localhost:${port}`);
+      console.log(` StudySync is running in ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode`);
+      console.log(` URL: http://localhost:${port}`);
       console.log(`========================================\n`);
     });
   }
 
   server.on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
+    if (err.code === 'EADDRINUSE' && !isProduction) {
       console.warn(`[Port in use] Port ${currentPort} is busy. Trying port ${currentPort + 1}...`);
       currentPort += 1;
       setTimeout(() => {
