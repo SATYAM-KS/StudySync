@@ -64,7 +64,7 @@ function TypingDots() {
 
 export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const { user, token } = useAuth();
-  const { socket, sendMessage, reactToMessage, startTyping, stopTyping } = useSocket();
+  const { socket, isConnected, sendMessage, reactToMessage, startTyping, stopTyping } = useSocket();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');

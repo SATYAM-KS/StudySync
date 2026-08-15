@@ -30,11 +30,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
+    const isVercelHost = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+
     const newSocket = io(window.location.origin, {
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
-      transports: ['polling', 'websocket'],
-      autoConnect: true
+      reconnectionAttempts: isVercelHost ? 1 : 5,
+      reconnectionDelay: 3000,
+      timeout: 4000,
+      transports: ['websocket', 'polling'],
+      autoConnect: !isVercelHost // On Vercel, REST polling handles real-time sync
     });
 
     newSocket.on('connect', () => {
