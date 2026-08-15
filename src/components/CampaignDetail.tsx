@@ -331,11 +331,16 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                 <ChatRoom campaign={campaign} />
               </div>
             )}
-            {activeTab === 'voice' && (
-              <div className="h-full overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
-                <VoiceRoom campaign={campaign} />
-              </div>
-            )}
+            {/* VoiceRoom is ALWAYS mounted — hidden with CSS so LiveKit stays connected across tabs */}
+            <div
+              className="h-full overflow-y-auto"
+              style={{
+                overscrollBehavior: 'contain',
+                display: activeTab === 'voice' ? 'block' : 'none'
+              }}
+            >
+              <VoiceRoom campaign={campaign} />
+            </div>
           </div>
         </div>
       </div>
@@ -352,6 +357,20 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
           }}
           onCampaignDeleted={onCampaignDeleted}
         />
+      )}
+
+      {/* Persistent floating call bar — visible on non-voice tabs when in a live call */}
+      {isCallActive && activeTab !== 'voice' && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-2xl border border-zinc-800 dark:border-zinc-200 text-xs font-bold animate-in slide-in-from-bottom-4 duration-300">
+          <span className="w-2 h-2 rounded-full bg-white dark:bg-zinc-900 animate-pulse shrink-0" />
+          <span>Voice & Screen — Live</span>
+          <button
+            onClick={() => handleTabChange('voice')}
+            className="px-3 py-1 rounded-xl bg-white/20 dark:bg-zinc-900/20 hover:bg-white/30 dark:hover:bg-zinc-900/30 text-white dark:text-zinc-950 transition cursor-pointer border border-white/10 dark:border-zinc-900/10"
+          >
+            Open
+          </button>
+        </div>
       )}
     </div>
   );

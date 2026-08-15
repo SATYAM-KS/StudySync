@@ -26,6 +26,8 @@ interface CallContextType {
   leaveCall: () => void;
   toggleMute: () => void;
   toggleScreenShare: () => Promise<void>;
+  // LiveKit sync — called by VoiceRoom to keep global state in sync
+  setLiveKitConnected: (campaignId: string | null) => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -757,6 +759,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Called by VoiceRoom to sync LiveKit connection state into global context
+  const setLiveKitConnected = (campaignId: string | null) => {
+    if (campaignId) {
+      setIsInCall(true);
+      setActiveCampaignId(campaignId);
+    } else {
+      setIsInCall(false);
+      setActiveCampaignId(null);
+    }
+  };
+
   return (
     <CallContext.Provider value={{
       isInCall,
@@ -774,7 +787,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       joinCall,
       leaveCall,
       toggleMute,
-      toggleScreenShare
+      toggleScreenShare,
+      setLiveKitConnected
     }}>
       {children}
     </CallContext.Provider>

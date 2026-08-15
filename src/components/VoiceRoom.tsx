@@ -18,6 +18,7 @@ import {
   Headphones, PhoneOff, Mic, MicOff, Monitor, Users, Sparkles, Maximize2, Minimize2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.tsx";
+import { useCall } from "../context/CallContext.tsx";
 import { UserAvatar } from "./UserAvatar.tsx";
 import { Campaign, CallParticipant } from "../types/index.ts";
 
@@ -122,6 +123,7 @@ function RemoteTile({ participant }: { participant: RemoteParticipant }) {
 
 export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
   const { token: authToken } = useAuth();
+  const { setLiveKitConnected } = useCall();
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string>("wss://santam-kfcwvgq2.livekit.cloud");
   const [isConnected, setIsConnected] = useState(false);
@@ -141,11 +143,11 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
     try {
       const res = await fetch("/api/livekit/token", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ campaignId: campaign.id }) });
       const data = await res.json();
-      if (data.token) { setLivekitToken(data.token); setLivekitUrl(data.url || livekitUrl); setIsConnected(true); }
+      if (data.token) { setLivekitToken(data.token); setLivekitUrl(data.url || livekitUrl); setIsConnected(true); setLiveKitConnected(campaign.id); }
     } catch (err) { console.error("LiveKit connect error:", err); } finally { setIsConnecting(false); }
   }, [authToken, campaign.id]);
 
-  const disconnect = () => { setIsConnected(false); setLivekitToken(null); setIsScreenSharing(false); setIsMuted(false); };
+  const disconnect = () => { setIsConnected(false); setLivekitToken(null); setIsScreenSharing(false); setIsMuted(false); setLiveKitConnected(null); };
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8 space-y-6 shadow-sm text-zinc-900 dark:text-zinc-100 transition-colors">
@@ -215,3 +217,4 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
     </div>
   );
 };
+
