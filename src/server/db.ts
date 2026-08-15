@@ -660,8 +660,21 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
 // ==========================================
 export async function getCampaignMessages(campaignId: string): Promise<Message[]> {
   if (supabase) {
-    const { data, error } = await supabase.from('messages').select('*').eq('campaign_id', campaignId).order('timestamp', { ascending: true });
-    if (!error && data) return data.map(mapMessageFromDb);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('timestamp', { ascending: true });
+      if (!error && data) {
+        return data.map(mapMessageFromDb);
+      }
+      if (error) {
+        console.warn('[Database] Supabase getCampaignMessages error:', error.message);
+      }
+    } catch (e) {
+      console.warn('[Database] getCampaignMessages exception:', e);
+    }
   }
   const db = await initDb();
   return db.messages.filter(m => m.campaignId === campaignId);
@@ -669,11 +682,13 @@ export async function getCampaignMessages(campaignId: string): Promise<Message[]
 
 export async function getDirectMessages(userId1: string, userId2: string): Promise<Message[]> {
   if (supabase) {
-    const { data, error } = await supabase.from('messages')
-      .select('*')
-      .or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`)
-      .order('timestamp', { ascending: true });
-    if (!error && data) return data.map(mapMessageFromDb);
+    try {
+      const { data, error } = await supabase.from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`)
+        .order('timestamp', { ascending: true });
+      if (!error && data) return data.map(mapMessageFromDb);
+    } catch {}
   }
   const db = await initDb();
   return db.messages.filter(
@@ -688,21 +703,38 @@ export async function createMessage(message: Message): Promise<Message> {
   const ts = message.timestamp || message.createdAt || new Date().toISOString();
 
   if (supabase) {
-    await supabase.from('messages').insert({
-      id: message.id,
-      campaign_id: message.campaignId || (isDm ? null : 'general'),
-      sender_id: message.senderId,
-      sender_name: message.senderName,
-      sender_avatar_url: message.senderAvatarUrl || '',
-      content: message.content,
-      timestamp: ts,
-      created_at: ts,
-      type: msgType,
-      recipient_id: message.recipientId || null,
-      attachment_url: message.attachmentUrl || null,
-      attachment_name: message.attachmentName || null,
-      attachment_type: message.attachmentType || null
-    });
+    try {
+      const payload: any = {
+        id: message.id,
+        campaign_id: message.campaignId || (isDm ? null : 'general'),
+        sender_id: message.senderId,
+        sender_name: message.senderName,
+        sender_avatar_url: message.senderAvatarUrl || '',
+        content: message.content,
+        timestamp: ts,
+        type: msgType,
+        recipient_id: message.recipientId || null,
+        attachment_url: message.attachmentUrl || null,
+        attachment_name: message.attachmentName || null,
+        attachment_type: message.attachmentType || null
+      };
+
+      const { error } = await supabase.from('messages').insert(payload);
+      if (error) {
+        console.error('[Database] Supabase createMessage insert error:', error.message);
+        // Fallback minimal insert without optional fields in case schema has differences
+        await supabase.from('messages').insert({
+          id: message.id,
+          campaign_id: message.campaignId || 'general',
+          sender_id: message.senderId,
+          sender_name: message.senderName,
+          content: message.content,
+          timestamp: ts
+        });
+      }
+    } catch (e) {
+      console.error('[Database] Supabase createMessage exception:', e);
+    }
   }
   const db = await initDb();
   const fullMsg = { ...message, timestamp: ts, createdAt: ts, type: msgType as any };

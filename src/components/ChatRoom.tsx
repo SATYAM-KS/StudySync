@@ -104,14 +104,24 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
         .then(r => r.ok ? r.json() : [])
         .then((data: Message[]) => {
           if (Array.isArray(data)) {
-            setMessages(data);
+            setMessages(prev => {
+              if (data.length === 0 && prev.length > 0) return prev;
+              const map = new Map<string, Message>();
+              for (const m of prev) map.set(m.id, m);
+              for (const m of data) map.set(m.id, m);
+              return Array.from(map.values()).sort((a, b) => {
+                const ta = new Date(a.createdAt || a.timestamp || 0).getTime();
+                const tb = new Date(b.createdAt || b.timestamp || 0).getTime();
+                return ta - tb;
+              });
+            });
           }
         })
         .catch(() => {});
     };
 
     fetchMsgs();
-    const interval = setInterval(fetchMsgs, isConnected ? 15000 : 3500);
+    const interval = setInterval(fetchMsgs, isConnected ? 10000 : 3000);
     return () => clearInterval(interval);
   }, [campaign.id, token, isConnected]);
 
@@ -213,15 +223,36 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     }
     stopTyping({ campaignId: campaign.id });
 
+    // Immediate optimistic message display
+    const tempId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const nowIso = new Date().toISOString();
+    const optimisticMsg: Message = {
+      id: tempId,
+      senderId: user?.id || 'me',
+      senderName: user?.name || 'You',
+      senderAvatarUrl: user?.avatarUrl || '',
+      campaignId: campaign.id,
+      content,
+      attachmentUrl: currentAttachment?.url ?? null,
+      attachmentType: currentAttachment?.type ?? null,
+      createdAt: nowIso,
+      timestamp: nowIso,
+      reactions: []
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
+    scrollToBottom();
+
     try {
       const res = await sendMessage({
+        id: tempId,
         campaignId: campaign.id,
         content,
         attachmentUrl: currentAttachment?.url ?? null,
         attachmentType: currentAttachment?.type ?? null,
       });
       if (res?.message) {
-        setMessages(prev => prev.some(m => m.id === res.message!.id) ? prev : [...prev, res.message!]);
+        setMessages(prev => prev.map(m => m.id === tempId ? res.message! : m));
       }
     } catch (err) {
       console.error('Send error:', err);

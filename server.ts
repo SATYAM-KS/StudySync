@@ -746,8 +746,9 @@ app.post('/api/messages', authMiddleware, async (req: AuthRequest, res) => {
       return;
     }
 
+    const now = new Date().toISOString();
     const newMsg: Message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      id: req.body.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       senderId: req.user!.id,
       senderName: req.user!.name,
       senderAvatarUrl: req.user!.avatarUrl,
@@ -756,20 +757,24 @@ app.post('/api/messages', authMiddleware, async (req: AuthRequest, res) => {
       content: content || '',
       attachmentUrl: attachmentUrl || null,
       attachmentType: attachmentType || null,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      timestamp: now,
       reactions: []
     };
 
     const saved = await createMessage(newMsg);
 
-    if (saved.campaignId) {
-      io.to(`campaign:${saved.campaignId}`).emit('message:new', saved);
-    } else if (saved.recipientId) {
-      io.to(`user:${saved.senderId}`).to(`user:${saved.recipientId}`).emit('message:new', saved);
+    if (io) {
+      if (saved.campaignId) {
+        io.to(`campaign:${saved.campaignId}`).emit('message:new', saved);
+      } else if (saved.recipientId) {
+        io.to(`user:${saved.senderId}`).to(`user:${saved.recipientId}`).emit('message:new', saved);
+      }
     }
 
     res.status(201).json(saved);
   } catch (err: any) {
+    console.error('Failed to send message:', err);
     res.status(500).json({ error: 'Failed to send message' });
   }
 });

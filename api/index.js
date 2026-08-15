@@ -609,16 +609,28 @@ async function getCampaignLeaderboard(campaignId) {
 }
 async function getCampaignMessages(campaignId) {
   if (supabase) {
-    const { data, error } = await supabase.from("messages").select("*").eq("campaign_id", campaignId).order("timestamp", { ascending: true });
-    if (!error && data) return data.map(mapMessageFromDb);
+    try {
+      const { data, error } = await supabase.from("messages").select("*").eq("campaign_id", campaignId).order("timestamp", { ascending: true });
+      if (!error && data) {
+        return data.map(mapMessageFromDb);
+      }
+      if (error) {
+        console.warn("[Database] Supabase getCampaignMessages error:", error.message);
+      }
+    } catch (e) {
+      console.warn("[Database] getCampaignMessages exception:", e);
+    }
   }
   const db = await initDb();
   return db.messages.filter((m) => m.campaignId === campaignId);
 }
 async function getDirectMessages(userId1, userId2) {
   if (supabase) {
-    const { data, error } = await supabase.from("messages").select("*").or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`).order("timestamp", { ascending: true });
-    if (!error && data) return data.map(mapMessageFromDb);
+    try {
+      const { data, error } = await supabase.from("messages").select("*").or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`).order("timestamp", { ascending: true });
+      if (!error && data) return data.map(mapMessageFromDb);
+    } catch {
+    }
   }
   const db = await initDb();
   return db.messages.filter(
@@ -630,21 +642,36 @@ async function createMessage(message) {
   const msgType = message.type || (isDm ? "dm" : "campaign");
   const ts = message.timestamp || message.createdAt || (/* @__PURE__ */ new Date()).toISOString();
   if (supabase) {
-    await supabase.from("messages").insert({
-      id: message.id,
-      campaign_id: message.campaignId || (isDm ? null : "general"),
-      sender_id: message.senderId,
-      sender_name: message.senderName,
-      sender_avatar_url: message.senderAvatarUrl || "",
-      content: message.content,
-      timestamp: ts,
-      created_at: ts,
-      type: msgType,
-      recipient_id: message.recipientId || null,
-      attachment_url: message.attachmentUrl || null,
-      attachment_name: message.attachmentName || null,
-      attachment_type: message.attachmentType || null
-    });
+    try {
+      const payload = {
+        id: message.id,
+        campaign_id: message.campaignId || (isDm ? null : "general"),
+        sender_id: message.senderId,
+        sender_name: message.senderName,
+        sender_avatar_url: message.senderAvatarUrl || "",
+        content: message.content,
+        timestamp: ts,
+        type: msgType,
+        recipient_id: message.recipientId || null,
+        attachment_url: message.attachmentUrl || null,
+        attachment_name: message.attachmentName || null,
+        attachment_type: message.attachmentType || null
+      };
+      const { error } = await supabase.from("messages").insert(payload);
+      if (error) {
+        console.error("[Database] Supabase createMessage insert error:", error.message);
+        await supabase.from("messages").insert({
+          id: message.id,
+          campaign_id: message.campaignId || "general",
+          sender_id: message.senderId,
+          sender_name: message.senderName,
+          content: message.content,
+          timestamp: ts
+        });
+      }
+    } catch (e) {
+      console.error("[Database] Supabase createMessage exception:", e);
+    }
   }
   const db = await initDb();
   const fullMsg = { ...message, timestamp: ts, createdAt: ts, type: msgType };
@@ -1714,8 +1741,9 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       res.status(400).json({ error: "Message must have content or an attachment" });
       return;
     }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
     const newMsg = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      id: req.body.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       senderId: req.user.id,
       senderName: req.user.name,
       senderAvatarUrl: req.user.avatarUrl,
@@ -1724,17 +1752,21 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       content: content || "",
       attachmentUrl: attachmentUrl || null,
       attachmentType: attachmentType || null,
-      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+      createdAt: now,
+      timestamp: now,
       reactions: []
     };
     const saved = await createMessage(newMsg);
-    if (saved.campaignId) {
-      io.to(`campaign:${saved.campaignId}`).emit("message:new", saved);
-    } else if (saved.recipientId) {
-      io.to(`user:${saved.senderId}`).to(`user:${saved.recipientId}`).emit("message:new", saved);
+    if (io) {
+      if (saved.campaignId) {
+        io.to(`campaign:${saved.campaignId}`).emit("message:new", saved);
+      } else if (saved.recipientId) {
+        io.to(`user:${saved.senderId}`).to(`user:${saved.recipientId}`).emit("message:new", saved);
+      }
     }
     res.status(201).json(saved);
   } catch (err) {
+    console.error("Failed to send message:", err);
     res.status(500).json({ error: "Failed to send message" });
   }
 });
