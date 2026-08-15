@@ -617,25 +617,29 @@ async function getCampaignMessages(campaignId) {
 }
 async function getDirectMessages(userId1, userId2) {
   if (supabase) {
-    const { data, error } = await supabase.from("messages").select("*").eq("type", "dm").or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`).order("timestamp", { ascending: true });
+    const { data, error } = await supabase.from("messages").select("*").or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`).order("timestamp", { ascending: true });
     if (!error && data) return data.map(mapMessageFromDb);
   }
   const db = await initDb();
   return db.messages.filter(
-    (m) => m.type === "dm" && (m.senderId === userId1 && m.recipientId === userId2 || m.senderId === userId2 && m.recipientId === userId1)
+    (m) => m.senderId === userId1 && m.recipientId === userId2 || m.senderId === userId2 && m.recipientId === userId1
   );
 }
 async function createMessage(message) {
+  const isDm = Boolean(message.recipientId);
+  const msgType = message.type || (isDm ? "dm" : "campaign");
+  const ts = message.timestamp || message.createdAt || (/* @__PURE__ */ new Date()).toISOString();
   if (supabase) {
     await supabase.from("messages").insert({
       id: message.id,
-      campaign_id: message.campaignId || "general",
+      campaign_id: message.campaignId || (isDm ? null : "general"),
       sender_id: message.senderId,
       sender_name: message.senderName,
       sender_avatar_url: message.senderAvatarUrl || "",
       content: message.content,
-      timestamp: message.timestamp || (/* @__PURE__ */ new Date()).toISOString(),
-      type: message.type || "general",
+      timestamp: ts,
+      created_at: ts,
+      type: msgType,
       recipient_id: message.recipientId || null,
       attachment_url: message.attachmentUrl || null,
       attachment_name: message.attachmentName || null,
@@ -643,9 +647,10 @@ async function createMessage(message) {
     });
   }
   const db = await initDb();
-  db.messages.push(message);
+  const fullMsg = { ...message, timestamp: ts, createdAt: ts, type: msgType };
+  db.messages.push(fullMsg);
   saveDb();
-  return message;
+  return fullMsg;
 }
 async function toggleMessageReaction2(messageId, emoji, userId, userName) {
   const db = await initDb();

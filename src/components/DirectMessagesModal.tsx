@@ -59,7 +59,10 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({ isOpen
   };
 
   useEffect(() => {
+    if (!token || !selectedUser) return;
     fetchDMs();
+    const interval = setInterval(fetchDMs, 3000);
+    return () => clearInterval(interval);
   }, [selectedUser?.id, token]);
 
   // Real-time socket updates for DMs
@@ -71,7 +74,10 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({ isOpen
         (msg.senderId === selectedUser.id && msg.recipientId === user?.id) ||
         (msg.senderId === user?.id && msg.recipientId === selectedUser.id)
       ) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
       }
     };
 
@@ -135,12 +141,18 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({ isOpen
     stopTyping({ recipientId: selectedUser.id });
 
     try {
-      await sendMessage({
+      const res = await sendMessage({
         recipientId: selectedUser.id,
         content,
         attachmentUrl: currAttachment?.url || null,
         attachmentType: currAttachment?.type || null
       });
+      if (res?.message) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === res.message!.id)) return prev;
+          return [...prev, res.message!];
+        });
+      }
     } catch (err) {
       console.error('Send DM error:', err);
     }
