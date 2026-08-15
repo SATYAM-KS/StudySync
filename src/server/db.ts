@@ -417,6 +417,10 @@ export async function updateCampaign(id: string, updates: Partial<Campaign>): Pr
     if (updates.dailyEndTime !== undefined) payload.daily_end_time = updates.dailyEndTime;
     if (updates.targetDailyHours !== undefined) payload.target_daily_hours = updates.targetDailyHours;
     if (updates.schedule !== undefined) payload.schedule = updates.schedule;
+    if (updates.maxMembers !== undefined) payload.max_members = updates.maxMembers;
+    if (updates.isPublic !== undefined) payload.is_public = updates.isPublic;
+    if (updates.tags !== undefined) payload.tags = updates.tags;
+    if (updates.bannerColor !== undefined) payload.banner_color = updates.bannerColor;
 
     const { data, error } = await supabase.from('campaigns').update(payload).eq('id', id).select().single();
     if (!error && data) return mapCampaignFromDb(data);

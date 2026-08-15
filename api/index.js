@@ -401,6 +401,10 @@ async function updateCampaign(id, updates) {
     if (updates.dailyEndTime !== void 0) payload.daily_end_time = updates.dailyEndTime;
     if (updates.targetDailyHours !== void 0) payload.target_daily_hours = updates.targetDailyHours;
     if (updates.schedule !== void 0) payload.schedule = updates.schedule;
+    if (updates.maxMembers !== void 0) payload.max_members = updates.maxMembers;
+    if (updates.isPublic !== void 0) payload.is_public = updates.isPublic;
+    if (updates.tags !== void 0) payload.tags = updates.tags;
+    if (updates.bannerColor !== void 0) payload.banner_color = updates.bannerColor;
     const { data, error } = await supabase.from("campaigns").update(payload).eq("id", id).select().single();
     if (!error && data) return mapCampaignFromDb(data);
   }

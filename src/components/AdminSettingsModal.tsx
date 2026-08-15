@@ -14,7 +14,8 @@ import {
   Clock, 
   Target, 
   Check, 
-  Crown
+  Crown,
+  Users
 } from 'lucide-react';
 
 interface AdminSettingsModalProps {
