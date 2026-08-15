@@ -143,6 +143,7 @@ function mapStudyBlockFromDb(row) {
   };
 }
 function mapMessageFromDb(row) {
+  const ts = row.created_at || row.timestamp || (/* @__PURE__ */ new Date()).toISOString();
   return {
     id: row.id,
     campaignId: row.campaign_id,
@@ -150,12 +151,14 @@ function mapMessageFromDb(row) {
     senderName: row.sender_name,
     senderAvatarUrl: row.sender_avatar_url || "",
     content: row.content,
-    timestamp: row.timestamp,
+    timestamp: ts,
+    createdAt: ts,
     type: row.type || "general",
     recipientId: row.recipient_id || void 0,
     attachmentUrl: row.attachment_url || void 0,
     attachmentName: row.attachment_name || void 0,
-    attachmentType: row.attachment_type || void 0
+    attachmentType: row.attachment_type || void 0,
+    reactions: Array.isArray(row.reactions) ? row.reactions : []
   };
 }
 async function getUsers() {

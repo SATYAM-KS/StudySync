@@ -326,7 +326,12 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({ isOpen
                         </div>
 
                         <span className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-1 px-1">
-                          {format(new Date(m.createdAt), 'h:mm a')}
+                          {(() => {
+                            const val = m.createdAt || (m as any).timestamp;
+                            const d = val ? new Date(val) : new Date();
+                            const valid = isNaN(d.getTime()) ? new Date() : d;
+                            return format(valid, 'h:mm a');
+                          })()}
                         </span>
                       </div>
                     );

@@ -130,6 +130,7 @@ function mapStudyBlockFromDb(row: any): StudyBlock {
 }
 
 function mapMessageFromDb(row: any): Message {
+  const ts = row.created_at || row.timestamp || new Date().toISOString();
   return {
     id: row.id,
     campaignId: row.campaign_id,
@@ -137,12 +138,14 @@ function mapMessageFromDb(row: any): Message {
     senderName: row.sender_name,
     senderAvatarUrl: row.sender_avatar_url || '',
     content: row.content,
-    timestamp: row.timestamp,
+    timestamp: ts,
+    createdAt: ts,
     type: row.type || 'general',
     recipientId: row.recipient_id || undefined,
     attachmentUrl: row.attachment_url || undefined,
     attachmentName: row.attachment_name || undefined,
-    attachmentType: row.attachment_type || undefined
+    attachmentType: row.attachment_type || undefined,
+    reactions: Array.isArray(row.reactions) ? row.reactions : []
   };
 }
 

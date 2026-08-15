@@ -12,6 +12,12 @@ interface ChatRoomProps {
 
 const QUICK_REACTIONS = ['👍', '❤️', '🔥', '💪', '🎯', '😂', '🙌'];
 
+function safeDate(val: any): Date {
+  if (!val) return new Date();
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
 // Groups consecutive messages from the same sender within 5 minutes
 function groupMessages(messages: Message[]) {
   const groups: { messages: Message[]; key: string }[] = [];
@@ -19,9 +25,11 @@ function groupMessages(messages: Message[]) {
     const last = groups[groups.length - 1];
     const lastMsg = last?.messages[last.messages.length - 1];
     const sameAuthor = lastMsg?.senderId === msg.senderId;
+    const msgDate = safeDate(msg.createdAt || (msg as any).timestamp);
+    const lastDate = lastMsg ? safeDate(lastMsg.createdAt || (lastMsg as any).timestamp) : msgDate;
     const withinWindow =
       lastMsg &&
-      new Date(msg.createdAt).getTime() - new Date(lastMsg.createdAt).getTime() < 5 * 60 * 1000;
+      msgDate.getTime() - lastDate.getTime() < 5 * 60 * 1000;
     if (last && sameAuthor && withinWindow) {
       last.messages.push(msg);
     } else {
@@ -32,11 +40,12 @@ function groupMessages(messages: Message[]) {
 }
 
 function DateSeparator({ date }: { date: Date }) {
-  const label = isToday(date)
+  const validDate = isNaN(date.getTime()) ? new Date() : date;
+  const label = isToday(validDate)
     ? 'Today'
-    : isYesterday(date)
+    : isYesterday(validDate)
     ? 'Yesterday'
-    : format(date, 'MMMM d, yyyy');
+    : format(validDate, 'MMMM d, yyyy');
   return (
     <div className="flex items-center gap-3 my-4 select-none">
       <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
@@ -320,7 +329,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                           {isMe && <span className="ml-1.5 text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">You</span>}
                         </span>
                         <span className="text-[10px] text-zinc-400 dark:text-zinc-500 shrink-0">
-                          {format(new Date(first.createdAt), 'h:mm a')}
+                          {format(safeDate(first.createdAt || (first as any).timestamp), 'h:mm a')}
                         </span>
                       </div>
                     </div>
@@ -337,7 +346,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                         <div className="w-9 shrink-0 flex justify-center">
                           {msgIdx === 0 ? null : (
                             <span className="text-[9px] text-zinc-300 dark:text-zinc-700 mt-1.5 leading-none select-none opacity-0 group-hover/group:opacity-100 transition-opacity">
-                              {format(new Date(msg.createdAt), 'h:mm')}
+                              {format(safeDate(msg.createdAt || (msg as any).timestamp), 'h:mm')}
                             </span>
                           )}
                         </div>
