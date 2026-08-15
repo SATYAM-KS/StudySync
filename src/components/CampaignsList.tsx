@@ -45,13 +45,16 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [pendingModalCampaign, setPendingModalCampaign] = useState<Campaign | null>(null);
 
-  const categories = ['All', ...Array.from(new Set(campaigns.map(c => c.category)))];
+  const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+  const categories = ['All', ...Array.from(new Set(safeCampaigns.map(c => c?.category).filter(Boolean)))];
 
-  const filteredCampaigns = campaigns.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredCampaigns = safeCampaigns.filter(c => {
+    if (!c) return false;
+    const nameMatch = (c.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const descMatch = (c.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const tagMatch = Array.isArray(c.tags) && c.tags.some(t => (t || '').toLowerCase().includes(searchQuery.toLowerCase()));
 
+    const matchesSearch = nameMatch || descMatch || tagMatch;
     const matchesCategory = selectedCategory === 'All' || c.category === selectedCategory;
 
     return matchesSearch && matchesCategory;
@@ -258,7 +261,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
 
                     {/* Tags */}
                     <div className="flex flex-wrap gap-1.5">
-                      {camp.tags.slice(0, 3).map((tag) => (
+                      {(camp.tags || []).slice(0, 3).map((tag) => (
                         <span key={tag} className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                           #{tag}
                         </span>

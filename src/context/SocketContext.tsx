@@ -31,9 +31,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     const newSocket = io(window.location.origin, {
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      transports: ['websocket', 'polling']
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      transports: ['polling', 'websocket'],
+      autoConnect: true
     });
 
     newSocket.on('connect', () => {
@@ -43,6 +44,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         userName: user.name,
         userAvatarUrl: user.avatarUrl
       });
+    });
+
+    newSocket.on('connect_error', () => {
+      setIsConnected(false);
     });
 
     newSocket.on('disconnect', () => {

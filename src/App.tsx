@@ -51,10 +51,13 @@ const MainApp: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setCampaigns(data);
+        setCampaigns(Array.isArray(data) ? data : []);
+      } else {
+        setCampaigns([]);
       }
     } catch (e) {
       console.error('Failed to fetch campaigns:', e);
+      setCampaigns([]);
     } finally {
       setIsLoadingCampaigns(false);
     }

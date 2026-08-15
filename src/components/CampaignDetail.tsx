@@ -184,7 +184,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               <span className="px-2.5 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black text-[10px] font-bold tracking-wide uppercase">
                 {campaign.category}
               </span>
-              {campaign.tags.map(t => (
+              {(campaign.tags || []).map(t => (
                 <span key={t} className="px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[10px] font-medium">
                   #{t}
                 </span>
