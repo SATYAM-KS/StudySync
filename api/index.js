@@ -696,7 +696,7 @@ async function saveCallSession(campaignId, session) {
   }
   saveDb();
 }
-async function addCallParticipant2(campaignId, participant) {
+async function addCallParticipant(campaignId, participant) {
   let session = await getCallSession(campaignId);
   if (!session) {
     session = {
@@ -715,10 +715,12 @@ async function addCallParticipant2(campaignId, participant) {
   await saveCallSession(campaignId, session);
   return session;
 }
-async function removeCallParticipant2(campaignId, userId) {
+async function removeCallParticipant(campaignId, userIdOrSocketId) {
   const session = await getCallSession(campaignId);
   if (!session) return null;
-  session.participants = session.participants.filter((p) => p.userId !== userId);
+  session.participants = session.participants.filter(
+    (p) => p.socketId !== userIdOrSocketId && p.userId !== userIdOrSocketId
+  );
   if (session.participants.length === 0) {
     await saveCallSession(campaignId, null);
     return null;
@@ -726,10 +728,12 @@ async function removeCallParticipant2(campaignId, userId) {
   await saveCallSession(campaignId, session);
   return session;
 }
-async function updateParticipantState(campaignId, userId, updates) {
+async function updateParticipantState(campaignId, userIdOrSocketId, updates) {
   const session = await getCallSession(campaignId);
   if (!session) return null;
-  const p = session.participants.find((part) => part.userId === userId);
+  const p = session.participants.find(
+    (part) => part.socketId === userIdOrSocketId || part.userId === userIdOrSocketId
+  );
   if (p) {
     Object.assign(p, updates);
     await saveCallSession(campaignId, session);
@@ -942,7 +946,7 @@ function setupSocketServer(httpServer) {
         isScreenSharing,
         joinedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
-      const session = await addCallParticipant2(campaignId, participant);
+      const session = await addCallParticipant(campaignId, participant);
       const existingParticipants = session.participants.filter((p) => p.socketId !== socket.id);
       io2.to(`campaign:${campaignId}`).emit("call:session_updated", session);
       socket.emit("call:existing_peers", {
@@ -1012,7 +1016,7 @@ function setupSocketServer(httpServer) {
     if (user) {
       user.inCallCampaignId = void 0;
     }
-    const session = await removeCallParticipant2(campaignId, socket.id);
+    const session = await removeCallParticipant(campaignId, socket.id);
     socket.to(`call:${campaignId}`).emit("call:peer_left", { socketId: socket.id });
     io2.to(`campaign:${campaignId}`).emit("call:session_updated", session);
   }
@@ -1781,7 +1785,21 @@ app.get("/api/presence", (_req, res) => {
 app.get("/api/calls/:campaignId", async (req, res) => {
   try {
     const session = await getCallSession(req.params.campaignId);
-    res.json(session || { participants: [] });
+    if (!session) return res.json({ participants: [] });
+    const now = Date.now();
+    const alive = session.participants.filter((p) => {
+      if (!p.lastSeen) return true;
+      return now - new Date(p.lastSeen).getTime() < 2e4;
+    });
+    if (alive.length !== session.participants.length) {
+      session.participants = alive;
+      if (alive.length === 0) {
+        await saveCallSession(req.params.campaignId, null);
+      } else {
+        await saveCallSession(req.params.campaignId, session);
+      }
+    }
+    res.json({ ...session, participants: alive });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch call session" });
   }
@@ -1796,11 +1814,29 @@ app.post("/api/calls/:campaignId/join", authMiddleware, async (req, res) => {
       isMuted: isMuted ?? false,
       isDeafened: isDeafened ?? false,
       isScreenSharing: isScreenSharing ?? false,
-      joinedAt: (/* @__PURE__ */ new Date()).toISOString()
+      joinedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      lastSeen: (/* @__PURE__ */ new Date()).toISOString()
     });
     res.json(session);
   } catch (err) {
     res.status(500).json({ error: "Failed to join call" });
+  }
+});
+app.post("/api/calls/:campaignId/heartbeat", authMiddleware, async (req, res) => {
+  try {
+    const { isMuted, isScreenSharing } = req.body || {};
+    const session = await addCallParticipant(req.params.campaignId, {
+      userId: req.user.id,
+      userName: req.user.name,
+      userAvatarUrl: req.user.avatarUrl,
+      isMuted: isMuted ?? false,
+      isScreenSharing: isScreenSharing ?? false,
+      joinedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      lastSeen: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    res.json({ ok: true, participantCount: session.participants.length });
+  } catch (err) {
+    res.status(500).json({ error: "Heartbeat failed" });
   }
 });
 app.post("/api/calls/:campaignId/leave", authMiddleware, async (req, res) => {

@@ -459,9 +459,25 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
   }, [socket, isInCall]);
 
-  // Periodic REST Call Sync for Serverless
+  // Periodic REST Call Sync + Heartbeat for Serverless
   useEffect(() => {
     if (!token || !activeCampaignId || !isInCall) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        await fetch(`/api/calls/${activeCampaignId}/heartbeat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            isMuted,
+            isScreenSharing
+          })
+        });
+      } catch {}
+    };
 
     const pollCallSession = async () => {
       try {
@@ -477,10 +493,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     };
 
+    // Send heartbeat immediately + every 8s to stay alive in the channel
+    sendHeartbeat();
+    const heartbeatInterval = setInterval(sendHeartbeat, 8000);
+
+    // Poll participant list every 4s so other users appear quickly
     pollCallSession();
-    const interval = setInterval(pollCallSession, 3500);
-    return () => clearInterval(interval);
-  }, [token, activeCampaignId, isInCall]);
+    const pollInterval = setInterval(pollCallSession, 4000);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      clearInterval(pollInterval);
+    };
+  }, [token, activeCampaignId, isInCall, isMuted, isScreenSharing]);
 
   const joinCall = async (campaignId: string, campaignName: string) => {
     try {

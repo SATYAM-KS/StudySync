@@ -785,11 +785,14 @@ export async function addCallParticipant(campaignId: string, participant: CallPa
   return session;
 }
 
-export async function removeCallParticipant(campaignId: string, userId: string): Promise<CallSession | null> {
+export async function removeCallParticipant(campaignId: string, userIdOrSocketId: string): Promise<CallSession | null> {
   const session = await getCallSession(campaignId);
   if (!session) return null;
 
-  session.participants = session.participants.filter(p => p.userId !== userId);
+  // Match by socketId first (called from socket server), then fallback to userId (REST leave)
+  session.participants = session.participants.filter(
+    p => p.socketId !== userIdOrSocketId && p.userId !== userIdOrSocketId
+  );
   if (session.participants.length === 0) {
     await saveCallSession(campaignId, null);
     return null;
@@ -799,11 +802,14 @@ export async function removeCallParticipant(campaignId: string, userId: string):
   return session;
 }
 
-export async function updateParticipantState(campaignId: string, userId: string, updates: Partial<CallParticipant>): Promise<CallSession | null> {
+export async function updateParticipantState(campaignId: string, userIdOrSocketId: string, updates: Partial<CallParticipant>): Promise<CallSession | null> {
   const session = await getCallSession(campaignId);
   if (!session) return null;
 
-  const p = session.participants.find(part => part.userId === userId);
+  // Match by socketId first, then fallback to userId
+  const p = session.participants.find(
+    part => part.socketId === userIdOrSocketId || part.userId === userIdOrSocketId
+  );
   if (p) {
     Object.assign(p, updates);
     await saveCallSession(campaignId, session);

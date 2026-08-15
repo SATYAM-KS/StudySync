@@ -29,7 +29,10 @@ import {
   getCampaignMessages,
   getDirectMessages,
   createMessage,
-  getCallSession
+  getCallSession,
+  saveCallSession,
+  addCallParticipant,
+  removeCallParticipant
 } from './src/server/db.ts';
 import { generateToken, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
 import { setupSocketServer } from './src/server/socket.ts';
@@ -832,7 +835,25 @@ app.get('/api/presence', (_req, res) => {
 app.get('/api/calls/:campaignId', async (req, res) => {
   try {
     const session = await getCallSession(req.params.campaignId);
-    res.json(session || { participants: [] });
+    if (!session) return res.json({ participants: [] });
+
+    // Auto-prune participants who haven't sent a heartbeat in > 20 seconds
+    const now = Date.now();
+    const alive = session.participants.filter(p => {
+      if (!p.lastSeen) return true; // legacy participants without lastSeen stay
+      return (now - new Date(p.lastSeen).getTime()) < 20000;
+    });
+
+    if (alive.length !== session.participants.length) {
+      session.participants = alive;
+      if (alive.length === 0) {
+        await saveCallSession(req.params.campaignId, null);
+      } else {
+        await saveCallSession(req.params.campaignId, session);
+      }
+    }
+
+    res.json({ ...session, participants: alive });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to fetch call session' });
   }
@@ -848,11 +869,31 @@ app.post('/api/calls/:campaignId/join', authMiddleware, async (req: AuthRequest,
       isMuted: isMuted ?? false,
       isDeafened: isDeafened ?? false,
       isScreenSharing: isScreenSharing ?? false,
-      joinedAt: new Date().toISOString()
+      joinedAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString()
     });
     res.json(session);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to join call' });
+  }
+});
+
+// Heartbeat - keeps participant alive in the channel (call every 8-10s from client)
+app.post('/api/calls/:campaignId/heartbeat', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { isMuted, isScreenSharing } = req.body || {};
+    const session = await addCallParticipant(req.params.campaignId, {
+      userId: req.user!.id,
+      userName: req.user!.name,
+      userAvatarUrl: req.user!.avatarUrl,
+      isMuted: isMuted ?? false,
+      isScreenSharing: isScreenSharing ?? false,
+      joinedAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString()
+    });
+    res.json({ ok: true, participantCount: session.participants.length });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Heartbeat failed' });
   }
 });
 

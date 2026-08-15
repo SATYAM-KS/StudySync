@@ -100,12 +100,14 @@ export interface CallParticipant {
   userId: string;
   userName: string;
   userAvatarUrl?: string;
-  socketId: string;
+  socketId?: string;
   isMuted: boolean;
   isVideoOn?: boolean;
+  isDeafened?: boolean;
   isScreenSharing: boolean;
   isSpeaking?: boolean;
   joinedAt: string;
+  lastSeen?: string;
 }
 
 export interface CallSession {
