@@ -567,6 +567,44 @@ app.post('/api/study/block', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// Live Active Study Sessions (Heartbeat & Query for Serverless)
+const activeStudySessionsMap = new Map<string, { userId: string; userName: string; userAvatarUrl?: string; campaignId: string; campaignName: string; subjectNote: string; startedAt: string; lastSeen: number }>();
+
+app.post('/api/study/session/heartbeat', authMiddleware, (req: AuthRequest, res) => {
+  const { campaignId, campaignName, subjectNote, startedAt } = req.body;
+  if (!campaignId) {
+    res.status(400).json({ error: 'campaignId required' });
+    return;
+  }
+
+  activeStudySessionsMap.set(req.user!.id, {
+    userId: req.user!.id,
+    userName: req.user!.name,
+    userAvatarUrl: req.user!.avatarUrl,
+    campaignId,
+    campaignName: campaignName || 'Study Campaign',
+    subjectNote: subjectNote || 'Focus Study',
+    startedAt: startedAt || new Date().toISOString(),
+    lastSeen: Date.now()
+  });
+
+  res.json({ success: true });
+});
+
+app.post('/api/study/session/stop', authMiddleware, (req: AuthRequest, res) => {
+  activeStudySessionsMap.delete(req.user!.id);
+  res.json({ success: true });
+});
+
+app.get('/api/study/sessions', (_req, res) => {
+  const cutoff = Date.now() - 30000;
+  for (const [id, data] of activeStudySessionsMap.entries()) {
+    if (data.lastSeen < cutoff) activeStudySessionsMap.delete(id);
+  }
+  const sessions = Array.from(activeStudySessionsMap.values()).map(({ lastSeen, ...s }) => s);
+  res.json(sessions);
+});
+
 // Automatic AI Screen Focus Verification (Every 5 mins)
 app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, res) => {
   try {

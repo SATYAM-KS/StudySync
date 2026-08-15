@@ -409,6 +409,32 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Study session REST heartbeat for multi-user live presence
+  useEffect(() => {
+    if (!isStudying || !activeCampaignId || !token) return;
+
+    const sendStudyHeartbeat = async () => {
+      try {
+        await fetch('/api/study/session/heartbeat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            campaignId: activeCampaignId,
+            campaignName: activeCampaignName,
+            subjectNote
+          })
+        });
+      } catch {}
+    };
+
+    sendStudyHeartbeat();
+    const interval = setInterval(sendStudyHeartbeat, 10000);
+    return () => clearInterval(interval);
+  }, [isStudying, activeCampaignId, activeCampaignName, subjectNote, token]);
+
   // Study timer loop - continues ticking seamlessly across refresh
   useEffect(() => {
     let interval: any = null;
@@ -559,6 +585,12 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
     if (socket) {
       socket.emit('study:stop_session');
+    }
+    if (token) {
+      fetch('/api/study/session/stop', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
     }
     refreshStats();
   };

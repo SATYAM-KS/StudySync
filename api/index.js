@@ -1550,6 +1550,37 @@ app.post("/api/study/block", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to log study block" });
   }
 });
+var activeStudySessionsMap = /* @__PURE__ */ new Map();
+app.post("/api/study/session/heartbeat", authMiddleware, (req, res) => {
+  const { campaignId, campaignName, subjectNote, startedAt } = req.body;
+  if (!campaignId) {
+    res.status(400).json({ error: "campaignId required" });
+    return;
+  }
+  activeStudySessionsMap.set(req.user.id, {
+    userId: req.user.id,
+    userName: req.user.name,
+    userAvatarUrl: req.user.avatarUrl,
+    campaignId,
+    campaignName: campaignName || "Study Campaign",
+    subjectNote: subjectNote || "Focus Study",
+    startedAt: startedAt || (/* @__PURE__ */ new Date()).toISOString(),
+    lastSeen: Date.now()
+  });
+  res.json({ success: true });
+});
+app.post("/api/study/session/stop", authMiddleware, (req, res) => {
+  activeStudySessionsMap.delete(req.user.id);
+  res.json({ success: true });
+});
+app.get("/api/study/sessions", (_req, res) => {
+  const cutoff = Date.now() - 3e4;
+  for (const [id, data] of activeStudySessionsMap.entries()) {
+    if (data.lastSeen < cutoff) activeStudySessionsMap.delete(id);
+  }
+  const sessions = Array.from(activeStudySessionsMap.values()).map(({ lastSeen, ...s }) => s);
+  res.json(sessions);
+});
 app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
   try {
     const { campaignId, subjectNote, snapshotUrl } = req.body;

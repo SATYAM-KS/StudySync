@@ -76,28 +76,40 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id]);
 
-  // Presence Heartbeat via REST (ensures online users sync even on Vercel/Serverless)
+  // Presence & Active Study Sessions Heartbeat via REST (ensures online users & live study peers sync even on Vercel)
   const { token } = useAuth();
   useEffect(() => {
     if (!token || !user) return;
 
-    const sendHeartbeat = async () => {
+    const syncPresenceAndSessions = async () => {
       try {
-        const res = await fetch('/api/presence/heartbeat', {
+        // 1. Presence Heartbeat
+        const presRes = await fetch('/api/presence/heartbeat', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.onlineUserIds)) {
-            setOnlineUserIds(data.onlineUserIds);
+        if (presRes.ok) {
+          const presData = await presRes.json();
+          if (Array.isArray(presData.onlineUserIds)) {
+            setOnlineUserIds(presData.onlineUserIds);
+          }
+        }
+
+        // 2. Active Study Sessions Query
+        const studyRes = await fetch('/api/study/sessions', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (studyRes.ok) {
+          const studyData = await studyRes.json();
+          if (Array.isArray(studyData)) {
+            setActiveStudySessions(studyData);
           }
         }
       } catch {}
     };
 
-    sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 10000);
+    syncPresenceAndSessions();
+    const interval = setInterval(syncPresenceAndSessions, 8000);
     return () => clearInterval(interval);
   }, [token, user]);
 
