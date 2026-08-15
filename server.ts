@@ -37,6 +37,7 @@ import { analyzeScreenSnapshot } from './src/server/ai.ts';
 import { User, Campaign, CampaignMembership, StudyBlock, Message } from './src/types/index.ts';
 
 const isVercel = Boolean(process.env.VERCEL);
+const isProduction = process.env.NODE_ENV === 'production';
 const DEFAULT_PORT = parseInt(process.env.PORT || '3000', 10);
 let currentPort = DEFAULT_PORT;
 const app = express();

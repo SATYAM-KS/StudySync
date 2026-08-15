@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { User, Campaign, CampaignMembership, StudyBlock, Message, LeaderboardEntry, CallSession, CallParticipant } from '../types/index.ts';
+import { supabase } from './supabase.ts';
 
 interface DBData {
   users: (User & { passwordHash: string })[];
@@ -8,7 +9,7 @@ interface DBData {
   memberships: CampaignMembership[];
   studyBlocks: StudyBlock[];
   messages: Message[];
-  activeCalls: Record<string, CallSession>; // campaignId -> CallSession
+  activeCalls: Record<string, CallSession>;
 }
 
 const isVercel = Boolean(process.env.VERCEL);
@@ -21,7 +22,7 @@ export async function initDb(): Promise<DBData> {
   if (memoryDb) return memoryDb;
 
   if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
   }
 
   if (fs.existsSync(DB_FILE)) {
@@ -38,7 +39,7 @@ export async function initDb(): Promise<DBData> {
         return memoryDb;
       }
     } catch (e) {
-      console.warn('Could not read existing db, starting fresh:', e);
+      console.warn('Could not read existing local db, starting fresh:', e);
     }
   }
 
@@ -62,27 +63,139 @@ export function saveDb() {
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(memoryDb, null, 2), 'utf-8');
   } catch (err) {
-    console.error('Error saving db to disk:', err);
+    console.error('Error saving local db to disk:', err);
   }
 }
 
-// User methods
+// Helper transformers
+function mapUserFromDb(row: any): User & { passwordHash: string } {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    passwordHash: row.password_hash,
+    avatarUrl: row.avatar_url || '',
+    bio: row.bio || '',
+    studyGoal: row.study_goal || '',
+    createdAt: row.created_at
+  };
+}
+
+function mapCampaignFromDb(row: any): Campaign {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || '',
+    category: row.category || 'General Study',
+    adminId: row.admin_id,
+    adminName: row.admin_name,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    dailyStartTime: row.daily_start_time || '19:00',
+    dailyEndTime: row.daily_end_time || '23:00',
+    targetDailyHours: Number(row.target_daily_hours) || 4,
+    schedule: Array.isArray(row.schedule) ? row.schedule : [],
+    createdAt: row.created_at
+  };
+}
+
+function mapMembershipFromDb(row: any): CampaignMembership {
+  return {
+    id: row.id,
+    campaignId: row.campaign_id,
+    userId: row.user_id,
+    userName: row.user_name,
+    userEmail: row.user_email,
+    userAvatarUrl: row.user_avatar_url || '',
+    role: row.role || 'member',
+    status: row.status || 'pending',
+    joinedAt: row.joined_at
+  };
+}
+
+function mapStudyBlockFromDb(row: any): StudyBlock {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    userName: row.user_name,
+    userAvatarUrl: row.user_avatar_url || '',
+    campaignId: row.campaign_id,
+    campaignName: row.campaign_name,
+    timestamp: row.timestamp,
+    durationMinutes: Number(row.duration_minutes) || 5,
+    status: row.status || 'active',
+    subjectNote: row.subject_note || 'Focus Study',
+    snapshotUrl: row.snapshot_url || undefined
+  };
+}
+
+function mapMessageFromDb(row: any): Message {
+  return {
+    id: row.id,
+    campaignId: row.campaign_id,
+    senderId: row.sender_id,
+    senderName: row.sender_name,
+    senderAvatarUrl: row.sender_avatar_url || '',
+    content: row.content,
+    timestamp: row.timestamp,
+    type: row.type || 'general',
+    recipientId: row.recipient_id || undefined,
+    attachmentUrl: row.attachment_url || undefined,
+    attachmentName: row.attachment_name || undefined,
+    attachmentType: row.attachment_type || undefined
+  };
+}
+
+// ==========================================
+// User Methods
+// ==========================================
 export async function getUsers(): Promise<User[]> {
+  if (supabase) {
+    const { data, error } = await supabase.from('users').select('*');
+    if (!error && data) {
+      return data.map(r => {
+        const u = mapUserFromDb(r);
+        const { passwordHash, ...clean } = u;
+        return clean;
+      });
+    }
+  }
   const db = await initDb();
   return db.users.map(({ passwordHash, ...user }) => user);
 }
 
 export async function getUserById(id: string): Promise<(User & { passwordHash: string }) | undefined> {
+  if (supabase) {
+    const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+    if (!error && data) return mapUserFromDb(data);
+  }
   const db = await initDb();
   return db.users.find(u => u.id === id);
 }
 
 export async function getUserByEmail(email: string): Promise<(User & { passwordHash: string }) | undefined> {
+  if (supabase) {
+    const { data, error } = await supabase.from('users').select('*').ilike('email', email.trim()).single();
+    if (!error && data) return mapUserFromDb(data);
+  }
   const db = await initDb();
   return db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
 }
 
 export async function createUser(userData: User & { passwordHash: string }): Promise<User> {
+  if (supabase) {
+    const { error } = await supabase.from('users').insert({
+      id: userData.id,
+      name: userData.name,
+      email: userData.email.toLowerCase(),
+      password_hash: userData.passwordHash,
+      avatar_url: userData.avatarUrl || '',
+      bio: userData.bio || '',
+      study_goal: userData.studyGoal || '',
+      created_at: userData.createdAt || new Date().toISOString()
+    });
+    if (error) console.error('Supabase createUser error:', error);
+  }
   const db = await initDb();
   db.users.push(userData);
   saveDb();
@@ -91,6 +204,10 @@ export async function createUser(userData: User & { passwordHash: string }): Pro
 }
 
 export async function updateUserPasswordByEmail(email: string, newPasswordHash: string): Promise<boolean> {
+  if (supabase) {
+    const { error } = await supabase.from('users').update({ password_hash: newPasswordHash }).ilike('email', email.trim());
+    if (!error) return true;
+  }
   const db = await initDb();
   const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (!user) return false;
@@ -100,12 +217,36 @@ export async function updateUserPasswordByEmail(email: string, newPasswordHash: 
 }
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+  if (supabase) {
+    const payload: any = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
+    if (updates.bio !== undefined) payload.bio = updates.bio;
+    if (updates.studyGoal !== undefined) payload.study_goal = updates.studyGoal;
+
+    const { data, error } = await supabase.from('users').update(payload).eq('id', id).select().single();
+    if (!error && data) {
+      if (updates.name !== undefined || updates.avatarUrl !== undefined) {
+        const memPayload: any = {};
+        if (updates.name !== undefined) memPayload.user_name = updates.name;
+        if (updates.avatarUrl !== undefined) memPayload.user_avatar_url = updates.avatarUrl;
+        await supabase.from('memberships').update(memPayload).eq('user_id', id);
+        await supabase.from('study_blocks').update(memPayload).eq('user_id', id);
+        if (updates.name !== undefined) {
+          await supabase.from('campaigns').update({ admin_name: updates.name }).eq('admin_id', id);
+        }
+      }
+      const full = mapUserFromDb(data);
+      const { passwordHash, ...clean } = full;
+      return clean;
+    }
+  }
+
   const db = await initDb();
   const user = db.users.find(u => u.id === id);
   if (!user) return null;
   Object.assign(user, updates);
 
-  // Cascade name and avatarUrl updates across memberships, campaigns, etc.
   if (updates.name !== undefined || updates.avatarUrl !== undefined) {
     db.memberships.forEach(m => {
       if (m.userId === id) {
@@ -133,9 +274,29 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
   return cleanUser;
 }
 
-
-// Campaign methods
+// ==========================================
+// Campaign Methods
+// ==========================================
 export async function getCampaigns(userId?: string): Promise<Campaign[]> {
+  if (supabase) {
+    const { data: camps, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+    if (!error && camps) {
+      const { data: members } = await supabase.from('memberships').select('*');
+      const allMembers = (members || []).map(mapMembershipFromDb);
+
+      return camps.map(mapCampaignFromDb).map(c => {
+        const approved = allMembers.filter(m => m.campaignId === c.id && m.status === 'approved');
+        const userMem = userId ? allMembers.find(m => m.campaignId === c.id && m.userId === userId) : undefined;
+        return {
+          ...c,
+          memberCount: approved.length,
+          userStatus: userMem ? userMem.status : undefined,
+          userRole: userMem ? userMem.role : undefined
+        };
+      });
+    }
+  }
+
   const db = await initDb();
   return db.campaigns.map(c => {
     const approvedMembers = db.memberships.filter(m => m.campaignId === c.id && m.status === 'approved');
@@ -150,6 +311,23 @@ export async function getCampaigns(userId?: string): Promise<Campaign[]> {
 }
 
 export async function getCampaignById(id: string, userId?: string): Promise<Campaign | null> {
+  if (supabase) {
+    const { data: camp, error } = await supabase.from('campaigns').select('*').eq('id', id).single();
+    if (!error && camp) {
+      const { data: members } = await supabase.from('memberships').select('*').eq('campaign_id', id);
+      const allMembers = (members || []).map(mapMembershipFromDb);
+      const approved = allMembers.filter(m => m.status === 'approved');
+      const userMem = userId ? allMembers.find(m => m.userId === userId) : undefined;
+      const c = mapCampaignFromDb(camp);
+      return {
+        ...c,
+        memberCount: approved.length,
+        userStatus: userMem ? userMem.status : undefined,
+        userRole: userMem ? userMem.role : undefined
+      };
+    }
+  }
+
   const db = await initDb();
   const campaign = db.campaigns.find(c => c.id === id);
   if (!campaign) return null;
@@ -164,12 +342,9 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
 }
 
 export async function createCampaign(campaign: Campaign, creator: User): Promise<Campaign> {
-  const db = await initDb();
-  db.campaigns.unshift(campaign);
-  
-  // Add creator as approved admin
+  const membershipId = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
   const membership: CampaignMembership = {
-    id: `mem_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    id: membershipId,
     userId: creator.id,
     userName: creator.name,
     userEmail: creator.email,
@@ -179,6 +354,39 @@ export async function createCampaign(campaign: Campaign, creator: User): Promise
     status: 'approved',
     joinedAt: new Date().toISOString()
   };
+
+  if (supabase) {
+    await supabase.from('campaigns').insert({
+      id: campaign.id,
+      name: campaign.name,
+      description: campaign.description || '',
+      category: campaign.category || 'General Study',
+      admin_id: creator.id,
+      admin_name: creator.name,
+      start_date: campaign.startDate,
+      end_date: campaign.endDate,
+      daily_start_time: campaign.dailyStartTime || '19:00',
+      daily_end_time: campaign.dailyEndTime || '23:00',
+      target_daily_hours: campaign.targetDailyHours || 4,
+      schedule: campaign.schedule || [],
+      created_at: campaign.createdAt || new Date().toISOString()
+    });
+
+    await supabase.from('memberships').insert({
+      id: membership.id,
+      campaign_id: campaign.id,
+      user_id: creator.id,
+      user_name: creator.name,
+      user_email: creator.email,
+      user_avatar_url: creator.avatarUrl || '',
+      role: 'admin',
+      status: 'approved',
+      joined_at: membership.joinedAt
+    });
+  }
+
+  const db = await initDb();
+  db.campaigns.unshift(campaign);
   db.memberships.push(membership);
   saveDb();
 
@@ -191,6 +399,22 @@ export async function createCampaign(campaign: Campaign, creator: User): Promise
 }
 
 export async function updateCampaign(id: string, updates: Partial<Campaign>): Promise<Campaign | null> {
+  if (supabase) {
+    const payload: any = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.category !== undefined) payload.category = updates.category;
+    if (updates.startDate !== undefined) payload.start_date = updates.startDate;
+    if (updates.endDate !== undefined) payload.end_date = updates.endDate;
+    if (updates.dailyStartTime !== undefined) payload.daily_start_time = updates.dailyStartTime;
+    if (updates.dailyEndTime !== undefined) payload.daily_end_time = updates.dailyEndTime;
+    if (updates.targetDailyHours !== undefined) payload.target_daily_hours = updates.targetDailyHours;
+    if (updates.schedule !== undefined) payload.schedule = updates.schedule;
+
+    const { data, error } = await supabase.from('campaigns').update(payload).eq('id', id).select().single();
+    if (!error && data) return mapCampaignFromDb(data);
+  }
+
   const db = await initDb();
   const c = db.campaigns.find(camp => camp.id === id);
   if (!c) return null;
@@ -200,6 +424,14 @@ export async function updateCampaign(id: string, updates: Partial<Campaign>): Pr
 }
 
 export async function deleteCampaign(id: string): Promise<boolean> {
+  if (supabase) {
+    await supabase.from('campaigns').delete().eq('id', id);
+    await supabase.from('memberships').delete().eq('campaign_id', id);
+    await supabase.from('study_blocks').delete().eq('campaign_id', id);
+    await supabase.from('messages').delete().eq('campaign_id', id);
+    return true;
+  }
+
   const db = await initDb();
   const index = db.campaigns.findIndex(c => c.id === id);
   if (index === -1) return false;
@@ -211,18 +443,41 @@ export async function deleteCampaign(id: string): Promise<boolean> {
   return true;
 }
 
-// Membership methods
+// ==========================================
+// Membership Methods
+// ==========================================
 export async function getCampaignMembers(campaignId: string): Promise<CampaignMembership[]> {
+  if (supabase) {
+    const { data, error } = await supabase.from('memberships').select('*').eq('campaign_id', campaignId);
+    if (!error && data) return data.map(mapMembershipFromDb);
+  }
   const db = await initDb();
   return db.memberships.filter(m => m.campaignId === campaignId);
 }
 
 export async function getMembership(userId: string, campaignId: string): Promise<CampaignMembership | undefined> {
+  if (supabase) {
+    const { data, error } = await supabase.from('memberships').select('*').eq('user_id', userId).eq('campaign_id', campaignId).single();
+    if (!error && data) return mapMembershipFromDb(data);
+  }
   const db = await initDb();
   return db.memberships.find(m => m.userId === userId && m.campaignId === campaignId);
 }
 
 export async function createMembership(membership: CampaignMembership): Promise<CampaignMembership> {
+  if (supabase) {
+    await supabase.from('memberships').upsert({
+      id: membership.id,
+      campaign_id: membership.campaignId,
+      user_id: membership.userId,
+      user_name: membership.userName,
+      user_email: membership.userEmail,
+      user_avatar_url: membership.userAvatarUrl || '',
+      role: membership.role || 'member',
+      status: membership.status || 'pending',
+      joined_at: membership.joinedAt || new Date().toISOString()
+    });
+  }
   const db = await initDb();
   const existingIndex = db.memberships.findIndex(m => m.userId === membership.userId && m.campaignId === membership.campaignId);
   if (existingIndex >= 0) {
@@ -235,6 +490,13 @@ export async function createMembership(membership: CampaignMembership): Promise<
 }
 
 export async function updateMembership(id: string, updates: Partial<CampaignMembership>): Promise<CampaignMembership | null> {
+  if (supabase) {
+    const payload: any = {};
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.role !== undefined) payload.role = updates.role;
+    const { data, error } = await supabase.from('memberships').update(payload).eq('id', id).select().single();
+    if (!error && data) return mapMembershipFromDb(data);
+  }
   const db = await initDb();
   const mem = db.memberships.find(m => m.id === id);
   if (!mem) return null;
@@ -244,6 +506,10 @@ export async function updateMembership(id: string, updates: Partial<CampaignMemb
 }
 
 export async function deleteMembership(id: string): Promise<boolean> {
+  if (supabase) {
+    await supabase.from('memberships').delete().eq('id', id);
+    return true;
+  }
   const db = await initDb();
   const idx = db.memberships.findIndex(m => m.id === id);
   if (idx === -1) return false;
@@ -252,8 +518,25 @@ export async function deleteMembership(id: string): Promise<boolean> {
   return true;
 }
 
-// Study Block methods
+// ==========================================
+// Study Block Methods
+// ==========================================
 export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
+  if (supabase) {
+    await supabase.from('study_blocks').insert({
+      id: block.id,
+      user_id: block.userId,
+      user_name: block.userName,
+      user_avatar_url: block.userAvatarUrl || '',
+      campaign_id: block.campaignId,
+      campaign_name: block.campaignName,
+      timestamp: block.timestamp || new Date().toISOString(),
+      duration_minutes: block.durationMinutes || 5,
+      status: block.status || 'active',
+      subject_note: block.subjectNote || 'Focus Study',
+      snapshot_url: block.snapshotUrl || null
+    });
+  }
   const db = await initDb();
   db.studyBlocks.push(block);
   saveDb();
@@ -261,21 +544,39 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
 }
 
 export async function getStudyBlocksForUser(userId: string, campaignId?: string): Promise<StudyBlock[]> {
+  if (supabase) {
+    let query = supabase.from('study_blocks').select('*').eq('user_id', userId);
+    if (campaignId) query = query.eq('campaign_id', campaignId);
+    const { data, error } = await query;
+    if (!error && data) return data.map(mapStudyBlockFromDb);
+  }
   const db = await initDb();
   return db.studyBlocks.filter(b => b.userId === userId && (!campaignId || b.campaignId === campaignId));
 }
 
 export async function getCampaignLeaderboard(campaignId: string): Promise<LeaderboardEntry[]> {
-  const db = await initDb();
-  const campaign = db.campaigns.find(c => c.id === campaignId);
-  const targetHours = campaign?.targetDailyHours || 4;
+  let approvedMembers: CampaignMembership[] = [];
+  let campaignBlocks: StudyBlock[] = [];
+  let targetHours = 4;
 
-  const approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && m.status === 'approved');
+  if (supabase) {
+    const { data: camp } = await supabase.from('campaigns').select('*').eq('id', campaignId).single();
+    if (camp) targetHours = Number(camp.target_daily_hours) || 4;
+    const { data: mems } = await supabase.from('memberships').select('*').eq('campaign_id', campaignId).eq('status', 'approved');
+    if (mems) approvedMembers = mems.map(mapMembershipFromDb);
+    const { data: blks } = await supabase.from('study_blocks').select('*').eq('campaign_id', campaignId).eq('status', 'active');
+    if (blks) campaignBlocks = blks.map(mapStudyBlockFromDb);
+  } else {
+    const db = await initDb();
+    const campaign = db.campaigns.find(c => c.id === campaignId);
+    targetHours = campaign?.targetDailyHours || 4;
+    approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && m.status === 'approved');
+    campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
+  }
+
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const weekStart = todayStart - 6 * 86400000;
-
-  const campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
 
   const entries: LeaderboardEntry[] = approvedMembers.map(member => {
     const userBlocks = campaignBlocks.filter(b => b.userId === member.userId);
@@ -285,7 +586,6 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
     let totalMinutes = 0;
     let lastActive: string | undefined = undefined;
 
-    // Daily active date map for streak calculation
     const activeDaysSet = new Set<string>();
 
     userBlocks.forEach(b => {
@@ -307,145 +607,191 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
       }
     });
 
-    // Calculate streak days (consecutive days before/including today)
-    let activeStreakDays = 0;
-    for (let d = 0; d < 30; d++) {
-      const checkDate = new Date(now.getTime() - d * 86400000).toISOString().split('T')[0];
-      if (activeDaysSet.has(checkDate)) {
-        activeStreakDays++;
-      } else if (d > 0) {
-        // Break if missing previous day
+    let currentStreak = 0;
+    for (let d = 0; d < 365; d++) {
+      const checkDate = new Date(todayStart - d * 86400000);
+      const dateStr = checkDate.toISOString().split('T')[0];
+      if (activeDaysSet.has(dateStr)) {
+        currentStreak++;
+      } else if (d === 0 && !activeDaysSet.has(dateStr)) {
+        continue;
+      } else {
         break;
       }
     }
 
-    const todayHours = todayMinutes / 60;
+    const todayHours = Number((todayMinutes / 60).toFixed(1));
+    const targetCompleted = todayHours >= targetHours;
+    const progressPercentage = Math.min(100, Math.round((todayHours / (targetHours || 1)) * 100));
 
     return {
       userId: member.userId,
       userName: member.userName,
       userAvatarUrl: member.userAvatarUrl,
-      role: member.role,
       todayMinutes,
+      todayHours,
       thisWeekMinutes,
+      thisWeekHours: Number((thisWeekMinutes / 60).toFixed(1)),
       totalMinutes,
-      activeStreakDays: Math.max(1, activeStreakDays),
-      lastActive,
-      targetDailyHours: targetHours,
-      todayTargetMet: todayHours >= targetHours
+      totalHours: Number((totalMinutes / 60).toFixed(1)),
+      streakDays: currentStreak,
+      targetCompleted,
+      progressPercentage,
+      lastActive
     };
   });
 
-  // Sort descending by totalMinutes default
-  entries.sort((a, b) => b.totalMinutes - a.totalMinutes);
-  entries.forEach((e, idx) => {
-    e.rank = idx + 1;
-  });
-
-  return entries;
+  return entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
 }
 
-// Message methods
-export async function getCampaignMessages(campaignId: string, limit = 100): Promise<Message[]> {
+// ==========================================
+// Messages Methods
+// ==========================================
+export async function getCampaignMessages(campaignId: string): Promise<Message[]> {
+  if (supabase) {
+    const { data, error } = await supabase.from('messages').select('*').eq('campaign_id', campaignId).order('timestamp', { ascending: true });
+    if (!error && data) return data.map(mapMessageFromDb);
+  }
   const db = await initDb();
-  return db.messages
-    .filter(m => m.campaignId === campaignId)
-    .slice(-limit);
+  return db.messages.filter(m => m.campaignId === campaignId);
 }
 
-export async function getDirectMessages(user1Id: string, user2Id: string, limit = 100): Promise<Message[]> {
+export async function getDirectMessages(userId1: string, userId2: string): Promise<Message[]> {
+  if (supabase) {
+    const { data, error } = await supabase.from('messages')
+      .select('*')
+      .eq('type', 'dm')
+      .or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`)
+      .order('timestamp', { ascending: true });
+    if (!error && data) return data.map(mapMessageFromDb);
+  }
   const db = await initDb();
-  return db.messages
-    .filter(m => 
-      (m.senderId === user1Id && m.recipientId === user2Id) ||
-      (m.senderId === user2Id && m.recipientId === user1Id)
-    )
-    .slice(-limit);
+  return db.messages.filter(
+    m => m.type === 'dm' &&
+    ((m.senderId === userId1 && m.recipientId === userId2) ||
+     (m.senderId === userId2 && m.recipientId === userId1))
+  );
 }
 
 export async function createMessage(message: Message): Promise<Message> {
+  if (supabase) {
+    await supabase.from('messages').insert({
+      id: message.id,
+      campaign_id: message.campaignId || 'general',
+      sender_id: message.senderId,
+      sender_name: message.senderName,
+      sender_avatar_url: message.senderAvatarUrl || '',
+      content: message.content,
+      timestamp: message.timestamp || new Date().toISOString(),
+      type: message.type || 'general',
+      recipient_id: message.recipientId || null,
+      attachment_url: message.attachmentUrl || null,
+      attachment_name: message.attachmentName || null,
+      attachment_type: message.attachmentType || null
+    });
+  }
   const db = await initDb();
   db.messages.push(message);
   saveDb();
   return message;
 }
 
-export async function toggleMessageReaction(messageId: string, emoji: string, userId: string): Promise<Message | null> {
+export async function toggleMessageReaction(messageId: string, emoji: string, userId: string, userName: string): Promise<Message | null> {
   const db = await initDb();
   const msg = db.messages.find(m => m.id === messageId);
   if (!msg) return null;
 
   if (!msg.reactions) msg.reactions = [];
-  const reaction = msg.reactions.find(r => r.emoji === emoji);
-
-  if (reaction) {
-    if (reaction.userIds.includes(userId)) {
-      reaction.userIds = reaction.userIds.filter(id => id !== userId);
-      if (reaction.userIds.length === 0) {
-        msg.reactions = msg.reactions.filter(r => r.emoji !== emoji);
-      }
-    } else {
-      reaction.userIds.push(userId);
-    }
+  const existingIdx = msg.reactions.findIndex(r => r.emoji === emoji && r.userId === userId);
+  if (existingIdx >= 0) {
+    msg.reactions.splice(existingIdx, 1);
   } else {
-    msg.reactions.push({ emoji, userIds: [userId] });
+    msg.reactions.push({ emoji, userId, userName });
   }
 
   saveDb();
   return msg;
 }
 
-// Call Session methods
+// ==========================================
+// Call Sessions & Participant Methods
+// ==========================================
 export async function getCallSession(campaignId: string): Promise<CallSession | null> {
+  if (supabase) {
+    const { data, error } = await supabase.from('active_calls').select('*').eq('campaign_id', campaignId).single();
+    if (!error && data && data.session_data) {
+      return data.session_data as CallSession;
+    }
+  }
   const db = await initDb();
   return db.activeCalls[campaignId] || null;
 }
 
-export async function addCallParticipant(campaignId: string, participant: CallParticipant): Promise<CallSession> {
+export async function saveCallSession(campaignId: string, session: CallSession | null): Promise<void> {
+  if (supabase) {
+    if (session) {
+      await supabase.from('active_calls').upsert({
+        campaign_id: campaignId,
+        session_data: session,
+        updated_at: new Date().toISOString()
+      });
+    } else {
+      await supabase.from('active_calls').delete().eq('campaign_id', campaignId);
+    }
+  }
   const db = await initDb();
-  if (!db.activeCalls[campaignId]) {
-    const campaign = db.campaigns.find(c => c.id === campaignId);
-    db.activeCalls[campaignId] = {
-      id: `call_${campaignId}_${Date.now()}`,
+  if (session) {
+    db.activeCalls[campaignId] = session;
+  } else {
+    delete db.activeCalls[campaignId];
+  }
+  saveDb();
+}
+
+export async function addCallParticipant(campaignId: string, participant: CallParticipant): Promise<CallSession> {
+  let session = await getCallSession(campaignId);
+  if (!session) {
+    session = {
       campaignId,
-      campaignName: campaign?.name || 'Study Room',
+      campaignName: 'Study Lounge',
       startedAt: new Date().toISOString(),
       participants: []
     };
   }
 
-  const session = db.activeCalls[campaignId];
-  const existingIdx = session.participants.findIndex(p => p.socketId === participant.socketId || p.userId === participant.userId);
+  const existingIdx = session.participants.findIndex(p => p.userId === participant.userId);
   if (existingIdx >= 0) {
-    session.participants[existingIdx] = participant;
+    session.participants[existingIdx] = { ...session.participants[existingIdx], ...participant };
   } else {
     session.participants.push(participant);
   }
 
+  await saveCallSession(campaignId, session);
   return session;
 }
 
-export async function removeCallParticipant(campaignId: string, socketId: string): Promise<CallSession | null> {
-  const db = await initDb();
-  const session = db.activeCalls[campaignId];
+export async function removeCallParticipant(campaignId: string, userId: string): Promise<CallSession | null> {
+  const session = await getCallSession(campaignId);
   if (!session) return null;
 
-  session.participants = session.participants.filter(p => p.socketId !== socketId);
+  session.participants = session.participants.filter(p => p.userId !== userId);
   if (session.participants.length === 0) {
-    session.endedAt = new Date().toISOString();
-    delete db.activeCalls[campaignId];
+    await saveCallSession(campaignId, null);
     return null;
   }
+
+  await saveCallSession(campaignId, session);
   return session;
 }
 
-export async function updateParticipantState(campaignId: string, socketId: string, updates: Partial<CallParticipant>): Promise<CallSession | null> {
-  const db = await initDb();
-  const session = db.activeCalls[campaignId];
+export async function updateParticipantState(campaignId: string, userId: string, updates: Partial<CallParticipant>): Promise<CallSession | null> {
+  const session = await getCallSession(campaignId);
   if (!session) return null;
-  const p = session.participants.find(part => part.socketId === socketId);
+
+  const p = session.participants.find(part => part.userId === userId);
   if (p) {
     Object.assign(p, updates);
+    await saveCallSession(campaignId, session);
   }
   return session;
 }

@@ -63,13 +63,22 @@ StudySync is a real-time collaborative focus and accountability platform for eng
    ```bash
    cp .env.example .env
    ```
-   Open `.env` and fill in your Gemini API key:
+   Open `.env` and configure your API keys:
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
    JWT_SECRET=your_jwt_secret_here
+
+   # Supabase Database Configuration
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your-supabase-key-here
    ```
 
-4. **Run the Development Server**:
+4. **Initialize Supabase Database Tables**:
+   - In your Supabase Dashboard, go to **SQL Editor** -> **New Query**.
+   - Copy the contents of [`supabase_schema.sql`](supabase_schema.sql) and click **Run**.
+   - All tables (`users`, `campaigns`, `memberships`, `study_blocks`, `messages`, `active_calls`) and indexes will be created.
+
+5. **Run the Development Server**:
    ```bash
    npm run dev
    ```
