@@ -75,7 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try { data = JSON.parse(text); } catch { data = { error: 'Server returned an invalid response' }; }
+
       if (res.ok && data.token) {
         setUser(data.user);
         setToken(data.token);
@@ -104,7 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           studyGoal: data.studyGoal
         })
       });
-      const resData = await res.json();
+      const text = await res.text();
+      let resData: any = {};
+      try { resData = JSON.parse(text); } catch { resData = { error: 'Server returned an invalid response' }; }
+
       if (res.ok && resData.token) {
         setUser(resData.user);
         setToken(resData.token);
@@ -126,7 +132,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try { data = JSON.parse(text); } catch { data = { error: 'Server returned an invalid response' }; }
+
       if (res.ok && data.success) {
         return { success: true, code: data.code, message: data.message };
       }
@@ -144,7 +153,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code, newPassword })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try { data = JSON.parse(text); } catch { data = { error: 'Server returned an invalid response' }; }
+
       if (res.ok && data.success) {
         if (data.token && data.user) {
           setUser(data.user);
