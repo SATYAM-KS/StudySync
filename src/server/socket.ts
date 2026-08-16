@@ -63,10 +63,7 @@ export function touchUserPresence(userId: string, userName: string, userAvatarUr
 
 export function removeUserPresence(userId: string) {
   restHeartbeats.delete(userId);
-  restStudySessions.delete(userId);
-  activeStudySessions.delete(userId);
   broadcastOnlineUsers();
-  broadcastStudySessions();
 }
 
 export function touchStudySession(session: LiveStudySession) {
@@ -337,11 +334,11 @@ export function setupSocketServer(httpServer: HttpServer) {
         if (user.inCallCampaignId) {
           handleCallLeave(socket, user.inCallCampaignId);
         }
-        // Remove study session if disconnected
-        if (activeStudySessions.has(user.userId)) {
+        // Preserve study session with grace period for smooth page refresh
+        const existingSession = activeStudySessions.get(user.userId);
+        if (existingSession) {
           activeStudySessions.delete(user.userId);
-          io.emit('study:session_ended', { userId: user.userId });
-          broadcastStudySessions();
+          restStudySessions.set(user.userId, { session: existingSession, lastSeen: Date.now() });
         }
         connectedUsers.delete(socket.id);
         broadcastOnlineUsers();

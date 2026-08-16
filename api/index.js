@@ -870,10 +870,7 @@ function touchUserPresence(userId, userName, userAvatarUrl) {
 }
 function removeUserPresence(userId) {
   restHeartbeats.delete(userId);
-  restStudySessions.delete(userId);
-  activeStudySessions.delete(userId);
   broadcastOnlineUsers();
-  broadcastStudySessions();
 }
 function touchStudySession(session) {
   restStudySessions.set(session.userId, { session, lastSeen: Date.now() });
@@ -1088,10 +1085,10 @@ function setupSocketServer(httpServer) {
         if (user.inCallCampaignId) {
           handleCallLeave(socket, user.inCallCampaignId);
         }
-        if (activeStudySessions.has(user.userId)) {
+        const existingSession = activeStudySessions.get(user.userId);
+        if (existingSession) {
           activeStudySessions.delete(user.userId);
-          io2.emit("study:session_ended", { userId: user.userId });
-          broadcastStudySessions();
+          restStudySessions.set(user.userId, { session: existingSession, lastSeen: Date.now() });
         }
         connectedUsers.delete(socket.id);
         broadcastOnlineUsers2();

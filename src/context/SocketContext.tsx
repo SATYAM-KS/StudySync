@@ -81,13 +81,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   // Presence & Active Study Sessions Heartbeat via REST (Single 1s pulse sync)
   const { token } = useAuth();
 
+  const PERSISTED_SESSION_KEY = 'study_active_session_state';
+
   const syncPresenceAndSessions = async (extraData?: any) => {
     if (!token || !user) return;
     try {
       let bodyData = extraData;
       if (bodyData === undefined) {
         try {
-          const persisted = localStorage.getItem('studysync_active_session');
+          const persisted = localStorage.getItem(PERSISTED_SESSION_KEY);
           if (persisted) {
             const parsed = JSON.parse(persisted);
             if (parsed && parsed.campaignId) {
@@ -119,7 +121,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           let sessions: LiveStudySession[] = presData.activeStudySessions;
           // Ensure current user is present if currently studying in localStorage
           try {
-            const persisted = localStorage.getItem('studysync_active_session');
+            const persisted = localStorage.getItem(PERSISTED_SESSION_KEY);
             if (persisted && (bodyData?.isStudying !== false)) {
               const parsed = JSON.parse(persisted);
               if (parsed && parsed.campaignId && !sessions.some(s => s.userId === user.id)) {

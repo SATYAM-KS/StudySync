@@ -179,6 +179,45 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, token]);
 
+  // Re-sync resumed study session presence immediately upon page refresh
+  useEffect(() => {
+    if (initialSession && user && token) {
+      updateLocalActiveStudySessions(prev => {
+        if (prev.some(s => s.userId === user.id)) return prev;
+        return [
+          ...prev,
+          {
+            userId: user.id,
+            userName: user.name,
+            userAvatarUrl: user.avatarUrl,
+            campaignId: initialSession.campaignId,
+            campaignName: initialSession.campaignName,
+            subjectNote: initialSession.subjectNote || 'Focus Study',
+            startedAt: new Date(initialSession.sessionStartedAt).toISOString(),
+            activeMinutes: 0,
+            isScreenSharedLocally: false
+          }
+        ];
+      });
+
+      syncPresenceNow({
+        isStudying: true,
+        campaignId: initialSession.campaignId,
+        campaignName: initialSession.campaignName,
+        subjectNote: initialSession.subjectNote,
+        startedAt: new Date(initialSession.sessionStartedAt).toISOString()
+      }).catch(() => {});
+
+      if (socket) {
+        socket.emit('study:start_session', {
+          campaignId: initialSession.campaignId,
+          campaignName: initialSession.campaignName,
+          subjectNote: initialSession.subjectNote
+        });
+      }
+    }
+  }, [user?.id, token]);
+
   // Helper to capture a frame from the live screen stream or video element
   const captureScreenSnapshot = async (preferredVideoElement?: HTMLVideoElement | null): Promise<string | null> => {
     // 1. Direct capture from preferred or DOM video element (instant 0ms)
