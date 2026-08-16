@@ -1165,13 +1165,14 @@ Examine the student's screen screenshot carefully. Your goal is to distinguish b
 ============================================================
 CRITERIA FOR STUDY & PRODUCTIVE WORK (isProductiveWork = true):
 ============================================================
-1. CODING & TECH: Writing, editing, running, or debugging code in IDEs (VS Code, Cursor, PyCharm, IntelliJ, Terminal, Shell, Jupyter Notebooks, Google Colab, GitHub, GitLab, LeetCode, HackerRank, Codeforces, NeetCode).
+1. CODING & TECH: Writing, editing, running, or debugging code in IDEs (VS Code, Cursor, PyCharm, IntelliJ, Xcode, Eclipse, Sublime, Vim, Neovim, Nano, Terminal, Shell, PowerShell, Jupyter Notebooks, Google Colab, GitHub, GitLab, LeetCode, HackerRank, Codeforces, NeetCode).
 2. ACADEMIC STUDY (ANY SUBJECT): Reading, studying, or reviewing materials in Computer Science, Engineering, Mathematics, Physics, Chemistry, Biology, Medicine/Healthcare, Law, Business/Finance, Humanities, Languages, or Competitive Exam Prep (UPSC, SAT, GRE, MCAT, JEE, NEET, etc.).
-3. READING & RESEARCH: Textbooks, lecture slides, academic research papers (arXiv, PubMed, IEEE, etc.), technical PDFs, documentation (MDN, Stack Overflow, DevDocs), formula sheets, Wikipedia/Google educational articles.
+3. READING & RESEARCH: Textbooks, lecture slides, academic research papers (arXiv, PubMed, IEEE, etc.), technical PDFs, documentation (MDN, Stack Overflow, DevDocs, official docs), formula sheets, Wikipedia/Google educational articles.
 4. NOTE-TAKING & WRITING: Writing notes, assignments, reports, essays, summaries in Notion, Obsidian, Google Docs, MS Word, OneNote, Apple Notes, Markdown editors.
 5. PRACTICE & RECALL: Flashcards (Anki, Quizlet), practice exams, problem sets, calculator, CAD, spreadsheet data analysis.
 6. EDUCATIONAL VIDEOS & LECTURES: Video lectures, tutorials, educational courses (YouTube, Coursera, edX, Udemy, Khan Academy) showing educational content, coding demonstrations, slides, mathematical derivations, or academic explanations.
-7. STUDY PLATFORM: StudySync interface or study timer alongside or while setting up study session.
+7. SPLIT SCREENS & MULTI-WINDOW: If the user has split windows (e.g. Code editor on one side and a tutorial video/documentation/StudySync on the other), it is FULLY PRODUCTIVE STUDY WORK.
+8. STUDY PLATFORM: StudySync interface or study timer alongside or while setting up study session.
 
 ============================================================
 CRITERIA FOR TIMEPASS & DISTRACTION (isProductiveWork = false):
@@ -1731,10 +1732,16 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
       res.status(400).json({ error: "campaignId and snapshotUrl are required" });
       return;
     }
-    const campaign = await getCampaignById(campaignId);
+    let campaignName = "Study Campaign";
+    try {
+      const campaign = await getCampaignById(campaignId);
+      if (campaign?.name) campaignName = campaign.name;
+    } catch (cErr) {
+      console.warn("Could not fetch campaign name for proctor:", cErr);
+    }
     const analysis = await analyzeScreenSnapshot(
       snapshotUrl,
-      campaign?.name || "Study Campaign",
+      campaignName,
       subjectNote || "Focus Study"
     );
     let savedBlock = null;
@@ -1745,18 +1752,26 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
         userName: req.user.name,
         userAvatarUrl: req.user.avatarUrl,
         campaignId,
-        campaignName: campaign?.name || "Study Campaign",
+        campaignName,
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         durationMinutes: 5,
         status: "active",
         subjectNote: subjectNote || analysis.activitySummary || "Focus Study",
         snapshotUrl
       };
-      savedBlock = await logStudyBlock(block);
-      io.to(`campaign:${campaignId}`).emit("study:block_logged", {
-        block: savedBlock,
-        userId: req.user.id
-      });
+      try {
+        savedBlock = await logStudyBlock(block);
+      } catch (dbErr) {
+        console.error("Failed to persist study block in DB:", dbErr);
+        savedBlock = block;
+      }
+      try {
+        io.to(`campaign:${campaignId}`).emit("study:block_logged", {
+          block: savedBlock,
+          userId: req.user.id
+        });
+      } catch {
+      }
     }
     res.json({
       registered: analysis.isProductiveWork,
@@ -1764,8 +1779,8 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
       block: savedBlock
     });
   } catch (err) {
-    console.error("Verify screen error:", err);
-    res.status(500).json({ error: "Failed to verify screen snapshot" });
+    console.error("Verify screen error:", err?.message || err);
+    res.status(500).json({ error: err?.message || "Failed to verify screen snapshot" });
   }
 });
 app.get("/api/study/stats", authMiddleware, async (req, res) => {

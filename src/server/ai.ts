@@ -70,13 +70,14 @@ Examine the student's screen screenshot carefully. Your goal is to distinguish b
 ============================================================
 CRITERIA FOR STUDY & PRODUCTIVE WORK (isProductiveWork = true):
 ============================================================
-1. CODING & TECH: Writing, editing, running, or debugging code in IDEs (VS Code, Cursor, PyCharm, IntelliJ, Terminal, Shell, Jupyter Notebooks, Google Colab, GitHub, GitLab, LeetCode, HackerRank, Codeforces, NeetCode).
+1. CODING & TECH: Writing, editing, running, or debugging code in IDEs (VS Code, Cursor, PyCharm, IntelliJ, Xcode, Eclipse, Sublime, Vim, Neovim, Nano, Terminal, Shell, PowerShell, Jupyter Notebooks, Google Colab, GitHub, GitLab, LeetCode, HackerRank, Codeforces, NeetCode).
 2. ACADEMIC STUDY (ANY SUBJECT): Reading, studying, or reviewing materials in Computer Science, Engineering, Mathematics, Physics, Chemistry, Biology, Medicine/Healthcare, Law, Business/Finance, Humanities, Languages, or Competitive Exam Prep (UPSC, SAT, GRE, MCAT, JEE, NEET, etc.).
-3. READING & RESEARCH: Textbooks, lecture slides, academic research papers (arXiv, PubMed, IEEE, etc.), technical PDFs, documentation (MDN, Stack Overflow, DevDocs), formula sheets, Wikipedia/Google educational articles.
+3. READING & RESEARCH: Textbooks, lecture slides, academic research papers (arXiv, PubMed, IEEE, etc.), technical PDFs, documentation (MDN, Stack Overflow, DevDocs, official docs), formula sheets, Wikipedia/Google educational articles.
 4. NOTE-TAKING & WRITING: Writing notes, assignments, reports, essays, summaries in Notion, Obsidian, Google Docs, MS Word, OneNote, Apple Notes, Markdown editors.
 5. PRACTICE & RECALL: Flashcards (Anki, Quizlet), practice exams, problem sets, calculator, CAD, spreadsheet data analysis.
 6. EDUCATIONAL VIDEOS & LECTURES: Video lectures, tutorials, educational courses (YouTube, Coursera, edX, Udemy, Khan Academy) showing educational content, coding demonstrations, slides, mathematical derivations, or academic explanations.
-7. STUDY PLATFORM: StudySync interface or study timer alongside or while setting up study session.
+7. SPLIT SCREENS & MULTI-WINDOW: If the user has split windows (e.g. Code editor on one side and a tutorial video/documentation/StudySync on the other), it is FULLY PRODUCTIVE STUDY WORK.
+8. STUDY PLATFORM: StudySync interface or study timer alongside or while setting up study session.
 
 ============================================================
 CRITERIA FOR TIMEPASS & DISTRACTION (isProductiveWork = false):

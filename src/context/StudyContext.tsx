@@ -121,7 +121,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   // Aggregated stats
   const [stats, setStats] = useState<StudyStats | null>(null);
 
-  // Keep refs for asynchronous interval callbacks
+  const isAnalyzingRef = useRef(false);
+  const sessionStartedAtRef = useRef<number>(initialSession?.sessionStartedAt || Date.now());
   const activeCampaignIdRef = useRef<string | null>(activeCampaignId);
   activeCampaignIdRef.current = activeCampaignId;
   const subjectNoteRef = useRef<string>(subjectNote);
@@ -343,6 +344,11 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   // Perform AI Screenshot Verification
   const performAIAnalysis = async (videoElement?: HTMLVideoElement | null) => {
+    if (isAnalyzingRef.current) {
+      console.log('[performAIAnalysis] Already running, skipping duplicate call');
+      return;
+    }
+
     const stream = screenStreamRef.current || screenStream;
     const cid = activeCampaignIdRef.current;
     const cToken = tokenRef.current || token || localStorage.getItem('study_token');
@@ -355,6 +361,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    isAnalyzingRef.current = true;
     setIsAnalyzing(true);
     setLastAIAnalysis({
       status: 'analyzing',
@@ -369,12 +376,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     try {
       const snapUrl = await captureScreenSnapshot(videoElement);
       if (!snapUrl) {
-        setIsAnalyzing(false);
-        clearTimeout(timeoutId);
         setLastAIAnalysis({
           status: 'off_task',
           summary: 'Screen Stream Inactive',
-          reason: 'Please ensure your entire screen is actively shared for focus verification.',
+          reason: 'Please click "Share Screen" to re-attach screen share for verified study accountability.',
           timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
         });
         playCheckInChime();
@@ -396,8 +401,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }),
         signal: controller.signal
       });
-
-      clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();
@@ -427,35 +430,42 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
         if (isProductive) {
           playSuccessChime();
-          confetti({
-            particleCount: 40,
-            spread: 55,
-            origin: { y: 0.85 }
-          });
+          try {
+            confetti({
+              particleCount: 40,
+              spread: 55,
+              origin: { y: 0.85 }
+            });
+          } catch {}
           await refreshStats();
         } else {
           playCheckInChime();
         }
       } else {
+        const errorData = await res.json().catch(() => ({}));
         setLastAIAnalysis({
           status: 'off_task',
           summary: 'Verification Server Error',
-          reason: 'Could not verify screen content against technical study standards.',
+          reason: errorData.error || 'Could not verify screen content at this time.',
           timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
         });
         playCheckInChime();
       }
     } catch (e: any) {
       console.error('AI Analysis error:', e);
+      const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
       setLastAIAnalysis({
         status: 'off_task',
-        summary: 'Inspection Unverified',
-        reason: 'Technical study content was not confirmed on screen.',
+        summary: isAbort ? 'Inspection Timeout' : 'Network/Server Glitch',
+        reason: isAbort
+          ? 'Screen analysis timed out on the network. Retrying on the next block.'
+          : 'Temporary network connection issue. Your study session will retry on the next check.',
         timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
       });
       playCheckInChime();
     } finally {
       clearTimeout(timeoutId);
+      isAnalyzingRef.current = false;
       setIsAnalyzing(false);
     }
   };
@@ -480,19 +490,22 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [isStudying, activeCampaignId, activeCampaignName, subjectNote, token]);
 
-  // Study timer loop - continues ticking seamlessly across refresh
+  // Study timer loop - wall-clock accurate across background tabs and refresh
   useEffect(() => {
     let interval: any = null;
     if (isStudying) {
       interval = setInterval(() => {
-        setSessionElapsedSeconds(prev => prev + 1);
-        setBlockElapsedSeconds(prev => {
-          const next = prev + 1;
-          if (next >= BLOCK_DURATION_SECONDS) {
-            return 0;
-          }
-          return next;
-        });
+        const startedAt = sessionStartedAtRef.current || Date.now();
+        const totalElapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+        setSessionElapsedSeconds(totalElapsed);
+        setBlockElapsedSeconds(totalElapsed % BLOCK_DURATION_SECONDS);
+
+        const currentMilestone = Math.floor(totalElapsed / BLOCK_DURATION_SECONDS);
+        if (currentMilestone > 0 && currentMilestone > lastAnalyzedMilestoneRef.current && !isAnalyzingRef.current) {
+          lastAnalyzedMilestoneRef.current = currentMilestone;
+          console.log(`[StudyTimer] Automated 5-min milestone #${currentMilestone} reached at ${totalElapsed}s - triggering check`);
+          performAIAnalysis();
+        }
       }, 1000);
     }
 
@@ -500,18 +513,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       if (interval) clearInterval(interval);
     };
   }, [isStudying]);
-
-  // Trigger automated AI check exactly ONCE per 5-minute block milestone
-  useEffect(() => {
-    if (!isStudying || sessionElapsedSeconds <= 0) return;
-
-    const currentMilestone = Math.floor(sessionElapsedSeconds / BLOCK_DURATION_SECONDS);
-    if (sessionElapsedSeconds % BLOCK_DURATION_SECONDS === 0 && currentMilestone > 0 && lastAnalyzedMilestoneRef.current !== currentMilestone) {
-      lastAnalyzedMilestoneRef.current = currentMilestone;
-      console.log(`[StudyTimer] Automated 5-min milestone #${currentMilestone} reached at ${sessionElapsedSeconds}s - triggering check`);
-      performAIAnalysis();
-    }
-  }, [sessionElapsedSeconds, isStudying]);
 
   const triggerAIAnalysisNow = async (videoElement?: HTMLVideoElement | null) => {
     if (isStudying) {
@@ -559,6 +560,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       setHiddenWarning(false);
       setVerifiedSnapshots([]);
       setLastAIAnalysis(null);
+      sessionStartedAtRef.current = Date.now();
+      lastAnalyzedMilestoneRef.current = 0;
+      isAnalyzingRef.current = false;
 
       // Save to localStorage for refresh persistence
       localStorage.setItem(PERSISTED_SESSION_KEY, JSON.stringify({
@@ -655,6 +659,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     screenStreamRef.current = null;
     setIsScreenSharingEnabled(false);
     setIsAnalyzing(false);
+    isAnalyzingRef.current = false;
+    sessionStartedAtRef.current = 0;
+    lastAnalyzedMilestoneRef.current = 0;
     localStorage.removeItem(PERSISTED_SESSION_KEY);
 
     // Optimistic local removal (0ms instant response)

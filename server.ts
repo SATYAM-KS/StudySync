@@ -620,10 +620,17 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
       return;
     }
 
-    const campaign = await getCampaignById(campaignId);
+    let campaignName = 'Study Campaign';
+    try {
+      const campaign = await getCampaignById(campaignId);
+      if (campaign?.name) campaignName = campaign.name;
+    } catch (cErr) {
+      console.warn('Could not fetch campaign name for proctor:', cErr);
+    }
+
     const analysis = await analyzeScreenSnapshot(
       snapshotUrl, 
-      campaign?.name || 'Study Campaign', 
+      campaignName, 
       subjectNote || 'Focus Study'
     );
 
@@ -637,7 +644,7 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
         userName: req.user!.name,
         userAvatarUrl: req.user!.avatarUrl,
         campaignId,
-        campaignName: campaign?.name || 'Study Campaign',
+        campaignName,
         timestamp: new Date().toISOString(),
         durationMinutes: 5,
         status: 'active',
@@ -645,13 +652,20 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
         snapshotUrl
       };
 
-      savedBlock = await logStudyBlock(block);
+      try {
+        savedBlock = await logStudyBlock(block);
+      } catch (dbErr) {
+        console.error('Failed to persist study block in DB:', dbErr);
+        savedBlock = block;
+      }
 
       // Broadcast to cohort leaderboard in real-time
-      io.to(`campaign:${campaignId}`).emit('study:block_logged', {
-        block: savedBlock,
-        userId: req.user!.id
-      });
+      try {
+        io.to(`campaign:${campaignId}`).emit('study:block_logged', {
+          block: savedBlock,
+          userId: req.user!.id
+        });
+      } catch {}
     }
 
     res.json({
@@ -660,8 +674,8 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
       block: savedBlock
     });
   } catch (err: any) {
-    console.error('Verify screen error:', err);
-    res.status(500).json({ error: 'Failed to verify screen snapshot' });
+    console.error('Verify screen error:', err?.message || err);
+    res.status(500).json({ error: err?.message || 'Failed to verify screen snapshot' });
   }
 });
 
