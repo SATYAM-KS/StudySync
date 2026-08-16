@@ -1781,7 +1781,13 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
       try {
         io.to(`campaign:${campaignId}`).emit("study:block_logged", {
           block: savedBlock,
-          userId: req.user.id
+          userId: req.user.id,
+          campaignId
+        });
+        io.emit("study:block_logged", {
+          block: savedBlock,
+          userId: req.user.id,
+          campaignId
         });
       } catch {
       }

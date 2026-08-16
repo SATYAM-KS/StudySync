@@ -438,6 +438,18 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
         if (isProductive) {
           playSuccessChime();
+
+          // Dispatch instant event for 0ms immediate UI updates across tabs & components
+          if (typeof window !== 'undefined' && data.block) {
+            window.dispatchEvent(new CustomEvent('study:block_logged', { 
+              detail: { 
+                block: data.block, 
+                campaignId: cid, 
+                userId: user?.id 
+              } 
+            }));
+          }
+
           try {
             confetti({
               particleCount: 40,

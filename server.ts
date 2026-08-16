@@ -659,11 +659,17 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
         savedBlock = block;
       }
 
-      // Broadcast to cohort leaderboard in real-time
+      // Broadcast to cohort leaderboard & study history in real-time
       try {
         io.to(`campaign:${campaignId}`).emit('study:block_logged', {
           block: savedBlock,
-          userId: req.user!.id
+          userId: req.user!.id,
+          campaignId
+        });
+        io.emit('study:block_logged', {
+          block: savedBlock,
+          userId: req.user!.id,
+          campaignId
         });
       } catch {}
     }

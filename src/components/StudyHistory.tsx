@@ -86,21 +86,81 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     }
   };
 
+  // Optimistic 0ms instant block ingestion
+  const ingestNewBlock = (newBlock: StudyBlock) => {
+    if (!newBlock) return;
+    if (newBlock.campaignId && newBlock.campaignId !== campaignId) return;
+    if (newBlock.userId && user && newBlock.userId !== user.id) return;
+
+    setHistoryData(prev => {
+      if (prev.blocks.some(b => b.id === newBlock.id)) {
+        return prev;
+      }
+
+      const updatedBlocks = [newBlock, ...prev.blocks];
+      const duration = newBlock.durationMinutes || 5;
+
+      const updatedData: HistoryResponse = {
+        blocks: updatedBlocks,
+        todayMinutes: prev.todayMinutes + duration,
+        thisWeekMinutes: prev.thisWeekMinutes + duration,
+        thisMonthMinutes: prev.thisMonthMinutes + duration,
+        totalMinutes: prev.totalMinutes + duration
+      };
+
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(updatedData));
+      } catch {}
+
+      return updatedData;
+    });
+
+    // Revalidate in background
+    setTimeout(() => {
+      fetchHistory();
+    }, 400);
+  };
+
   useEffect(() => {
     fetchHistory();
+    // 5s background sync fallback
+    const interval = setInterval(fetchHistory, 5000);
+    return () => clearInterval(interval);
   }, [campaignId, token]);
 
-  // Real-time updates when new study blocks are registered
+  // Real-time updates via window custom events (0ms immediate local response)
+  useEffect(() => {
+    const handleLocalEvent = (e: any) => {
+      const block = e?.detail?.block;
+      if (block) {
+        ingestNewBlock(block);
+      } else {
+        fetchHistory();
+      }
+    };
+
+    window.addEventListener('study:block_logged', handleLocalEvent);
+    return () => {
+      window.removeEventListener('study:block_logged', handleLocalEvent);
+    };
+  }, [campaignId, user]);
+
+  // Real-time updates via socket
   useEffect(() => {
     if (!socket) return;
-    const handleBlockLogged = () => {
-      fetchHistory();
+    const handleBlockLogged = (data: any) => {
+      if (data?.block) {
+        ingestNewBlock(data.block);
+      } else {
+        fetchHistory();
+      }
     };
+
     socket.on('study:block_logged', handleBlockLogged);
     return () => {
       socket.off('study:block_logged', handleBlockLogged);
     };
-  }, [socket]);
+  }, [socket, campaignId, user]);
 
   const getDaysInCurrentMonth = () => {
     const now = new Date();
