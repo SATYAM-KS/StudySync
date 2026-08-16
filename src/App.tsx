@@ -10,6 +10,7 @@ import { CampaignsList } from './components/CampaignsList.tsx';
 import { CampaignDetail } from './components/CampaignDetail.tsx';
 import { CreateCampaignModal } from './components/CreateCampaignModal.tsx';
 import { EditProfileModal } from './components/EditProfileModal.tsx';
+import { AnimatedBackground } from './components/AnimatedBackground.tsx';
 import { Campaign } from './types/index.ts';
 import { 
   Square, 
