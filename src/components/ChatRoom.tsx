@@ -372,6 +372,29 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     }
   };
 
+  // Open documents in a clean new browser tab
+  const openDocumentInNewTab = (url: string) => {
+    if (url.startsWith('data:')) {
+      try {
+        const parts = url.split(',');
+        const byteString = atob(parts[1]);
+        const mimeString = parts[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeString });
+        const blobUrl = window.URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+        return;
+      } catch (e) {
+        console.warn('Blob creation failed, opening directly:', e);
+      }
+    }
+    window.open(url, '_blank');
+  };
+
   // ── Render ─────────────────────────────────────────────────────────
   // Filter messages by search query
   const filteredMessages = searchQuery.trim()
@@ -557,14 +580,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                     <div 
                       key={m.id} 
                       className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition cursor-pointer group"
-                      onClick={() => {
-                        setActiveMediaViewer({
-                          url: m.attachmentUrl!,
-                          name: m.attachmentName,
-                          senderName: m.senderName,
-                          timestamp: format(safeDate(m.createdAt), 'MMM d, h:mm a')
-                        });
-                      }}
+                      onClick={() => openDocumentInNewTab(m.attachmentUrl!)}
                     >
                       <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">{icon}</div>
                       <div className="flex-1 min-w-0">
@@ -717,18 +733,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                             </div>
                           )}
 
-                          {/* File attachment — shows name + download & opens in-app viewer */}
+                          {/* File attachment — shows name + download & opens in new tab */}
                           {msg.attachmentUrl && !isImageAttachment(msg.attachmentUrl, msg.attachmentType, msg.attachmentName) && (
                             <div 
                               className="mt-1.5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 max-w-xs shadow-xs cursor-pointer group/doc transition"
-                              onClick={() => {
-                                setActiveMediaViewer({
-                                  url: msg.attachmentUrl!,
-                                  name: msg.attachmentName,
-                                  senderName: msg.senderName,
-                                  timestamp: format(safeDate(msg.createdAt), 'h:mm a')
-                                });
-                              }}
+                              onClick={() => openDocumentInNewTab(msg.attachmentUrl!)}
                             >
                               {getFileIcon(msg.attachmentUrl, msg.attachmentName)}
                               <span className="flex-1 text-xs text-zinc-800 dark:text-zinc-100 font-semibold truncate min-w-0 group-hover/doc:underline" title={msg.attachmentName || undefined}>

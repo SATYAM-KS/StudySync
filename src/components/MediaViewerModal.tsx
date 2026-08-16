@@ -7,8 +7,7 @@ import {
   ZoomOut, 
   RotateCcw, 
   ExternalLink, 
-  FileImage,
-  FileText
+  FileImage
 } from 'lucide-react';
 
 interface MediaViewerModalProps {
@@ -18,18 +17,6 @@ interface MediaViewerModalProps {
   mediaName?: string | null;
   senderName?: string | null;
   timestamp?: string | null;
-}
-
-function dataURItoBlob(dataURI: string): Blob {
-  const parts = dataURI.split(',');
-  const byteString = atob(parts[1]);
-  const mimeString = parts[0].split(':')[1].split(';')[0];
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-  return new Blob([ab], { type: mimeString });
 }
 
 export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
@@ -43,42 +30,6 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   const [zoom, setZoom] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-  const [pdfLoadFailed, setPdfLoadFailed] = useState<boolean>(false);
-
-  const isPdf = Boolean(
-    (mediaName && mediaName.toLowerCase().endsWith('.pdf')) ||
-    (mediaUrl && (mediaUrl.toLowerCase().includes('.pdf') || mediaUrl.startsWith('data:application/pdf')))
-  );
-
-  // Convert Data URI to Blob URL for clean iframe PDF rendering
-  useEffect(() => {
-    setPdfLoadFailed(false);
-    if (!isOpen || !mediaUrl || !isPdf) {
-      setPdfBlobUrl(null);
-      return;
-    }
-
-    let activeUrl: string | null = null;
-    if (mediaUrl.startsWith('data:')) {
-      try {
-        const blob = dataURItoBlob(mediaUrl);
-        activeUrl = window.URL.createObjectURL(blob);
-        setPdfBlobUrl(activeUrl);
-      } catch (e) {
-        console.warn('Data URI to Blob conversion error:', e);
-        setPdfBlobUrl(mediaUrl);
-      }
-    } else {
-      setPdfBlobUrl(mediaUrl);
-    }
-
-    return () => {
-      if (activeUrl) {
-        window.URL.revokeObjectURL(activeUrl);
-      }
-    };
-  }, [isOpen, mediaUrl, isPdf]);
 
   // Reset zoom & rotation when media changes or opens
   useEffect(() => {
@@ -93,17 +44,15 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
     if (!isOpen) return;
     if (e.key === 'Escape') {
       onClose();
-    } else if (!isPdf) {
-      if (e.key === '+' || e.key === '=') {
-        setZoom(prev => Math.min(prev + 0.25, 4));
-      } else if (e.key === '-') {
-        setZoom(prev => Math.max(prev - 0.25, 0.5));
-      } else if (e.key === '0') {
-        setZoom(1);
-        setRotation(0);
-      }
+    } else if (e.key === '+' || e.key === '=') {
+      setZoom(prev => Math.min(prev + 0.25, 4));
+    } else if (e.key === '-') {
+      setZoom(prev => Math.max(prev - 0.25, 0.5));
+    } else if (e.key === '0') {
+      setZoom(1);
+      setRotation(0);
     }
-  }, [isOpen, onClose, isPdf]);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -112,7 +61,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
 
   if (!isOpen || !mediaUrl) return null;
 
-  const displayName = mediaName || mediaUrl.split('/').pop() || (isPdf ? 'Document.pdf' : 'Image');
+  const displayName = mediaName || mediaUrl.split('/').pop() || 'Image';
 
   // Robust download logic for both Data URIs and HTTP URLs
   const handleDownload = async () => {
@@ -173,19 +122,17 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
       >
         <div className="flex items-center space-x-3 min-w-0 pr-4">
           <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-            {isPdf ? (
-              <FileText className="w-4 h-4 text-orange-400" />
-            ) : (
-              <FileImage className="w-4 h-4 text-zinc-300" />
-            )}
+            <FileImage className="w-4 h-4 text-zinc-300" />
           </div>
           <div className="min-w-0">
             <p className="text-xs sm:text-sm font-bold text-white truncate max-w-xs sm:max-w-md">
               {displayName}
             </p>
-            <p className="text-[11px] text-zinc-400 truncate">
-              {isPdf ? 'PDF Document' : 'Image'} {senderName ? `· Shared by ${senderName}` : ''} {timestamp ? `· ${timestamp}` : ''}
-            </p>
+            {(senderName || timestamp) && (
+              <p className="text-[11px] text-zinc-400 truncate">
+                {senderName ? `Shared by ${senderName}` : ''} {timestamp ? `· ${timestamp}` : ''}
+              </p>
+            )}
           </div>
         </div>
 
@@ -197,7 +144,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             onClick={handleDownload}
             disabled={isDownloading}
             className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
-            title="Download file"
+            title="Download image"
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">{isDownloading ? 'Downloading...' : 'Download'}</span>
@@ -206,7 +153,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
           {/* Open original in new tab */}
           <button
             type="button"
-            onClick={() => window.open(pdfBlobUrl || mediaUrl, '_blank')}
+            onClick={() => window.open(mediaUrl, '_blank')}
             className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
             title="Open in new tab"
           >
@@ -232,106 +179,75 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        {isPdf ? (
-          /* PDF In-App Viewer */
-          <div className="w-full h-full max-w-5xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/[0.12] bg-[#1e1e24] relative">
-            {pdfLoadFailed ? (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-zinc-900 text-white">
-                <FileText className="w-12 h-12 text-orange-400" />
-                <p className="text-sm font-bold">{displayName}</p>
-                <p className="text-xs text-zinc-400 max-w-md">
-                  This document was uploaded before persistent cloud storage was enabled. Please re-upload the file in chat to read it in-app.
-                </p>
-                <button
-                  onClick={handleDownload}
-                  className="mt-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer"
-                >
-                  Try Download
-                </button>
-              </div>
-            ) : (
-              <iframe
-                src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1` : `${mediaUrl}#toolbar=1`}
-                title={displayName}
-                className="w-full h-full border-0 rounded-2xl bg-zinc-900"
-                onError={() => setPdfLoadFailed(true)}
-              />
-            )}
-          </div>
-        ) : (
-          /* Image Zoomable Viewer */
-          <div 
-            className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-200 ease-out"
-            style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg)`
-            }}
-          >
-            <img
-              src={mediaUrl}
-              alt={displayName}
-              className="max-h-[75vh] sm:max-h-[80vh] max-w-[92vw] sm:max-w-[85vw] object-contain rounded-2xl shadow-2xl border border-white/[0.08] pointer-events-auto"
-              onClick={e => e.stopPropagation()}
-              draggable={false}
-            />
-          </div>
-        )}
+        <div 
+          className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-200 ease-out"
+          style={{
+            transform: `scale(${zoom}) rotate(${rotation}deg)`
+          }}
+        >
+          <img
+            src={mediaUrl}
+            alt={displayName}
+            className="max-h-[75vh] sm:max-h-[80vh] max-w-[92vw] sm:max-w-[85vw] object-contain rounded-2xl shadow-2xl border border-white/[0.08] pointer-events-auto"
+            onClick={e => e.stopPropagation()}
+            draggable={false}
+          />
+        </div>
       </div>
 
-      {/* ── Bottom Floating Controls (Image only) ── */}
-      {!isPdf && (
-        <div className="w-full shrink-0 flex items-center justify-center pb-5 pt-2 z-20 pointer-events-none">
-          <div className="pointer-events-auto flex items-center space-x-1 sm:space-x-2 px-4 py-2 rounded-2xl bg-zinc-900/90 border border-white/[0.1] backdrop-blur-xl shadow-2xl text-white">
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              disabled={zoom <= 0.5}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
-              title="Zoom out (-)"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
+      {/* ── Bottom Floating Controls ── */}
+      <div className="w-full shrink-0 flex items-center justify-center pb-5 pt-2 z-20 pointer-events-none">
+        <div className="pointer-events-auto flex items-center space-x-1 sm:space-x-2 px-4 py-2 rounded-2xl bg-zinc-900/90 border border-white/[0.1] backdrop-blur-xl shadow-2xl text-white">
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            disabled={zoom <= 0.5}
+            className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
+            title="Zoom out (-)"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
 
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              className="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer"
-              title="Reset zoom (0)"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
+          <button
+            type="button"
+            onClick={handleResetZoom}
+            className="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer"
+            title="Reset zoom (0)"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
 
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              disabled={zoom >= 4}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
-              title="Zoom in (+)"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            disabled={zoom >= 4}
+            className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
+            title="Zoom in (+)"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
 
-            <div className="w-px h-4 bg-white/20 mx-1" />
+          <div className="w-px h-4 bg-white/20 mx-1" />
 
-            <button
-              type="button"
-              onClick={handleRotate}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
-              title="Rotate 90°"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+          <button
+            type="button"
+            onClick={handleRotate}
+            className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+            title="Rotate 90°"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
 
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
-              title="Download image"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+            title="Download image"
+          >
+            <Download className="w-4 h-4" />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 
