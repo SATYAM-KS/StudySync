@@ -554,26 +554,44 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                     ? <FileText className="w-5 h-5 shrink-0 text-orange-500" />
                     : <File className="w-5 h-5 shrink-0 text-zinc-500" />;
                   return (
-                    <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition">
+                    <div 
+                      key={m.id} 
+                      className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition cursor-pointer group"
+                      onClick={() => {
+                        setActiveMediaViewer({
+                          url: m.attachmentUrl!,
+                          name: m.attachmentName,
+                          senderName: m.senderName,
+                          timestamp: format(safeDate(m.createdAt), 'MMM d, h:mm a')
+                        });
+                      }}
+                    >
                       <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">{icon}</div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                        <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:underline">
                           {m.attachmentName || m.attachmentUrl!.split('/').pop() || 'File'}
                         </p>
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                           {m.senderName} · {format(safeDate(m.createdAt), 'MMM d, h:mm a')}
                         </p>
                       </div>
-                      <a
-                        href={m.attachmentUrl!}
-                        target="_blank"
-                        rel="noreferrer"
-                        download={m.attachmentName || true}
-                        className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition cursor-pointer shrink-0"
-                        onClick={e => e.stopPropagation()}
+                      <button
+                        type="button"
+                        className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition cursor-pointer shrink-0 active:scale-95"
+                        title="Download file"
+                        onClick={e => {
+                          e.stopPropagation();
+                          const link = document.createElement('a');
+                          link.href = m.attachmentUrl!;
+                          link.download = m.attachmentName || 'document';
+                          link.target = '_blank';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
                       >
                         <Download className="w-4 h-4" />
-                      </a>
+                      </button>
                     </div>
                   );
                 })}
@@ -699,24 +717,40 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                             </div>
                           )}
 
-                          {/* File attachment — shows name + download */}
+                          {/* File attachment — shows name + download & opens in-app viewer */}
                           {msg.attachmentUrl && !isImageAttachment(msg.attachmentUrl, msg.attachmentType, msg.attachmentName) && (
-                            <div className="mt-1.5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700 max-w-xs shadow-xs">
+                            <div 
+                              className="mt-1.5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 max-w-xs shadow-xs cursor-pointer group/doc transition"
+                              onClick={() => {
+                                setActiveMediaViewer({
+                                  url: msg.attachmentUrl!,
+                                  name: msg.attachmentName,
+                                  senderName: msg.senderName,
+                                  timestamp: format(safeDate(msg.createdAt), 'h:mm a')
+                                });
+                              }}
+                            >
                               {getFileIcon(msg.attachmentUrl, msg.attachmentName)}
-                              <span className="flex-1 text-xs text-zinc-800 dark:text-zinc-100 font-semibold truncate min-w-0" title={msg.attachmentName || undefined}>
+                              <span className="flex-1 text-xs text-zinc-800 dark:text-zinc-100 font-semibold truncate min-w-0 group-hover/doc:underline" title={msg.attachmentName || undefined}>
                                 {msg.attachmentName || msg.attachmentUrl.split('/').pop() || 'File'}
                               </span>
-                              <a
-                                href={msg.attachmentUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                download={msg.attachmentName || true}
+                              <button
+                                type="button"
                                 className="ml-1 p-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition cursor-pointer shrink-0 active:scale-95"
                                 title="Download file"
-                                onClick={e => e.stopPropagation()}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  const link = document.createElement('a');
+                                  link.href = msg.attachmentUrl!;
+                                  link.download = msg.attachmentName || 'document';
+                                  link.target = '_blank';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
                               >
                                 <Download className="w-3.5 h-3.5" />
-                              </a>
+                              </button>
                             </div>
                           )}
 
