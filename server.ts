@@ -735,6 +735,50 @@ app.get('/api/study/stats', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+app.get('/api/study/history', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const campaignId = req.query.campaignId as string | undefined;
+    const userBlocks = await getStudyBlocksForUser(req.user!.id, campaignId);
+    
+    // Sort latest first
+    const sortedBlocks = userBlocks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    const now = new Date();
+    const todayDateStr = now.toISOString().split('T')[0];
+    const todayLocalDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const weekStart = todayStart - 6 * 86400000;
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    let todayMinutes = 0;
+    let thisWeekMinutes = 0;
+    let thisMonthMinutes = 0;
+    let totalMinutes = 0;
+
+    sortedBlocks.forEach(b => {
+      if (b.status === 'active') {
+        const bTime = new Date(b.timestamp).getTime();
+        totalMinutes += b.durationMinutes;
+
+        const isToday = b.timestamp.startsWith(todayDateStr) || b.timestamp.startsWith(todayLocalDateStr) || bTime >= todayStart;
+        if (isToday) todayMinutes += b.durationMinutes;
+        if (bTime >= weekStart || isToday) thisWeekMinutes += b.durationMinutes;
+        if (bTime >= monthStart) thisMonthMinutes += b.durationMinutes;
+      }
+    });
+
+    res.json({
+      blocks: sortedBlocks,
+      todayMinutes,
+      thisWeekMinutes,
+      thisMonthMinutes,
+      totalMinutes
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch study history' });
+  }
+});
+
 // 4. Messaging
 app.get('/api/messages/campaign/:campaignId', authMiddleware, async (req: AuthRequest, res) => {
   try {

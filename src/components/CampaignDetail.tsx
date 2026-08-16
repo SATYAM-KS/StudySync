@@ -5,12 +5,14 @@ import { useSocket } from '../context/SocketContext.tsx';
 import { useCall } from '../context/CallContext.tsx';
 import { FocusLounge } from './FocusLounge.tsx';
 import { Leaderboard } from './Leaderboard.tsx';
+import { StudyHistory } from './StudyHistory.tsx';
 import { ChatRoom } from './ChatRoom.tsx';
 import { VoiceRoom } from './VoiceRoom.tsx';
 import { AdminSettingsModal } from './AdminSettingsModal.tsx';
 import { 
   ArrowLeft, 
   Trophy, 
+  History,
   MessageSquare, 
   Headphones, 
   Settings, 
@@ -30,7 +32,7 @@ interface CampaignDetailProps {
   onCampaignDeleted: () => void;
 }
 
-type TabType = 'focus' | 'leaderboard' | 'chat' | 'voice';
+type TabType = 'focus' | 'leaderboard' | 'history' | 'chat' | 'voice';
 
 export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   campaignId,
@@ -294,6 +296,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             {([ 
               { id: 'focus',       icon: Sparkles,     label: 'Focus Studio',      badge: isCallActive ? null : (activeInThisCamp.length > 0 ? '●' : null) },
               { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
+              { id: 'history',     icon: History,       label: 'Study History',     badge: null },
               { id: 'chat',        icon: MessageSquare, label: 'Lounge Chat',       badge: null },
               { id: 'voice',       icon: Headphones,    label: 'Voice & Screen',    badge: isCallActive ? 'Live' : null },
             ] as const).map(({ id, icon: Icon, label, badge }) => (
@@ -334,6 +337,20 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               }}
             >
               <Leaderboard campaignId={campaign.id} targetDailyHours={campaign.targetDailyHours} />
+            </div>
+
+            <div
+              className="h-full overflow-y-auto"
+              style={{
+                overscrollBehavior: 'contain',
+                display: activeTab === 'history' ? 'block' : 'none'
+              }}
+            >
+              <StudyHistory 
+                campaignId={campaign.id} 
+                campaignName={campaign.name}
+                targetDailyHours={campaign.targetDailyHours} 
+              />
             </div>
 
             <div
