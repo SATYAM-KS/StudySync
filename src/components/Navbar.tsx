@@ -144,8 +144,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl glass-panel p-2 z-50 animate-in fade-in slide-in-from-top-2 text-zinc-900 dark:text-zinc-100 shadow-2xl">
-                <div className="px-3 py-2 border-b border-zinc-200/60 dark:border-white/[0.08] mb-1">
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#121215] border border-zinc-200 dark:border-white/[0.12] p-2 z-50 animate-in fade-in slide-in-from-top-2 text-zinc-900 dark:text-zinc-100 shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
+                <div className="px-3 py-2 border-b border-zinc-200/80 dark:border-white/[0.08] mb-1">
                   <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">{user?.name}</p>
                   <p className="text-[11px] text-zinc-400 truncate">{user?.email}</p>
                   {user?.studyGoal && (
@@ -158,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onOpenProfile();
                     setShowUserMenu(false);
                   }}
-                  className="w-full flex items-center space-x-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 rounded-xl transition cursor-pointer"
+                  className="w-full flex items-center space-x-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 rounded-xl transition cursor-pointer"
                 >
                   <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
                   <span>Profile & Goal</span>
@@ -170,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       stopStudying();
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center space-x-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 rounded-xl transition cursor-pointer"
+                    className="w-full flex items-center space-x-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 rounded-xl transition cursor-pointer"
                   >
                     <Clock className="w-3.5 h-3.5" />
                     <span>Stop Current Session</span>
@@ -182,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     logout();
                     setShowUserMenu(false);
                   }}
-                  className="w-full flex items-center space-x-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 rounded-xl transition border-t border-zinc-200/60 dark:border-white/[0.08] mt-1 cursor-pointer"
+                  className="w-full flex items-center space-x-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 rounded-xl transition border-t border-zinc-200/80 dark:border-white/[0.08] mt-1 cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Log out</span>
