@@ -1194,25 +1194,43 @@ Respond ONLY with valid JSON in this exact structure:
   "category": "coding" | "studying" | "reading" | "research" | "writing" | "entertainment" | "social_media" | "gaming" | "idle" | "other",
   "reason": "One concise, clear sentence explaining what is visible on screen and why it is recognized as productive study work or off-task timepass/shopping."
 }`;
-    const res = await ai.interactions.create({
-      model: "gemini-3.6-flash",
-      input: [
-        { type: "text", text: prompt },
-        { type: "image", data, mime_type: mimeType }
-      ]
-    });
-    const text = res.output_text || "";
-    const cleanText = text.replace(/```json\s*/gi, "").replace(/```\s*$/gi, "").trim();
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        isProductiveWork: Boolean(parsed.isProductiveWork),
-        confidence: typeof parsed.confidence === "number" ? parsed.confidence : 90,
-        activitySummary: parsed.activitySummary || (parsed.isProductiveWork ? "Active Study Session" : "Entertainment/Distraction Detected"),
-        category: parsed.category || (parsed.isProductiveWork ? "studying" : "entertainment"),
-        reason: parsed.reason || (parsed.isProductiveWork ? "Study content verified on screen." : "Off-task/entertainment detected on screen.")
-      };
+    const candidateModels = [
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash"
+    ];
+    let lastError = null;
+    for (const modelName of candidateModels) {
+      try {
+        const res = await ai.interactions.create({
+          model: modelName,
+          input: [
+            { type: "text", text: prompt },
+            { type: "image", data, mime_type: mimeType }
+          ]
+        });
+        const text = res.output_text || "";
+        const cleanText = text.replace(/```json\s*/gi, "").replace(/```\s*$/gi, "").trim();
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return {
+            isProductiveWork: Boolean(parsed.isProductiveWork),
+            confidence: typeof parsed.confidence === "number" ? parsed.confidence : 90,
+            activitySummary: parsed.activitySummary || (parsed.isProductiveWork ? "Active Study Session" : "Entertainment/Distraction Detected"),
+            category: parsed.category || (parsed.isProductiveWork ? "studying" : "entertainment"),
+            reason: parsed.reason || (parsed.isProductiveWork ? "Study content verified on screen." : "Off-task/entertainment detected on screen.")
+          };
+        }
+      } catch (modelErr) {
+        lastError = modelErr;
+        console.warn(`[AI Proctor] Model ${modelName} unavailable/throttled, trying next fallback:`, modelErr?.message || modelErr);
+        continue;
+      }
+    }
+    if (lastError) {
+      throw lastError;
     }
     return {
       isProductiveWork: false,
