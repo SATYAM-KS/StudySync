@@ -89,16 +89,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       let bodyData = extraData;
       if (bodyData === undefined) {
         try {
-          const persisted = localStorage.getItem(PERSISTED_SESSION_KEY);
-          if (persisted) {
-            const parsed = JSON.parse(persisted);
-            if (parsed && parsed.campaignId) {
-              bodyData = {
-                isStudying: true,
-                campaignId: parsed.campaignId,
-                campaignName: parsed.campaignName,
-                subjectNote: parsed.subjectNote
-              };
+          const activeCampaignInSession = sessionStorage.getItem('study_active_campaign');
+          if (activeCampaignInSession) {
+            const persisted = localStorage.getItem(PERSISTED_SESSION_KEY);
+            if (persisted) {
+              const parsed = JSON.parse(persisted);
+              if (parsed && parsed.campaignId) {
+                bodyData = {
+                  isStudying: true,
+                  campaignId: parsed.campaignId,
+                  campaignName: parsed.campaignName,
+                  subjectNote: parsed.subjectNote
+                };
+              }
             }
           }
         } catch {}
@@ -119,10 +122,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         }
         if (Array.isArray(presData.activeStudySessions)) {
           let sessions: LiveStudySession[] = presData.activeStudySessions;
-          // Ensure current user is present if currently studying in localStorage
+          // Ensure current user is present if currently studying in localStorage and inside campaign
           try {
+            const activeCampaignInSession = sessionStorage.getItem('study_active_campaign');
             const persisted = localStorage.getItem(PERSISTED_SESSION_KEY);
-            if (persisted && (bodyData?.isStudying !== false)) {
+            if (activeCampaignInSession && persisted && (bodyData?.isStudying !== false)) {
               const parsed = JSON.parse(persisted);
               if (parsed && parsed.campaignId && !sessions.some(s => s.userId === user.id)) {
                 sessions = [

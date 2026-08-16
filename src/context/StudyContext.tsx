@@ -74,6 +74,14 @@ interface PersistedSessionState {
 
 function getInitialPersistedState(): PersistedSessionState | null {
   try {
+    // If refreshing on the main home screen (not inside a specific campaign lounge),
+    // close and reset the focus studio timer so it starts with zero when started again.
+    const activeCampaignInSession = sessionStorage.getItem('study_active_campaign');
+    if (!activeCampaignInSession) {
+      localStorage.removeItem(PERSISTED_SESSION_KEY);
+      return null;
+    }
+
     const raw = localStorage.getItem(PERSISTED_SESSION_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw) as PersistedSessionState;
