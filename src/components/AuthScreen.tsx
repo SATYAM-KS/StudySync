@@ -196,7 +196,7 @@ export const AuthScreen: React.FC = () => {
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-3">
-          <BrandLogo size="lg" rounded="rounded-2xl" className="shadow-lg" />
+          <BrandLogo size="lg" className="hover:scale-105 transition-transform" />
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
               StudySync

@@ -108,7 +108,7 @@ const MainApp: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#fafafa] dark:bg-[#09090b] flex flex-col items-center justify-center space-y-4">
         <AnimatedBackground />
-        <BrandLogo size="lg" rounded="rounded-2xl" className="shadow-lg relative z-10" />
+        <BrandLogo size="lg" className="animate-pulse relative z-10" />
         <div className="w-5 h-5 border-2 border-zinc-900 dark:border-zinc-100 border-t-transparent dark:border-t-transparent rounded-full animate-spin relative z-10"></div>
       </div>
     );

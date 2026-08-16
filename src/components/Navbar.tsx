@@ -46,7 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         
         {/* Brand */}
         <div className="flex items-center space-x-3 cursor-pointer group" onClick={onGoHome}>
-          <BrandLogo size="sm" rounded="rounded-xl" className="group-hover:scale-105 transition-transform" />
+          <BrandLogo size="sm" className="group-hover:scale-110 transition-transform" />
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white">
