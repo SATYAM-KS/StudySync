@@ -310,12 +310,40 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     }
   };
 
+  // Helper to reliably test if an attachment is an image
+  const isImageAttachment = (url?: string | null, type?: string | null, name?: string | null): boolean => {
+    if (!url) return false;
+    if (type === 'image') return true;
+    if (url.startsWith('data:image/')) return true;
+    if (url.match(/\.(jpeg|jpg|gif|png|webp|svg|avif|bmp)/i)) return true;
+    if (name && name.match(/\.(jpeg|jpg|gif|png|webp|svg|avif|bmp)/i)) return true;
+    return false;
+  };
+
   // ── File upload ────────────────────────────────────────────────────
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !token) return;
     const originalFileName = file.name;
+    const isImg = file.type.startsWith('image/') || file.name.match(/\.(jpeg|jpg|gif|png|webp|svg|avif|bmp)/i);
     setIsUploading(true);
+
+    // Read immediately for instant optimistic data URL
+    if (isImg) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvt) => {
+        const localDataUrl = uploadEvt.target?.result as string;
+        if (localDataUrl) {
+          setAttachment({
+            url: localDataUrl,
+            type: 'image',
+            filename: originalFileName
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -327,7 +355,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       if (res.ok) {
         const data = await res.json();
         const realFileName = data.originalName || data.filename || data.name || originalFileName;
-        setAttachment({ url: data.url, type: data.type, filename: realFileName });
+        setAttachment({ url: data.url, type: data.type || (isImg ? 'image' : 'file'), filename: realFileName });
       }
     } catch (err) {
       console.error('Upload error:', err);
@@ -458,7 +486,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
 
       {/* ── Media Grid ── */}
       {chatView === 'media' && (() => {
-        const mediaMessages = messages.filter(m => m.attachmentUrl && (m.attachmentType === 'image' || m.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)));
+        const mediaMessages = messages.filter(m => m.attachmentUrl && isImageAttachment(m.attachmentUrl, m.attachmentType, m.attachmentName));
         return (
           <div className="flex-1 overflow-y-auto p-4">
             {mediaMessages.length === 0 ? (
@@ -494,7 +522,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
 
       {/* ── Documents List ── */}
       {chatView === 'docs' && (() => {
-        const docMessages = messages.filter(m => m.attachmentUrl && !(m.attachmentType === 'image' || m.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)));
+        const docMessages = messages.filter(m => m.attachmentUrl && !isImageAttachment(m.attachmentUrl, m.attachmentType, m.attachmentName));
         return (
           <div className="flex-1 overflow-y-auto p-4">
             {docMessages.length === 0 ? (
@@ -626,14 +654,26 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                           )}
 
                           {/* Image attachment */}
-                          {msg.attachmentUrl && (msg.attachmentType === 'image' || msg.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)) && (
-                            <div className="mt-1.5 max-w-xs rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 cursor-pointer group/img relative"
+                          {msg.attachmentUrl && isImageAttachment(msg.attachmentUrl, msg.attachmentType, msg.attachmentName) && (
+                            <div className="mt-1.5 max-w-xs rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 cursor-pointer group/img relative bg-zinc-100 dark:bg-zinc-800"
                               onClick={() => window.open(msg.attachmentUrl!, '_blank')}>
                               <img
                                 src={msg.attachmentUrl}
-                                alt={msg.attachmentName || "attachment"}
-                                className="w-full max-h-60 object-cover group-hover/img:brightness-90 transition"
+                                alt={msg.attachmentName || "image"}
+                                className="w-full max-h-60 object-cover group-hover/img:brightness-90 transition block"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                  const fallback = target.nextElementSibling as HTMLElement;
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
                               />
+                              <div style={{ display: 'none' }} className="p-3.5 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+                                <FileImage className="w-4 h-4 text-blue-500 shrink-0" />
+                                <span className="truncate flex-1 font-semibold">{msg.attachmentName || 'Image Attachment'}</span>
+                                <Download className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                              </div>
                               {msg.attachmentName && (
                                 <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-xs text-[10px] text-white px-2.5 py-1 truncate opacity-0 group-hover/img:opacity-100 transition-opacity">
                                   {msg.attachmentName}
@@ -643,7 +683,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                           )}
 
                           {/* File attachment — shows name + download */}
-                          {msg.attachmentUrl && !(msg.attachmentType === 'image' || msg.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)) && (
+                          {msg.attachmentUrl && !isImageAttachment(msg.attachmentUrl, msg.attachmentType, msg.attachmentName) && (
                             <div className="mt-1.5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700 max-w-xs shadow-xs">
                               {getFileIcon(msg.attachmentUrl, msg.attachmentName)}
                               <span className="flex-1 text-xs text-zinc-800 dark:text-zinc-100 font-semibold truncate min-w-0" title={msg.attachmentName || undefined}>

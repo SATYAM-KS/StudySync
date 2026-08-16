@@ -1940,13 +1940,48 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to send message" });
   }
 });
-app.post("/api/upload", authMiddleware, upload.single("file"), (req, res) => {
+app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
   }
   const isImage = req.file.mimetype.startsWith("image/");
-  const fileUrl = `/uploads/${req.file.filename}`;
+  const ext = path2.extname(req.file.originalname) || (isImage ? ".jpg" : ".bin");
+  const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+  let fileUrl = `/uploads/${req.file.filename || uniqueName}`;
+  try {
+    let fileBuffer = null;
+    if (req.file.buffer) {
+      fileBuffer = req.file.buffer;
+    } else if (req.file.path && fs2.existsSync(req.file.path)) {
+      fileBuffer = fs2.readFileSync(req.file.path);
+    }
+    if (supabase && fileBuffer) {
+      try {
+        const bucketName = "study-uploads";
+        const { error: uploadError } = await supabase.storage.from(bucketName).upload(uniqueName, fileBuffer, {
+          contentType: req.file.mimetype,
+          upsert: true
+        });
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(uniqueName);
+          if (publicUrlData?.publicUrl) {
+            fileUrl = publicUrlData.publicUrl;
+          }
+        }
+      } catch (storageErr) {
+        console.warn("[Storage] Supabase storage upload warning:", storageErr);
+      }
+    }
+    if (fileBuffer && (!fileUrl.startsWith("http://") && !fileUrl.startsWith("https://"))) {
+      if (fileBuffer.length <= 8 * 1024 * 1024) {
+        const b64 = fileBuffer.toString("base64");
+        fileUrl = `data:${req.file.mimetype || (isImage ? "image/jpeg" : "application/octet-stream")};base64,${b64}`;
+      }
+    }
+  } catch (err) {
+    console.error("Upload processing error:", err);
+  }
   res.json({
     url: fileUrl,
     filename: req.file.originalname,

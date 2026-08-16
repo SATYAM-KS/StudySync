@@ -45,8 +45,8 @@ import {
   getActiveStudySessions 
 } from './src/server/socket.ts';
 import { analyzeScreenSnapshot } from './src/server/ai.ts';
-import { User, Campaign, CampaignMembership, StudyBlock, Message } from './src/types/index.ts';
 import { AccessToken } from 'livekit-server-sdk';
+import { supabase } from './src/server/supabase.ts';
 
 const isVercel = Boolean(process.env.VERCEL);
 const isProduction = process.env.NODE_ENV === 'production';
@@ -847,14 +847,59 @@ app.post('/api/messages', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // 5. File & Image Upload
-app.post('/api/upload', authMiddleware, upload.single('file'), (req: AuthRequest, res) => {
+app.post('/api/upload', authMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
   if (!req.file) {
     res.status(400).json({ error: 'No file uploaded' });
     return;
   }
 
   const isImage = req.file.mimetype.startsWith('image/');
-  const fileUrl = `/uploads/${req.file.filename}`;
+  const ext = path.extname(req.file.originalname) || (isImage ? '.jpg' : '.bin');
+  const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+  let fileUrl = `/uploads/${req.file.filename || uniqueName}`;
+
+  try {
+    let fileBuffer: Buffer | null = null;
+    if (req.file.buffer) {
+      fileBuffer = req.file.buffer;
+    } else if (req.file.path && fs.existsSync(req.file.path)) {
+      fileBuffer = fs.readFileSync(req.file.path);
+    }
+
+    // If Supabase is available, try uploading to Supabase Storage
+    if (supabase && fileBuffer) {
+      try {
+        const bucketName = 'study-uploads';
+        const { error: uploadError } = await supabase.storage
+          .from(bucketName)
+          .upload(uniqueName, fileBuffer, {
+            contentType: req.file.mimetype,
+            upsert: true
+          });
+
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(uniqueName);
+          if (publicUrlData?.publicUrl) {
+            fileUrl = publicUrlData.publicUrl;
+          }
+        }
+      } catch (storageErr) {
+        console.warn('[Storage] Supabase storage upload warning:', storageErr);
+      }
+    }
+
+    // Always ensure images and documents work reliably on Vercel serverless without 404s
+    if (fileBuffer && (!fileUrl.startsWith('http://') && !fileUrl.startsWith('https://'))) {
+      if (fileBuffer.length <= 8 * 1024 * 1024) { // Under 8MB
+        const b64 = fileBuffer.toString('base64');
+        fileUrl = `data:${req.file.mimetype || (isImage ? 'image/jpeg' : 'application/octet-stream')};base64,${b64}`;
+      }
+    }
+  } catch (err) {
+    console.error('Upload processing error:', err);
+  }
 
   res.json({
     url: fileUrl,
