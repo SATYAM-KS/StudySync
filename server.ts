@@ -377,7 +377,8 @@ app.put('/api/campaigns/:id', authMiddleware, async (req: AuthRequest, res) => {
     const updated = await updateCampaign(req.params.id, req.body);
     res.json(updated);
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to update campaign' });
+    console.error('[PUT /api/campaigns/:id]', err?.message || err);
+    res.status(500).json({ error: err?.message || 'Failed to update campaign' });
   }
 });
 

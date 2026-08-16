@@ -29,8 +29,18 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
   daily_end_time TEXT DEFAULT '23:00',
   target_daily_hours NUMERIC DEFAULT 4,
   schedule JSONB DEFAULT '[]'::jsonb,
+  max_members INTEGER DEFAULT 20,
+  is_public BOOLEAN DEFAULT TRUE,
+  tags TEXT[] DEFAULT '{}',
+  banner_color TEXT DEFAULT '#3b82f6',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration: Add missing columns to existing campaigns table (safe to re-run)
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS max_members INTEGER DEFAULT 20;
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE;
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS banner_color TEXT DEFAULT '#3b82f6';
 
 -- 3. Campaign Memberships Table
 CREATE TABLE IF NOT EXISTS public.memberships (
