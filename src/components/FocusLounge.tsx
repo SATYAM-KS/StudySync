@@ -25,15 +25,6 @@ interface FocusLoungeProps {
   campaign: Campaign;
 }
 
-const QUICK_SUBJECTS = [
-  'Flashcards / Anki Review',
-  'Practice Problem Set',
-  'Textbook Deep Reading',
-  'Mock Exam Review',
-  'Notes & Summary Synthesis',
-  'Essay / Dissertation Writing'
-];
-
 export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
   const { user } = useAuth();
   const {
@@ -57,7 +48,8 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
   } = useStudy();
 
   const { activeStudySessions } = useSocket();
-  const [subjectInput, setSubjectInput] = useState('Anki & Practice Problems');
+  const [subjectInput, setSubjectInput] = useState('');
+  const [topicError, setTopicError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const isCurrentCampaignStudying = isStudying && activeCampaignId === campaign.id;
@@ -268,36 +260,45 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
             })()}
           </div>
 
-          {/* Subject Goal Input & Quick Pills */}
+          {/* Subject Goal Input (User must write their specific study topic) */}
           {!isCurrentCampaignStudying ? (
-            <div className="space-y-3">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                What are you working on in this session? (Used by AI for task verification)
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                What topic are you studying in this session? <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={subjectInput}
-                onChange={(e) => setSubjectInput(e.target.value)}
-                placeholder="e.g. Chapter 6: Enzyme Kinetics & Problem Solving"
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+                onChange={(e) => {
+                  setSubjectInput(e.target.value);
+                  if (topicError && e.target.value.trim()) {
+                    setTopicError(false);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (!subjectInput.trim()) {
+                      setTopicError(true);
+                    } else {
+                      setTopicError(false);
+                      startStudying(campaign.id, campaign.name, subjectInput.trim());
+                    }
+                  }
+                }}
+                placeholder="Type the exact study topic (e.g. Solving LeetCode DP problems, Physics Chapter 4 notes...)"
+                className={`w-full bg-zinc-50 dark:bg-zinc-950 border ${
+                  topicError ? 'border-rose-500 focus:border-rose-500' : 'border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-white'
+                } rounded-xl px-4 py-3 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none transition shadow-sm`}
               />
-
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {QUICK_SUBJECTS.map((subj) => (
-                  <button
-                    key={subj}
-                    type="button"
-                    onClick={() => setSubjectInput(subj)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 transition cursor-pointer"
-                  >
-                    {subj}
-                  </button>
-                ))}
-              </div>
+              {topicError && (
+                <p className="text-xs text-rose-500 font-medium">
+                  Please enter the topic or subject you are studying before starting the focus session.
+                </p>
+              )}
             </div>
           ) : (
             <div className="p-3.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-between text-xs">
-              <span className="text-zinc-500 dark:text-zinc-400">Current Task:</span>
+              <span className="text-zinc-500 dark:text-zinc-400">Current Topic:</span>
               <span className="font-semibold text-zinc-900 dark:text-white truncate max-w-[280px]">{currentSubject}</span>
             </div>
           )}
@@ -306,7 +307,14 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             {!isCurrentCampaignStudying ? (
               <button
-                onClick={() => startStudying(campaign.id, campaign.name, subjectInput || 'Focus Session')}
+                onClick={() => {
+                  if (!subjectInput.trim()) {
+                    setTopicError(true);
+                    return;
+                  }
+                  setTopicError(false);
+                  startStudying(campaign.id, campaign.name, subjectInput.trim());
+                }}
                 className="flex-1 py-3.5 px-6 rounded-2xl bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-extrabold text-sm shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-current" />
