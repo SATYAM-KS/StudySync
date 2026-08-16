@@ -162,22 +162,22 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[100] flex flex-col justify-between bg-black/75 dark:bg-black/80 backdrop-blur-3xl animate-in fade-in duration-300 select-none overflow-hidden"
+      className="fixed inset-0 z-[100] flex flex-col justify-between bg-black/85 dark:bg-black/90 backdrop-blur-3xl animate-in fade-in duration-300 select-none overflow-hidden"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Ambient Moving Mesh Gradient Orbs for Glass Refraction */}
+      {/* Seamless Ambient Mesh Refraction */}
       <AnimatedBackground />
 
-      {/* ── Top Floating Glass Header ── */}
+      {/* ── Top Seamless Floating Glass Header ── */}
       <div className="w-full shrink-0 px-3 sm:px-6 pt-3 sm:pt-4 z-20 pointer-events-none">
         <div 
-          className="pointer-events-auto max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-5 py-3 rounded-2xl bg-zinc-950/70 dark:bg-zinc-950/80 border border-white/[0.12] backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-white"
+          className="pointer-events-auto max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-5 py-3 rounded-2xl bg-zinc-950/80 backdrop-blur-2xl shadow-[0_10px_35px_rgba(0,0,0,0.6)] text-white border-0"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center space-x-3 min-w-0 pr-4">
-            <div className="w-9 h-9 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center shrink-0 shadow-inner">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.08] flex items-center justify-center shrink-0 shadow-inner">
               {isPdf ? (
                 <FileText className="w-4 h-4 text-amber-400" />
               ) : (
@@ -212,7 +212,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             <button
               type="button"
               onClick={() => window.open(pdfBlobUrl || mediaUrl, '_blank')}
-              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
               title="Open in new tab"
             >
               <ExternalLink className="w-4 h-4" />
@@ -222,7 +222,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
               title="Close viewer (Esc)"
             >
               <X className="w-4 h-4" />
@@ -239,8 +239,8 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
         }}
       >
         {isPdf ? (
-          /* PDF In-App Glass Container Viewer */
-          <div className="w-full h-full max-w-5xl max-h-[82vh] sm:max-h-[85vh] flex flex-col rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-white/[0.15] bg-zinc-950/60 backdrop-blur-2xl relative p-1 sm:p-2 transition-all">
+          /* PDF In-App Seamless Container */
+          <div className="w-full h-full max-w-5xl max-h-[82vh] sm:max-h-[85vh] flex flex-col rounded-3xl overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.9)] bg-zinc-950/70 backdrop-blur-2xl relative p-1.5 sm:p-2 border-0 transition-all">
             {pdfLoadFailed ? (
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-zinc-950/80 backdrop-blur-xl text-white rounded-2xl">
                 <FileText className="w-12 h-12 text-amber-400" />
@@ -259,26 +259,23 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
               <iframe
                 src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1` : `${mediaUrl}#toolbar=1`}
                 title={displayName}
-                className="w-full h-full border-0 rounded-2xl bg-zinc-900/90 shadow-inner"
+                className="w-full h-full border-0 rounded-2xl bg-zinc-900 shadow-inner"
                 onError={() => setPdfLoadFailed(true)}
               />
             )}
           </div>
         ) : (
-          /* Image Zoomable Viewer with Ambient Glass Glow */
+          /* Image Zoomable Viewer with Seamless Elevation */
           <div 
             className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-200 ease-out p-2"
             style={{
               transform: `scale(${zoom}) rotate(${rotation}deg)`
             }}
           >
-            {/* Ambient Image Glow */}
-            <div className="absolute inset-0 bg-white/5 rounded-3xl blur-2xl pointer-events-none scale-105" />
-            
             <img
               src={mediaUrl}
               alt={displayName}
-              className="max-h-[72vh] sm:max-h-[78vh] max-w-[92vw] sm:max-w-[85vw] object-contain rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-white/[0.14] pointer-events-auto backdrop-blur-sm"
+              className="max-h-[72vh] sm:max-h-[78vh] max-w-[92vw] sm:max-w-[85vw] object-contain rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] border-0 pointer-events-auto"
               onClick={e => e.stopPropagation()}
               draggable={false}
             />
@@ -286,15 +283,15 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
         )}
       </div>
 
-      {/* ── Bottom Floating Glass Controls (Image only) ── */}
+      {/* ── Bottom Floating Controls (Image only) ── */}
       {!isPdf && (
         <div className="w-full shrink-0 flex items-center justify-center pb-5 pt-2 z-20 pointer-events-none">
-          <div className="pointer-events-auto flex items-center space-x-1.5 sm:space-x-2 px-4 py-2 rounded-2xl bg-zinc-950/75 border border-white/[0.14] backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] text-white">
+          <div className="pointer-events-auto flex items-center space-x-1.5 sm:space-x-2 px-4 py-2 rounded-2xl bg-zinc-950/80 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.7)] text-white border-0">
             <button
               type="button"
               onClick={handleZoomOut}
               disabled={zoom <= 0.5}
-              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
               title="Zoom out (-)"
             >
               <ZoomOut className="w-4 h-4" />
@@ -313,7 +310,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
               type="button"
               onClick={handleZoomIn}
               disabled={zoom >= 4}
-              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
               title="Zoom in (+)"
             >
               <ZoomIn className="w-4 h-4" />
@@ -324,7 +321,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             <button
               type="button"
               onClick={handleRotate}
-              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               title="Rotate 90°"
             >
               <RotateCcw className="w-4 h-4" />
@@ -333,7 +330,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             <button
               type="button"
               onClick={handleDownload}
-              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               title="Download image"
             >
               <Download className="w-4 h-4" />
