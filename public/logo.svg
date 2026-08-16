@@ -1,0 +1,38 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M50 14 C48 7 54 3 58 3 C57 7 53 10 50 14 Z"
+    fill="#FFFFFF"
+  />
+  <path
+    d="M55 5 C62 5 66 9 65 14 C60 14 56 10 55 5 Z"
+    fill="#FFFFFF"
+    fill-opacity="0.85"
+  />
+  <path
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    d="M50 14
+       C39 14 32 26 30 38
+       C28 47 18 57 18 71
+       C18 85 32 96 50 96
+       C68 96 82 85 82 71
+       C82 57 72 47 70 38
+       C68 26 61 14 50 14 Z
+       M50 54
+       C42.27 54 36 60.27 36 68
+       C36 75.73 42.27 82 50 82
+       C57.73 82 64 75.73 64 68
+       C64 60.27 57.73 54 50 54 Z"
+    fill="#FFFFFF"
+  />
+  <circle
+    cx="50"
+    cy="68"
+    r="10"
+    stroke="#FFFFFF"
+    stroke-width="2.5"
+    stroke-dasharray="4 2"
+    fill="none"
+    opacity="0.4"
+  />
+</svg>
