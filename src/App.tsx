@@ -11,6 +11,7 @@ import { CampaignDetail } from './components/CampaignDetail.tsx';
 import { CreateCampaignModal } from './components/CreateCampaignModal.tsx';
 import { EditProfileModal } from './components/EditProfileModal.tsx';
 import { AnimatedBackground } from './components/AnimatedBackground.tsx';
+import { AppLoadingScreen } from './components/AppLoadingScreen.tsx';
 import { BrandLogo } from './components/BrandLogo.tsx';
 import { Campaign } from './types/index.ts';
 import { 
@@ -103,15 +104,9 @@ const MainApp: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
   };
 
-  // Loading spinner on initial auth check
+  // Loading screen on initial auth check
   if (isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-[#fafafa] dark:bg-[#09090b] flex flex-col items-center justify-center space-y-4">
-        <AnimatedBackground />
-        <BrandLogo size="lg" className="animate-pulse relative z-10" />
-        <div className="w-5 h-5 border-2 border-zinc-900 dark:border-zinc-100 border-t-transparent dark:border-t-transparent rounded-full animate-spin relative z-10"></div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   // If not logged in, show clean Auth Screen
