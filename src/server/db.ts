@@ -575,12 +575,14 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
   let targetHours = 4;
 
   if (supabase) {
-    const { data: camp } = await supabase.from('campaigns').select('*').eq('id', campaignId).single();
-    if (camp) targetHours = Number(camp.target_daily_hours) || 4;
-    const { data: mems } = await supabase.from('memberships').select('*').eq('campaign_id', campaignId).eq('status', 'approved');
-    if (mems) approvedMembers = mems.map(mapMembershipFromDb);
-    const { data: blks } = await supabase.from('study_blocks').select('*').eq('campaign_id', campaignId).eq('status', 'active');
-    if (blks) campaignBlocks = blks.map(mapStudyBlockFromDb);
+    const [campRes, memsRes, blksRes] = await Promise.all([
+      supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
+      supabase.from('memberships').select('*').eq('campaign_id', campaignId).eq('status', 'approved'),
+      supabase.from('study_blocks').select('*').eq('campaign_id', campaignId).eq('status', 'active')
+    ]);
+    if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
+    if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
+    if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
   } else {
     const db = await initDb();
     const campaign = db.campaigns.find(c => c.id === campaignId);

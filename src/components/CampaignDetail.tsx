@@ -314,23 +314,37 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             ))}
           </div>
 
-          {/* Tab content — fills remaining height */}
+          {/* Tab content — fills remaining height with instant 0ms CSS-preserved switching */}
           <div className="flex-1 overflow-hidden p-4">
-            {activeTab === 'focus' && (
-              <div className="h-full overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
-                <FocusLounge campaign={campaign} />
-              </div>
-            )}
-            {activeTab === 'leaderboard' && (
-              <div className="h-full overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
-                <Leaderboard campaignId={campaign.id} targetDailyHours={campaign.targetDailyHours} />
-              </div>
-            )}
-            {activeTab === 'chat' && (
-              <div className="h-full flex flex-col">
-                <ChatRoom campaign={campaign} />
-              </div>
-            )}
+            <div
+              className="h-full overflow-y-auto"
+              style={{
+                overscrollBehavior: 'contain',
+                display: activeTab === 'focus' ? 'block' : 'none'
+              }}
+            >
+              <FocusLounge campaign={campaign} />
+            </div>
+
+            <div
+              className="h-full overflow-y-auto"
+              style={{
+                overscrollBehavior: 'contain',
+                display: activeTab === 'leaderboard' ? 'block' : 'none'
+              }}
+            >
+              <Leaderboard campaignId={campaign.id} targetDailyHours={campaign.targetDailyHours} />
+            </div>
+
+            <div
+              className="h-full flex flex-col"
+              style={{
+                display: activeTab === 'chat' ? 'flex' : 'none'
+              }}
+            >
+              <ChatRoom campaign={campaign} />
+            </div>
+
             {/* VoiceRoom is ALWAYS mounted — hidden with CSS so LiveKit stays connected across tabs */}
             <div
               className="h-full overflow-y-auto"

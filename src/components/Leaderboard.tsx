@@ -18,9 +18,23 @@ type Timeframe = 'today' | 'week' | 'month';
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours }) => {
   const { socket } = useSocket();
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const cacheKey = `study_leaderboard_cache_${campaignId}`;
+
+  const [entries, setEntries] = useState<LeaderboardEntry[]>(() => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      return !localStorage.getItem(cacheKey);
+    } catch {
+      return true;
+    }
+  });
 
   const fetchLeaderboard = async () => {
     try {
@@ -28,6 +42,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       if (res.ok) {
         const data = await res.json();
         setEntries(data);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch {}
       }
     } catch (e) {
       console.error('Failed to load leaderboard:', e);
@@ -140,8 +157,19 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
         </div>
       </div>
 
-      {/* Podium for Top 3 */}
-      {sortedEntries.length > 0 && (
+      {/* Podium for Top 3 (or Skeleton) */}
+      {isLoading && sortedEntries.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col items-center animate-pulse">
+              <div className="w-16 h-16 rounded-2xl bg-zinc-200 dark:bg-zinc-800 mb-3" />
+              <div className="w-24 h-4 rounded bg-zinc-200 dark:bg-zinc-800 mb-2" />
+              <div className="w-16 h-3 rounded bg-zinc-100 dark:bg-zinc-800 mb-3" />
+              <div className="w-20 h-6 rounded bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+          ))}
+        </div>
+      ) : sortedEntries.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
           
           {/* 2nd Place */}
@@ -173,7 +201,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                   {hrs.toFixed(1)} hrs
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : timeframe === 'month' ? 'monthly' : 'goal'} target ({targetHrs.toFixed(1)}h)
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : 'monthly'} target ({targetHrs.toFixed(1)}h)
                 </div>
                 <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-2 font-medium">
                   <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
@@ -216,7 +244,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                   {hrs.toFixed(1)} hrs
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-300 font-medium">
-                  <span className="font-bold text-zinc-950 dark:text-white">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : timeframe === 'month' ? 'monthly' : 'goal'} target ({targetHrs.toFixed(1)}h)
+                  <span className="font-bold text-zinc-950 dark:text-white">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : 'monthly'} target ({targetHrs.toFixed(1)}h)
                 </div>
                 <p className="text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-2 font-semibold">
                   <Flame className="w-3.5 h-3.5 text-zinc-950 dark:text-white fill-current" />
@@ -255,7 +283,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                   {hrs.toFixed(1)} hrs
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : timeframe === 'month' ? 'monthly' : 'goal'} target ({targetHrs.toFixed(1)}h)
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : 'monthly'} target ({targetHrs.toFixed(1)}h)
                 </div>
                 <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-2 font-medium">
                   <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
@@ -266,7 +294,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           })()}
 
         </div>
-      )}
+      ) : null}
 
       {/* Detailed Ranking Table */}
       <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
@@ -288,79 +316,98 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {sortedEntries.map((entry, idx) => {
-                const minutes = getMinutesForTimeframe(entry, timeframe);
-                const hours = minutes / 60;
-                const dailyTarget = entry.targetDailyHours || targetDailyHours || 3;
-                const targetHours = getTimeframeTargetHours(dailyTarget, timeframe);
-                const progressPct = targetHours > 0 ? Math.min(100, Math.round((hours / targetHours) * 100)) : 0;
-
-                return (
-                  <tr key={entry.userId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
-                    
-                    {/* Rank */}
-                    <td className="py-3.5 px-4 font-bold text-zinc-700 dark:text-zinc-300">
-                      {idx === 0 ? '1' : idx === 1 ? '2' : idx === 2 ? '3' : `${idx + 1}`}
-                    </td>
-
-                    {/* Student Info */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center space-x-3">
-                        <UserAvatar
-                          name={entry.userName}
-                          avatarUrl={entry.userAvatarUrl}
-                          size="xs"
-                          rounded="lg"
-                        />
-                        <span className="font-semibold text-zinc-950 dark:text-white truncate max-w-[140px]">
-                          {entry.userName}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Role */}
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                        {entry.role}
-                      </span>
-                    </td>
-
-                    {/* Streak */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center space-x-1 text-zinc-800 dark:text-zinc-200 font-semibold">
-                        <Flame className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                        <span>{entry.activeStreakDays}d</span>
-                      </div>
-                    </td>
-
-                    {/* Dynamic Timeframe Progress Bar */}
-                    <td className="py-3.5 px-4 min-w-[200px]">
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-zinc-500 dark:text-zinc-400">
-                            {hours.toFixed(1)} / {targetHours.toFixed(1)}h
-                          </span>
-                          <span className="font-bold text-zinc-900 dark:text-white">
-                            {progressPct}%
-                          </span>
-                        </div>
-                        <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full rounded-full bg-black dark:bg-white transition-all duration-300"
-                            style={{ width: `${progressPct}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Time */}
-                    <td className="py-3.5 px-4 text-right font-mono font-bold text-zinc-950 dark:text-white text-sm">
-                      {hours.toFixed(1)}h
-                    </td>
-
+              {isLoading && sortedEntries.length === 0 ? (
+                [1, 2, 3, 4].map(i => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-3.5 px-4"><div className="w-4 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="w-28 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="w-12 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="w-8 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="w-36 h-3 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
+                    <td className="py-3.5 px-4 text-right"><div className="w-10 h-4 bg-zinc-200 dark:bg-zinc-800 rounded ml-auto" /></td>
                   </tr>
-                );
-              })}
+                ))
+              ) : sortedEntries.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-zinc-500 dark:text-zinc-400">
+                    No study focus recorded yet for this timeframe. Start a focus session to rank #1!
+                  </td>
+                </tr>
+              ) : (
+                sortedEntries.map((entry, idx) => {
+                  const minutes = getMinutesForTimeframe(entry, timeframe);
+                  const hours = minutes / 60;
+                  const dailyTarget = entry.targetDailyHours || targetDailyHours || 3;
+                  const targetHours = getTimeframeTargetHours(dailyTarget, timeframe);
+                  const progressPct = targetHours > 0 ? Math.min(100, Math.round((hours / targetHours) * 100)) : 0;
+
+                  return (
+                    <tr key={entry.userId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
+                      
+                      {/* Rank */}
+                      <td className="py-3.5 px-4 font-bold text-zinc-700 dark:text-zinc-300">
+                        {idx === 0 ? '1' : idx === 1 ? '2' : idx === 2 ? '3' : `${idx + 1}`}
+                      </td>
+
+                      {/* Student Info */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center space-x-3">
+                          <UserAvatar
+                            name={entry.userName}
+                            avatarUrl={entry.userAvatarUrl}
+                            size="xs"
+                            rounded="lg"
+                          />
+                          <span className="font-semibold text-zinc-950 dark:text-white truncate max-w-[140px]">
+                            {entry.userName}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Role */}
+                      <td className="py-3.5 px-4">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                          {entry.role}
+                        </span>
+                      </td>
+
+                      {/* Streak */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center space-x-1 text-zinc-800 dark:text-zinc-200 font-semibold">
+                          <Flame className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                          <span>{entry.activeStreakDays}d</span>
+                        </div>
+                      </td>
+
+                      {/* Dynamic Timeframe Progress Bar */}
+                      <td className="py-3.5 px-4 min-w-[200px]">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-zinc-500 dark:text-zinc-400">
+                              {hours.toFixed(1)} / {targetHours.toFixed(1)}h
+                            </span>
+                            <span className="font-bold text-zinc-900 dark:text-white">
+                              {progressPct}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full rounded-full bg-black dark:bg-white transition-all duration-300"
+                              style={{ width: `${progressPct}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Time */}
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-zinc-950 dark:text-white text-sm">
+                        {hours.toFixed(1)}h
+                      </td>
+
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
