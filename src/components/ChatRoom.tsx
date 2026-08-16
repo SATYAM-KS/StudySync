@@ -3,7 +3,7 @@ import { Message, Campaign } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
-import { Send, Paperclip, Hash, X, Smile, Download, Search, File, FileText, FileImage } from 'lucide-react';
+import { Send, Paperclip, Hash, X, Smile, Download, Search, File, FileText, FileImage, Image as ImageIcon, MessageSquare } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 
 interface ChatRoomProps {
@@ -88,6 +88,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [chatView, setChatView] = useState<'chat' | 'media' | 'docs'>('chat');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -127,6 +128,13 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     const interval = setInterval(fetchMsgs, isConnected ? 10000 : 3000);
     return () => clearInterval(interval);
   }, [campaign.id, token, isConnected]);
+
+  // Reset view when campaign changes
+  useEffect(() => {
+    setChatView('chat');
+    setSearchQuery('');
+    setIsSearchOpen(false);
+  }, [campaign.id]);
 
   // ── Socket listeners ───────────────────────────────────────────────
   useEffect(() => {
@@ -381,7 +389,122 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
         )}
       </div>
 
-      {/* ── Messages Area ── */}
+      {/* ── View Tabs (Chat / Media / Docs) ── */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 shrink-0">
+        {(['chat', 'media', 'docs'] as const).map(view => {
+          const labels: Record<typeof view, { label: string; icon: React.ReactNode }> = {
+            chat: { label: 'Chat', icon: <MessageSquare className="w-3.5 h-3.5" /> },
+            media: { label: 'Media', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+            docs: { label: 'Documents', icon: <FileText className="w-3.5 h-3.5" /> }
+          };
+          const active = chatView === view;
+          return (
+            <button
+              key={view}
+              type="button"
+              onClick={() => setChatView(view)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                active
+                  ? 'bg-zinc-900 dark:bg-white text-white dark:text-black'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {labels[view].icon}
+              {labels[view].label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Media Grid ── */}
+      {chatView === 'media' && (() => {
+        const mediaMessages = messages.filter(m => m.attachmentUrl && (m.attachmentType === 'image' || m.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)));
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            {mediaMessages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center gap-2 text-center py-16">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-1">
+                  <ImageIcon className="w-6 h-6 text-zinc-400" />
+                </div>
+                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No media shared yet</p>
+                <p className="text-xs text-zinc-500 max-w-xs">Images shared in the chat will appear here.</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-3">{mediaMessages.length} image{mediaMessages.length !== 1 ? 's' : ''}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {mediaMessages.map(m => (
+                    <div
+                      key={m.id}
+                      className="relative aspect-square rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 cursor-pointer group"
+                      onClick={() => window.open(m.attachmentUrl!, '_blank')}
+                    >
+                      <img src={m.attachmentUrl!} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end p-1.5">
+                        <span className="text-[10px] text-white font-semibold opacity-0 group-hover:opacity-100 transition-opacity truncate">{m.senderName}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Documents List ── */}
+      {chatView === 'docs' && (() => {
+        const docMessages = messages.filter(m => m.attachmentUrl && !(m.attachmentType === 'image' || m.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)));
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            {docMessages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center gap-2 text-center py-16">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-1">
+                  <FileText className="w-6 h-6 text-zinc-400" />
+                </div>
+                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No documents shared yet</p>
+                <p className="text-xs text-zinc-500 max-w-xs">Files shared in the chat will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-3">{docMessages.length} document{docMessages.length !== 1 ? 's' : ''}</p>
+                {docMessages.map(m => {
+                  const ext = (m.attachmentName || m.attachmentUrl || '').split('.').pop()?.toLowerCase();
+                  const icon = ['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext || '')
+                    ? <FileText className="w-5 h-5 shrink-0 text-orange-500" />
+                    : <File className="w-5 h-5 shrink-0 text-zinc-500" />;
+                  return (
+                    <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition">
+                      <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">{icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                          {m.attachmentName || m.attachmentUrl!.split('/').pop() || 'File'}
+                        </p>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          {m.senderName} · {format(safeDate(m.createdAt), 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      <a
+                        href={m.attachmentUrl!}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={m.attachmentName || true}
+                        className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition cursor-pointer shrink-0"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Messages Area (chat view only) ── */}
+      {chatView === 'chat' && (
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -574,8 +697,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
           </div>
         )}
       </div>
+      )}{/* end chatView==='chat' messages area */}
 
-      {/* ── Attachment preview strip ── */}
+      {/* ── Attachment preview + Input Bar (chat view only) ── */}
+      {chatView === 'chat' && (
+        <>
       {attachment && (
         <div className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs text-zinc-700 dark:text-zinc-300">
           <Paperclip className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
@@ -642,6 +768,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
           <kbd className="font-mono">Enter</kbd> to send · <kbd className="font-mono">Shift+Enter</kbd> for new line
         </p>
       </div>
+    </>
+      )}{/* end chatView==='chat' input */}
     </div>
   );
 };

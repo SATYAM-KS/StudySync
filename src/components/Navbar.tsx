@@ -90,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Community Online Count */}
           <div className="flex items-center space-x-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900/80 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800">
             <span className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white"></span>
-            <span>{onlineUserIds.length || 1} online</span>
+            <span>{onlineUserIds.length} online</span>
             {activeStudySessions.length > 0 && (
               <span className="font-semibold text-zinc-900 dark:text-zinc-200">
                 · {activeStudySessions.length} studying

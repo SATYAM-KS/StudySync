@@ -109,7 +109,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     syncPresenceAndSessions();
-    const interval = setInterval(syncPresenceAndSessions, 8000);
+    const interval = setInterval(syncPresenceAndSessions, 2000);
     return () => clearInterval(interval);
   }, [token, user]);
 

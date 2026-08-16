@@ -602,7 +602,7 @@ app.post('/api/study/session/stop', authMiddleware, (req: AuthRequest, res) => {
 });
 
 app.get('/api/study/sessions', (_req, res) => {
-  const cutoff = Date.now() - 30000;
+  const cutoff = Date.now() - 8000;
   for (const [id, data] of activeStudySessionsMap.entries()) {
     if (data.lastSeen < cutoff) activeStudySessionsMap.delete(id);
   }
@@ -820,8 +820,8 @@ app.post('/api/presence/heartbeat', authMiddleware, (req: AuthRequest, res) => {
     lastSeen: Date.now()
   });
 
-  // Clean stale heartbeats older than 30s
-  const cutoff = Date.now() - 30000;
+  // Clean stale heartbeats older than 8s
+  const cutoff = Date.now() - 8000;
   for (const [id, data] of activeHeartbeats.entries()) {
     if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
   }
@@ -831,7 +831,7 @@ app.post('/api/presence/heartbeat', authMiddleware, (req: AuthRequest, res) => {
 });
 
 app.get('/api/presence', (_req, res) => {
-  const cutoff = Date.now() - 30000;
+  const cutoff = Date.now() - 8000;
   for (const [id, data] of activeHeartbeats.entries()) {
     if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
   }
