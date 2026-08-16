@@ -763,7 +763,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
 
       {/* ── Input Bar ── */}
       <div className="px-4 pb-4 shrink-0">
-        <div className="flex items-end gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
+        <div className="flex items-center gap-2 bg-zinc-100/90 dark:bg-zinc-800/80 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors shadow-xs">
           {/* Attach file button */}
           <input
             type="file"
@@ -776,7 +776,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition shrink-0 cursor-pointer mb-0.5"
+            className="p-2 rounded-xl text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 transition shrink-0 cursor-pointer flex items-center justify-center active:scale-95"
             title="Attach file"
           >
             {isUploading ? (
@@ -786,7 +786,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             )}
           </button>
 
-          {/* Textarea — grows with content, Enter sends, Shift+Enter newline */}
+          {/* Textarea — borderless, centered, seamless */}
           <textarea
             ref={textareaRef}
             value={inputText}
@@ -794,8 +794,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             onKeyDown={handleKeyDown}
             placeholder={`Message #${campaign.name}…`}
             rows={1}
-            className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none focus:outline-none leading-5 max-h-[120px] overflow-y-auto"
-            style={{ overscrollBehavior: 'contain' }}
+            className="flex-1 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none shadow-none text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none leading-5 max-h-[120px] overflow-y-auto py-1 px-1 m-0"
+            style={{ overscrollBehavior: 'contain', border: 'none', outline: 'none', boxShadow: 'none' }}
           />
 
           {/* Send button */}
@@ -803,14 +803,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             type="button"
             onClick={handleSend}
             disabled={!inputText.trim() && !attachment}
-            className="p-1.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition shrink-0 mb-0.5 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 rounded-xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shadow-xs active:scale-95"
             title="Send message (Enter)"
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-[10px] text-zinc-400 dark:text-zinc-600 mt-1.5 px-1">
-          <kbd className="font-mono">Enter</kbd> to send · <kbd className="font-mono">Shift+Enter</kbd> for new line
+        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1.5 px-1 font-mono">
+          Enter to send · Shift+Enter for new line
         </p>
       </div>
       </div>

@@ -30,6 +30,12 @@
     height: 100%;
     min-height: 100%;
   }
+
+  textarea.bg-transparent, input.bg-transparent {
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
 }
 
 /* Glassmorphism System */
