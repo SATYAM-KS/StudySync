@@ -246,7 +246,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
             <h3 className="font-extrabold text-base text-zinc-950 dark:text-white tracking-tight">
               Study History
             </h3>
-            <p className="text-xs text-zinc-400">Verified focus blocks & inspection records</p>
           </div>
         </div>
 

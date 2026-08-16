@@ -410,12 +410,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             <Hash className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-zinc-950 dark:text-white truncate leading-none">
+            <p className="text-sm font-bold text-zinc-950 dark:text-white truncate">
               {campaign.name}
             </p>
-            <p className="text-[11px] text-zinc-400 mt-1 leading-none">
-              {searchQuery ? `Showing results for "${searchQuery}"` : 'Study lounge · ask questions, share notes, celebrate wins'}
-            </p>
+            {searchQuery && (
+              <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
+                Showing results for "{searchQuery}"
+              </p>
+            )}
           </div>
           {/* Search toggle */}
           <button

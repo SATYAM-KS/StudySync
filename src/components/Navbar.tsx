@@ -47,16 +47,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand */}
         <div className="flex items-center space-x-3 cursor-pointer group" onClick={onGoHome}>
           <BrandLogo size="sm" className="group-hover:scale-110 transition-transform" />
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white">
-                StudySync
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 glass-pill text-zinc-700 dark:text-zinc-300 rounded-full">
-                Cohort
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-400 hidden sm:block">Peer Accountability Hub</p>
+          <div className="flex items-center space-x-2">
+            <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white">
+              StudySync
+            </span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 glass-pill text-zinc-700 dark:text-zinc-300 rounded-full">
+              Cohort
+            </span>
           </div>
         </div>
 
