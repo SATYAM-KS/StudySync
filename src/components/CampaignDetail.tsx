@@ -49,6 +49,25 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   });
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRequestingJoin, setIsRequestingJoin] = useState(false);
+
+  const handleRequestJoin = async () => {
+    if (!token) return;
+    setIsRequestingJoin(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/join`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        await fetchCampaign();
+      }
+    } catch (e) {
+      console.error('Failed to request join:', e);
+    } finally {
+      setIsRequestingJoin(false);
+    }
+  };
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -131,17 +150,32 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
                 {campaign.userStatus === 'pending'
                   ? 'Your membership request is currently awaiting review by the campaign host. You cannot open the study lounge, live voice room, or cohort chat until you are accepted.'
-                  : 'This study campaign is private. You must request and be accepted by the administrator to access the focus lounge and group channels.'}
+                  : 'This study campaign requires approval from the cohort admin. Request to join below to participate in study sessions with this group.'}
               </p>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
               <button
                 onClick={onBack}
-                className="w-full py-3 px-6 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs shadow-sm hover:opacity-90 transition cursor-pointer"
+                className="flex-1 py-3 px-5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer"
               >
-                Back to All Campaigns
+                Back to All Cohorts
               </button>
+              {campaign.userStatus !== 'pending' ? (
+                <button
+                  onClick={handleRequestJoin}
+                  disabled={isRequestingJoin}
+                  className="flex-1 py-3 px-5 rounded-xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold text-xs shadow-sm hover:opacity-90 transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>{isRequestingJoin ? 'Requesting...' : 'Request to Join'}</span>
+                </button>
+              ) : (
+                <div className="flex-1 py-3 px-5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold flex items-center justify-center gap-1.5">
+                  <Hourglass className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Awaiting Approval</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
