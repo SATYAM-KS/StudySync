@@ -85,17 +85,43 @@ function saveDb() {
     console.error("Error saving local db to disk:", err);
   }
 }
+function extractCodingLinks(rawBio) {
+  let cleanBio = rawBio || "";
+  let leetcodeUrl = "";
+  let hackerrankUrl = "";
+  const lcMatch = cleanBio.match(/\[leetcode:([^\]]+)\]/i);
+  if (lcMatch) {
+    leetcodeUrl = lcMatch[1].trim();
+    cleanBio = cleanBio.replace(lcMatch[0], "").trim();
+  }
+  const hrMatch = cleanBio.match(/\[hackerrank:([^\]]+)\]/i);
+  if (hrMatch) {
+    hackerrankUrl = hrMatch[1].trim();
+    cleanBio = cleanBio.replace(hrMatch[0], "").trim();
+  }
+  return { cleanBio, leetcodeUrl, hackerrankUrl };
+}
+function packBioWithCodingLinks(bio, leetcodeUrl, hackerrankUrl) {
+  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr } = extractCodingLinks(bio || "");
+  const finalLc = (leetcodeUrl !== void 0 ? leetcodeUrl : existingLc).trim();
+  const finalHr = (hackerrankUrl !== void 0 ? hackerrankUrl : existingHr).trim();
+  let packed = cleanBio;
+  if (finalLc) packed += ` [leetcode:${finalLc}]`;
+  if (finalHr) packed += ` [hackerrank:${finalHr}]`;
+  return packed.trim();
+}
 function mapUserFromDb(row) {
+  const extracted = extractCodingLinks(row.bio || "");
   return {
     id: row.id,
     name: row.name,
     email: row.email,
     passwordHash: row.password_hash,
     avatarUrl: row.avatar_url || "",
-    bio: row.bio || "",
+    bio: extracted.cleanBio,
     studyGoal: row.study_goal || "",
-    leetcodeUrl: row.leetcode_url || row.leetcodeUrl || "",
-    hackerrankUrl: row.hackerrank_url || row.hackerrankUrl || "",
+    leetcodeUrl: row.leetcode_url || row.leetcodeUrl || extracted.leetcodeUrl || "",
+    hackerrankUrl: row.hackerrank_url || row.hackerrankUrl || extracted.hackerrankUrl || "",
     createdAt: row.created_at
   };
 }
@@ -198,23 +224,35 @@ async function getUserByEmail(email) {
   return db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
 }
 async function createUser(userData) {
+  const packedBio = packBioWithCodingLinks(userData.bio, userData.leetcodeUrl, userData.hackerrankUrl);
   if (supabase) {
-    const { error } = await supabase.from("users").insert({
+    const fullPayload = {
       id: userData.id,
       name: userData.name,
       email: userData.email.toLowerCase(),
       password_hash: userData.passwordHash,
       avatar_url: userData.avatarUrl || "",
-      bio: userData.bio || "",
+      bio: packedBio,
       study_goal: userData.studyGoal || "",
       leetcode_url: userData.leetcodeUrl || "",
       hackerrank_url: userData.hackerrankUrl || "",
       created_at: userData.createdAt || (/* @__PURE__ */ new Date()).toISOString()
-    });
-    if (error) console.error("Supabase createUser error:", error);
+    };
+    const { error } = await supabase.from("users").insert(fullPayload);
+    if (error) {
+      delete fullPayload.leetcode_url;
+      delete fullPayload.hackerrank_url;
+      const { error: fbErr } = await supabase.from("users").insert(fullPayload);
+      if (fbErr) console.error("Supabase createUser error fallback:", fbErr);
+    }
   }
   const db = await initDb();
-  db.users.push(userData);
+  db.users.push({
+    ...userData,
+    bio: userData.bio || "",
+    leetcodeUrl: userData.leetcodeUrl || "",
+    hackerrankUrl: userData.hackerrankUrl || ""
+  });
   saveDb();
   const { passwordHash, ...user } = userData;
   return user;
@@ -233,15 +271,25 @@ async function updateUserPasswordByEmail(email, newPasswordHash) {
 }
 async function updateUser(id, updates) {
   if (supabase) {
-    const payload = {};
+    const { data: existingRow } = await supabase.from("users").select("*").eq("id", id).single();
+    const existingExtracted = existingRow ? extractCodingLinks(existingRow.bio || "") : { cleanBio: "", leetcodeUrl: "", hackerrankUrl: "" };
+    const targetBio = updates.bio !== void 0 ? updates.bio : existingExtracted.cleanBio;
+    const targetLc = updates.leetcodeUrl !== void 0 ? updates.leetcodeUrl : existingRow?.leetcode_url || existingExtracted.leetcodeUrl;
+    const targetHr = updates.hackerrankUrl !== void 0 ? updates.hackerrankUrl : existingRow?.hackerrank_url || existingExtracted.hackerrankUrl;
+    const packedBio = packBioWithCodingLinks(targetBio, targetLc, targetHr);
+    const payload = { bio: packedBio };
     if (updates.name !== void 0) payload.name = updates.name;
     if (updates.avatarUrl !== void 0) payload.avatar_url = updates.avatarUrl;
-    if (updates.bio !== void 0) payload.bio = updates.bio;
     if (updates.studyGoal !== void 0) payload.study_goal = updates.studyGoal;
     if (updates.leetcodeUrl !== void 0) payload.leetcode_url = updates.leetcodeUrl;
     if (updates.hackerrankUrl !== void 0) payload.hackerrank_url = updates.hackerrankUrl;
-    const { data, error } = await supabase.from("users").update(payload).eq("id", id).select().single();
-    if (!error && data) {
+    let res = await supabase.from("users").update(payload).eq("id", id).select().single();
+    if (res.error) {
+      delete payload.leetcode_url;
+      delete payload.hackerrank_url;
+      res = await supabase.from("users").update(payload).eq("id", id).select().single();
+    }
+    if (!res.error && res.data) {
       if (updates.name !== void 0 || updates.avatarUrl !== void 0) {
         const memPayload = {};
         if (updates.name !== void 0) memPayload.user_name = updates.name;
@@ -252,7 +300,7 @@ async function updateUser(id, updates) {
           await supabase.from("campaigns").update({ admin_name: updates.name }).eq("admin_id", id);
         }
       }
-      const full = mapUserFromDb(data);
+      const full = mapUserFromDb(res.data);
       const { passwordHash: passwordHash2, ...clean } = full;
       return clean;
     }
@@ -551,16 +599,16 @@ async function getCampaignLeaderboard(campaignId) {
       supabase.from("campaigns").select("target_daily_hours").eq("id", campaignId).single(),
       supabase.from("memberships").select("*").eq("campaign_id", campaignId).eq("status", "approved"),
       supabase.from("study_blocks").select("*").eq("campaign_id", campaignId).eq("status", "active"),
-      supabase.from("users").select("id, leetcode_url, hackerrank_url")
+      supabase.from("users").select("*")
     ]);
     if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
     if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
     if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
     if (usersRes.data) {
-      allUsers = usersRes.data.map((u) => ({
+      allUsers = usersRes.data.map(mapUserFromDb).map((u) => ({
         id: u.id,
-        leetcodeUrl: u.leetcode_url || "",
-        hackerrankUrl: u.hackerrank_url || ""
+        leetcodeUrl: u.leetcodeUrl || "",
+        hackerrankUrl: u.hackerrankUrl || ""
       }));
     }
   } else {

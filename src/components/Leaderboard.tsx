@@ -78,17 +78,24 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     fetchLeaderboard();
   }, [campaignId]);
 
-  // Real-time leaderboard updates on study blocks
+  // Real-time leaderboard updates on study blocks & profile edits
   useEffect(() => {
-    if (!socket) return;
-    const handleBlock = () => {
+    const handleProfileUpdate = () => {
       fetchLeaderboard();
     };
-    socket.on('study:block_logged', handleBlock);
+    window.addEventListener('profile:updated', handleProfileUpdate);
+
+    if (socket) {
+      socket.on('study:block_logged', handleProfileUpdate);
+    }
+
     return () => {
-      socket.off('study:block_logged', handleBlock);
+      window.removeEventListener('profile:updated', handleProfileUpdate);
+      if (socket) {
+        socket.off('study:block_logged', handleProfileUpdate);
+      }
     };
-  }, [socket]);
+  }, [socket, campaignId]);
 
   const getDaysInCurrentMonth = () => {
     const now = new Date();
