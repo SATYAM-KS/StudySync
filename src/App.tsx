@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ThemeProvider, useTheme } from './context/ThemeContext.tsx';
+import { ThemeProvider } from './context/ThemeContext.tsx';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { SocketProvider } from './context/SocketContext.tsx';
 import { StudyProvider, useStudy } from './context/StudyContext.tsx';
@@ -23,7 +23,6 @@ const MainApp: React.FC = () => {
   const { user, token, isLoading: isAuthLoading } = useAuth();
   const { isStudying, activeCampaignId, activeCampaignName, sessionElapsedSeconds, stopStudying } = useStudy();
   const { isInCall, activeCampaignName: callCampaignName, leaveCall } = useCall();
-  const { theme } = useTheme();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(() => {

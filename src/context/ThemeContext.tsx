@@ -1,11 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-
-type Theme = 'dark' | 'light';
+import React, { createContext, useContext, useEffect } from 'react';
 
 interface ThemeContextType {
-  theme: Theme;
+  theme: 'dark';
   toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+  setTheme: (theme: 'dark') => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -15,39 +13,20 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem('study_theme') as Theme | null;
-    if (saved === 'light' || saved === 'dark') return saved;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'light';
-    }
-    return 'dark';
-  });
-
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-      document.body.style.backgroundColor = '#09090b';
-    } else {
-      root.classList.add('light');
-      root.classList.remove('dark');
-      document.body.style.backgroundColor = '#ffffff';
-    }
-    localStorage.setItem('study_theme', theme);
-  }, [theme]);
+    root.classList.add('dark');
+    root.classList.remove('light');
+    document.body.style.backgroundColor = '#09090b';
+    document.body.style.color = '#f4f4f5';
+    localStorage.setItem('study_theme', 'dark');
+  }, []);
 
-  const toggleTheme = () => {
-    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  const setTheme = (t: Theme) => {
-    setThemeState(t);
-  };
+  const toggleTheme = () => {};
+  const setTheme = () => {};
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme: 'dark', toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -5,7 +5,6 @@ import { BrandLogo } from './BrandLogo.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
 import { useCall } from '../context/CallContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
-import { useTheme } from '../context/ThemeContext.tsx';
 import { 
   Clock, 
   Mic, 
@@ -14,9 +13,7 @@ import {
   ChevronDown,
   LogOut,
   User as UserIcon,
-  Plus,
-  Sun,
-  Moon
+  Plus
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -34,7 +31,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { isStudying, sessionElapsedSeconds, activeCampaignName, stopStudying } = useStudy();
   const { isInCall, activeCampaignName: callCampaignName, isMuted, toggleMute, leaveCall } = useCall();
   const { onlineUserIds, activeStudySessions } = useSocket();
-  const { theme, toggleTheme } = useTheme();
 
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -100,19 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Actions */}
         <div className="flex items-center space-x-2 sm:space-x-2.5">
           
-          {/* Dark / Light Mode Toggle Button */}
-          <button
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 transition cursor-pointer active:scale-95"
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-zinc-200 transition transform hover:rotate-45" />
-            ) : (
-              <Moon className="w-4 h-4 text-zinc-800 transition transform hover:-rotate-12" />
-            )}
-          </button>
+          {/* Create Campaign Shortcut */}
 
           {/* Create Campaign Shortcut */}
           <button

@@ -29,7 +29,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       <img
         src="/logo.png"
         alt="StudySync Logo"
-        className="w-full h-full object-contain dark:invert-0 invert transition-all duration-300"
+        className="w-full h-full object-contain"
       />
     </div>
   );

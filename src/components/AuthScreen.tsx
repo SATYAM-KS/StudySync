@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
-import { useTheme } from '../context/ThemeContext.tsx';
 import { AnimatedBackground } from './AnimatedBackground.tsx';
 import { BrandLogo } from './BrandLogo.tsx';
 import { 
@@ -13,18 +12,16 @@ import {
   Mail, 
   User as UserIcon, 
   Target, 
-  ArrowRight,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  KeyRound,
-  ArrowLeft,
-  RefreshCw,
-  Sun,
-  Moon,
-  Code2,
-  Terminal
+  ArrowRight, 
+  CheckCircle2, 
+  AlertCircle, 
+  Eye, 
+  EyeOff, 
+  KeyRound, 
+  ArrowLeft, 
+  RefreshCw, 
+  Code2, 
+  Terminal 
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar.tsx';
 
@@ -32,7 +29,6 @@ type AuthMode = 'login' | 'signup' | 'forgot';
 
 export const AuthScreen: React.FC = () => {
   const { login, signup, forgotPassword, resetPassword } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const [mode, setMode] = useState<AuthMode>('login');
   
   // Login form state
@@ -196,19 +192,7 @@ export const AuthScreen: React.FC = () => {
       <AnimatedBackground />
 
       <div className="min-h-full flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 relative z-10">
-      
-      {/* Top Right Theme Toggle */}
-      <div className="absolute top-6 right-6 z-20">
-        <button
-          onClick={toggleTheme}
-          className="p-2.5 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 shadow-sm transition cursor-pointer active:scale-95"
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-        >
-          {theme === 'dark' ? <Sun className="w-4 h-4 text-zinc-200" /> : <Moon className="w-4 h-4 text-zinc-800" />}
-        </button>
-      </div>
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-3">
