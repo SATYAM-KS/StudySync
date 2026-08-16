@@ -1287,23 +1287,16 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 var uploadsDir = isVercel2 ? "/tmp/uploads" : path2.join(process.cwd(), "uploads");
 if (!fs2.existsSync(uploadsDir)) {
-  fs2.mkdirSync(uploadsDir, { recursive: true });
+  try {
+    fs2.mkdirSync(uploadsDir, { recursive: true });
+  } catch {
+  }
 }
 app.use("/uploads", express.static(uploadsDir));
-var storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path2.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${ext}`);
-  }
-});
 var upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }
-  // 10MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }
+  // 15MB
 });
 var io = setupSocketServer(server);
 app.get("/api/health", (_req, res) => {

@@ -20,6 +20,18 @@ interface MediaViewerModalProps {
   timestamp?: string | null;
 }
 
+function dataURItoBlob(dataURI: string): Blob {
+  const parts = dataURI.split(',');
+  const byteString = atob(parts[1]);
+  const mimeString = parts[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
+}
+
 export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   isOpen,
   onClose,
@@ -31,11 +43,42 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   const [zoom, setZoom] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfLoadFailed, setPdfLoadFailed] = useState<boolean>(false);
 
   const isPdf = Boolean(
     (mediaName && mediaName.toLowerCase().endsWith('.pdf')) ||
     (mediaUrl && (mediaUrl.toLowerCase().includes('.pdf') || mediaUrl.startsWith('data:application/pdf')))
   );
+
+  // Convert Data URI to Blob URL for clean iframe PDF rendering
+  useEffect(() => {
+    setPdfLoadFailed(false);
+    if (!isOpen || !mediaUrl || !isPdf) {
+      setPdfBlobUrl(null);
+      return;
+    }
+
+    let activeUrl: string | null = null;
+    if (mediaUrl.startsWith('data:')) {
+      try {
+        const blob = dataURItoBlob(mediaUrl);
+        activeUrl = window.URL.createObjectURL(blob);
+        setPdfBlobUrl(activeUrl);
+      } catch (e) {
+        console.warn('Data URI to Blob conversion error:', e);
+        setPdfBlobUrl(mediaUrl);
+      }
+    } else {
+      setPdfBlobUrl(mediaUrl);
+    }
+
+    return () => {
+      if (activeUrl) {
+        window.URL.revokeObjectURL(activeUrl);
+      }
+    };
+  }, [isOpen, mediaUrl, isPdf]);
 
   // Reset zoom & rotation when media changes or opens
   useEffect(() => {
@@ -163,7 +206,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
           {/* Open original in new tab */}
           <button
             type="button"
-            onClick={() => window.open(mediaUrl, '_blank')}
+            onClick={() => window.open(pdfBlobUrl || mediaUrl, '_blank')}
             className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
             title="Open in new tab"
           >
@@ -191,12 +234,29 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
       >
         {isPdf ? (
           /* PDF In-App Viewer */
-          <div className="w-full h-full max-w-5xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/[0.12] bg-[#1e1e24]">
-            <iframe
-              src={`${mediaUrl}#toolbar=1`}
-              title={displayName}
-              className="w-full h-full border-0 rounded-2xl bg-zinc-900"
-            />
+          <div className="w-full h-full max-w-5xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/[0.12] bg-[#1e1e24] relative">
+            {pdfLoadFailed ? (
+              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-zinc-900 text-white">
+                <FileText className="w-12 h-12 text-orange-400" />
+                <p className="text-sm font-bold">{displayName}</p>
+                <p className="text-xs text-zinc-400 max-w-md">
+                  This document was uploaded before persistent cloud storage was enabled. Please re-upload the file in chat to read it in-app.
+                </p>
+                <button
+                  onClick={handleDownload}
+                  className="mt-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer"
+                >
+                  Try Download
+                </button>
+              </div>
+            ) : (
+              <iframe
+                src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1` : `${mediaUrl}#toolbar=1`}
+                title={displayName}
+                className="w-full h-full border-0 rounded-2xl bg-zinc-900"
+                onError={() => setPdfLoadFailed(true)}
+              />
+            )}
           </div>
         ) : (
           /* Image Zoomable Viewer */
