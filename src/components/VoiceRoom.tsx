@@ -202,9 +202,6 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
               <p className="text-xs text-zinc-400 mt-1 max-w-sm">Click &ldquo;Connect to Voice&rdquo; in the top-right corner to join</p>
             </div>
           )}
-          <div className="p-4 rounded-2xl glass-card text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="font-semibold text-zinc-800 dark:text-zinc-200">Voice Etiquette:</span> Noise suppression is enabled. Share your entire screen to review study material or work side-by-side.
-          </div>
         </div>
       ) : (
         livekitToken && (

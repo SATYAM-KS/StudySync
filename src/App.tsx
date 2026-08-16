@@ -131,7 +131,7 @@ const MainApp: React.FC = () => {
       </div>
 
       {/* Top Navigation */}
-      <div className="relative z-40">
+      <div className="relative z-30">
         <Navbar
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
@@ -140,7 +140,7 @@ const MainApp: React.FC = () => {
       </div>
 
       {/* Main Content Area — overflow-hidden, internal containers handle their own scroll */}
-      <main className="relative z-10 flex-1 overflow-hidden h-full">
+      <main className="relative flex-1 overflow-hidden h-full">
         {selectedCampaignId ? (
           <CampaignDetail
             campaignId={selectedCampaignId}
