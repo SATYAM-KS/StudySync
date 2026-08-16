@@ -14,7 +14,7 @@ interface LeaderboardProps {
   targetDailyHours: number;
 }
 
-type Timeframe = 'today' | 'week' | 'month' | 'all';
+type Timeframe = 'today' | 'week' | 'month';
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours }) => {
   const { socket } = useSocket();
@@ -61,22 +61,19 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     const baseDaily = dailyTarget || targetDailyHours || 3;
     if (tf === 'today') return baseDaily;
     if (tf === 'week') return baseDaily * 7;
-    if (tf === 'month') return baseDaily * getDaysInCurrentMonth();
-    return baseDaily * 30; // Campaign / All-time standard target benchmark
+    return baseDaily * getDaysInCurrentMonth();
   };
 
   const getTimeframeTitle = (tf: Timeframe) => {
     if (tf === 'today') return 'Daily Goal Progress';
     if (tf === 'week') return 'Weekly Goal Progress';
-    if (tf === 'month') return 'Monthly Goal Progress';
-    return 'Campaign Goal Progress';
+    return 'Monthly Goal Progress';
   };
 
   const getMinutesForTimeframe = (entry: LeaderboardEntry, tf: Timeframe) => {
     if (tf === 'today') return entry.todayMinutes || 0;
     if (tf === 'week') return entry.thisWeekMinutes || 0;
-    if (tf === 'month') return entry.thisMonthMinutes ?? entry.thisWeekMinutes ?? 0;
-    return entry.totalMinutes || 0;
+    return entry.thisMonthMinutes ?? entry.thisWeekMinutes ?? 0;
   };
 
   // Sort according to active timeframe
@@ -108,11 +105,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           </div>
         </div>
 
-        {/* Timeframe Tabs */}
-        <div className="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 w-full sm:w-auto overflow-x-auto">
+        {/* Timeframe Tabs: Today | This Week | This Month */}
+        <div className="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 w-full sm:w-auto">
           <button
             onClick={() => setTimeframe('today')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'today'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -122,7 +119,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           </button>
           <button
             onClick={() => setTimeframe('week')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'week'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -132,23 +129,13 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           </button>
           <button
             onClick={() => setTimeframe('month')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'month'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
             }`}
           >
             This Month
-          </button>
-          <button
-            onClick={() => setTimeframe('all')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              timeframe === 'all'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-            }`}
-          >
-            All Time
           </button>
         </div>
       </div>
