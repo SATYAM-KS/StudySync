@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
+import { AnimatedBackground } from './AnimatedBackground.tsx';
 import { 
   BookOpen, 
   Clock, 
@@ -190,12 +191,8 @@ export const AuthScreen: React.FC = () => {
   return (
     <div className="relative w-full h-full min-h-screen bg-[#fafafa] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-y-auto font-sans transition-colors duration-300">
       
-      {/* Subtle Ambient Background Mesh Orbs for Frosted Glass Refraction */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
-        <div className="absolute top-1/3 -right-40 w-96 h-96 rounded-full bg-amber-500/10 dark:bg-amber-500/[0.05] blur-3xl" />
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-indigo-500/10 dark:bg-indigo-500/[0.05] blur-3xl" />
-      </div>
+      {/* Animated Floating Luminous Mesh Orbs for Glassmorphism */}
+      <AnimatedBackground />
 
       <div className="min-h-full flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 relative z-10">
       

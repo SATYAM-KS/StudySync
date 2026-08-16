@@ -106,10 +106,11 @@ const MainApp: React.FC = () => {
   if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center space-y-4">
-        <div className="w-11 h-11 rounded-xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-sm">
+        <AnimatedBackground />
+        <div className="w-11 h-11 rounded-xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-sm relative z-10">
           <BookOpen className="w-5 h-5" />
         </div>
-        <div className="w-5 h-5 border-2 border-zinc-900 dark:border-zinc-100 border-t-transparent dark:border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-5 h-5 border-2 border-zinc-900 dark:border-zinc-100 border-t-transparent dark:border-t-transparent rounded-full animate-spin relative z-10"></div>
       </div>
     );
   }
@@ -123,12 +124,8 @@ const MainApp: React.FC = () => {
   return (
     <div className="relative h-screen overflow-hidden bg-[#fafafa] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 flex flex-col selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-black font-sans antialiased transition-colors duration-300">
       
-      {/* Subtle Ambient Background Mesh Orbs for Frosted Glass Refraction */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
-        <div className="absolute top-1/3 -right-40 w-96 h-96 rounded-full bg-amber-500/10 dark:bg-amber-500/[0.05] blur-3xl" />
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-indigo-500/10 dark:bg-indigo-500/[0.05] blur-3xl" />
-      </div>
+      {/* Animated Floating Luminous Mesh Orbs for Glassmorphism */}
+      <AnimatedBackground />
 
       {/* Top Navigation */}
       <div className="relative z-30">
