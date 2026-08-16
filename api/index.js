@@ -406,7 +406,11 @@ async function updateCampaign(id, updates) {
     if (updates.tags !== void 0) payload.tags = updates.tags;
     if (updates.bannerColor !== void 0) payload.banner_color = updates.bannerColor;
     const { data, error } = await supabase.from("campaigns").update(payload).eq("id", id).select().single();
-    if (!error && data) return mapCampaignFromDb(data);
+    if (error) {
+      console.error("[updateCampaign] Supabase error:", error);
+      throw new Error(error.message);
+    }
+    if (data) return mapCampaignFromDb(data);
   }
   const db = await initDb();
   const c = db.campaigns.find((camp) => camp.id === id);
@@ -824,6 +828,62 @@ async function optionalAuthMiddleware(req, res, next) {
 import { Server } from "socket.io";
 var connectedUsers = /* @__PURE__ */ new Map();
 var activeStudySessions = /* @__PURE__ */ new Map();
+var restHeartbeats = /* @__PURE__ */ new Map();
+var restStudySessions = /* @__PURE__ */ new Map();
+var ioInstance = null;
+function getOnlineUserIds() {
+  const cutoff = Date.now() - 3500;
+  for (const [id, data] of restHeartbeats.entries()) {
+    if (data.lastSeen < cutoff) restHeartbeats.delete(id);
+  }
+  const socketUserIds = Array.from(connectedUsers.values()).map((u) => u.userId);
+  const restUserIds = Array.from(restHeartbeats.keys());
+  return Array.from(/* @__PURE__ */ new Set([...socketUserIds, ...restUserIds]));
+}
+function getActiveStudySessions() {
+  const cutoff = Date.now() - 3500;
+  for (const [id, data] of restStudySessions.entries()) {
+    if (data.lastSeen < cutoff) restStudySessions.delete(id);
+  }
+  const sessionMap = /* @__PURE__ */ new Map();
+  for (const session of activeStudySessions.values()) {
+    sessionMap.set(session.userId, session);
+  }
+  for (const data of restStudySessions.values()) {
+    sessionMap.set(data.session.userId, data.session);
+  }
+  return Array.from(sessionMap.values());
+}
+function broadcastOnlineUsers() {
+  if (ioInstance) {
+    ioInstance.emit("presence:online_users", getOnlineUserIds());
+  }
+}
+function broadcastStudySessions() {
+  if (ioInstance) {
+    ioInstance.emit("study:active_sessions", getActiveStudySessions());
+  }
+}
+function touchUserPresence(userId, userName, userAvatarUrl) {
+  restHeartbeats.set(userId, { userId, userName, userAvatarUrl, lastSeen: Date.now() });
+  broadcastOnlineUsers();
+}
+function removeUserPresence(userId) {
+  restHeartbeats.delete(userId);
+  restStudySessions.delete(userId);
+  activeStudySessions.delete(userId);
+  broadcastOnlineUsers();
+  broadcastStudySessions();
+}
+function touchStudySession(session) {
+  restStudySessions.set(session.userId, { session, lastSeen: Date.now() });
+  broadcastStudySessions();
+}
+function removeStudySession(userId) {
+  restStudySessions.delete(userId);
+  activeStudySessions.delete(userId);
+  broadcastStudySessions();
+}
 function setupSocketServer(httpServer) {
   const io2 = new Server(httpServer, {
     cors: {
@@ -831,6 +891,7 @@ function setupSocketServer(httpServer) {
       methods: ["GET", "POST"]
     }
   });
+  ioInstance = io2;
   io2.on("connection", (socket) => {
     socket.on("user:online", (userData) => {
       connectedUsers.set(socket.id, {
@@ -840,8 +901,8 @@ function setupSocketServer(httpServer) {
         userAvatarUrl: userData.userAvatarUrl
       });
       socket.join(`user:${userData.userId}`);
-      broadcastOnlineUsers();
-      socket.emit("study:active_sessions", Array.from(activeStudySessions.values()));
+      broadcastOnlineUsers2();
+      socket.emit("study:active_sessions", getActiveStudySessions());
     });
     socket.on("campaign:join_room", (campaignId) => {
       socket.join(`campaign:${campaignId}`);
@@ -947,7 +1008,7 @@ function setupSocketServer(httpServer) {
       };
       activeStudySessions.set(user.userId, session);
       io2.emit("study:session_started", session);
-      io2.emit("study:active_sessions", Array.from(activeStudySessions.values()));
+      broadcastStudySessions();
     });
     socket.on("study:stop_session", () => {
       const user = connectedUsers.get(socket.id);
@@ -955,7 +1016,7 @@ function setupSocketServer(httpServer) {
       if (activeStudySessions.has(user.userId)) {
         activeStudySessions.delete(user.userId);
         io2.emit("study:session_ended", { userId: user.userId });
-        io2.emit("study:active_sessions", Array.from(activeStudySessions.values()));
+        broadcastStudySessions();
       }
     });
     socket.on("call:join", async ({ campaignId, isMuted = false, isVideoOn = false, isScreenSharing = false }) => {
@@ -1030,10 +1091,10 @@ function setupSocketServer(httpServer) {
         if (activeStudySessions.has(user.userId)) {
           activeStudySessions.delete(user.userId);
           io2.emit("study:session_ended", { userId: user.userId });
-          io2.emit("study:active_sessions", Array.from(activeStudySessions.values()));
+          broadcastStudySessions();
         }
         connectedUsers.delete(socket.id);
-        broadcastOnlineUsers();
+        broadcastOnlineUsers2();
       }
     });
   });
@@ -1047,9 +1108,10 @@ function setupSocketServer(httpServer) {
     socket.to(`call:${campaignId}`).emit("call:peer_left", { socketId: socket.id });
     io2.to(`campaign:${campaignId}`).emit("call:session_updated", session);
   }
-  function broadcastOnlineUsers() {
-    const onlineUserIds = Array.from(new Set(Array.from(connectedUsers.values()).map((u) => u.userId)));
-    io2.emit("presence:online_users", onlineUserIds);
+  function broadcastOnlineUsers2() {
+    if (ioInstance) {
+      ioInstance.emit("presence:online_users", getOnlineUserIds());
+    }
   }
   return io2;
 }
@@ -1433,7 +1495,8 @@ app.put("/api/campaigns/:id", authMiddleware, async (req, res) => {
     const updated = await updateCampaign(req.params.id, req.body);
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update campaign" });
+    console.error("[PUT /api/campaigns/:id]", err?.message || err);
+    res.status(500).json({ error: err?.message || "Failed to update campaign" });
   }
 });
 app.delete("/api/campaigns/:id", authMiddleware, async (req, res) => {
@@ -1595,14 +1658,13 @@ app.post("/api/study/block", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to log study block" });
   }
 });
-var activeStudySessionsMap = /* @__PURE__ */ new Map();
 app.post("/api/study/session/heartbeat", authMiddleware, (req, res) => {
   const { campaignId, campaignName, subjectNote, startedAt } = req.body;
   if (!campaignId) {
     res.status(400).json({ error: "campaignId required" });
     return;
   }
-  activeStudySessionsMap.set(req.user.id, {
+  touchStudySession({
     userId: req.user.id,
     userName: req.user.name,
     userAvatarUrl: req.user.avatarUrl,
@@ -1610,21 +1672,16 @@ app.post("/api/study/session/heartbeat", authMiddleware, (req, res) => {
     campaignName: campaignName || "Study Campaign",
     subjectNote: subjectNote || "Focus Study",
     startedAt: startedAt || (/* @__PURE__ */ new Date()).toISOString(),
-    lastSeen: Date.now()
+    activeMinutes: 0
   });
-  res.json({ success: true });
+  res.json({ success: true, activeStudySessions: getActiveStudySessions() });
 });
 app.post("/api/study/session/stop", authMiddleware, (req, res) => {
-  activeStudySessionsMap.delete(req.user.id);
-  res.json({ success: true });
+  removeStudySession(req.user.id);
+  res.json({ success: true, activeStudySessions: getActiveStudySessions() });
 });
 app.get("/api/study/sessions", (_req, res) => {
-  const cutoff = Date.now() - 3e4;
-  for (const [id, data] of activeStudySessionsMap.entries()) {
-    if (data.lastSeen < cutoff) activeStudySessionsMap.delete(id);
-  }
-  const sessions = Array.from(activeStudySessionsMap.values()).map(({ lastSeen, ...s }) => s);
-  res.json(sessions);
+  res.json(getActiveStudySessions());
 });
 app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
   try {
@@ -1793,27 +1850,41 @@ app.post("/api/messages/:messageId/react", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to toggle reaction" });
   }
 });
-var activeHeartbeats = /* @__PURE__ */ new Map();
 app.post("/api/presence/heartbeat", authMiddleware, (req, res) => {
   const userId = req.user.id;
-  activeHeartbeats.set(userId, {
-    userId,
-    userName: req.user.name,
-    lastSeen: Date.now()
-  });
-  const cutoff = Date.now() - 3e4;
-  for (const [id, data] of activeHeartbeats.entries()) {
-    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
+  touchUserPresence(userId, req.user.name, req.user.avatarUrl);
+  const { isStudying, campaignId, campaignName, subjectNote, startedAt } = req.body || {};
+  if (isStudying === true && campaignId) {
+    touchStudySession({
+      userId,
+      userName: req.user.name,
+      userAvatarUrl: req.user.avatarUrl,
+      campaignId,
+      campaignName: campaignName || "Study Campaign",
+      subjectNote: subjectNote || "Focus Study",
+      startedAt: startedAt || (/* @__PURE__ */ new Date()).toISOString(),
+      activeMinutes: 0
+    });
+  } else if (isStudying === false) {
+    removeStudySession(userId);
   }
-  const onlineIds = Array.from(activeHeartbeats.keys());
-  res.json({ onlineUserIds: onlineIds });
+  res.json({
+    onlineUserIds: getOnlineUserIds(),
+    activeStudySessions: getActiveStudySessions()
+  });
+});
+app.post("/api/presence/leave", optionalAuthMiddleware, (req, res) => {
+  const userId = req.user?.id || req.body?.userId;
+  if (userId) {
+    removeUserPresence(userId);
+  }
+  res.json({ success: true });
 });
 app.get("/api/presence", (_req, res) => {
-  const cutoff = Date.now() - 3e4;
-  for (const [id, data] of activeHeartbeats.entries()) {
-    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
-  }
-  res.json({ onlineUserIds: Array.from(activeHeartbeats.keys()) });
+  res.json({
+    onlineUserIds: getOnlineUserIds(),
+    activeStudySessions: getActiveStudySessions()
+  });
 });
 app.post("/api/livekit/token", authMiddleware, async (req, res) => {
   try {

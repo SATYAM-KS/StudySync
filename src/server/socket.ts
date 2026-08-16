@@ -14,6 +14,71 @@ interface ConnectedUser {
 
 const connectedUsers = new Map<string, ConnectedUser>(); // socketId -> ConnectedUser
 const activeStudySessions = new Map<string, LiveStudySession>(); // userId -> LiveStudySession
+const restHeartbeats = new Map<string, { userId: string; userName: string; userAvatarUrl?: string; lastSeen: number }>();
+const restStudySessions = new Map<string, { session: LiveStudySession; lastSeen: number }>();
+
+let ioInstance: Server | null = null;
+
+export function getOnlineUserIds(): string[] {
+  const cutoff = Date.now() - 3500;
+  for (const [id, data] of restHeartbeats.entries()) {
+    if (data.lastSeen < cutoff) restHeartbeats.delete(id);
+  }
+  const socketUserIds = Array.from(connectedUsers.values()).map(u => u.userId);
+  const restUserIds = Array.from(restHeartbeats.keys());
+  return Array.from(new Set([...socketUserIds, ...restUserIds]));
+}
+
+export function getActiveStudySessions(): LiveStudySession[] {
+  const cutoff = Date.now() - 3500;
+  for (const [id, data] of restStudySessions.entries()) {
+    if (data.lastSeen < cutoff) restStudySessions.delete(id);
+  }
+  const sessionMap = new Map<string, LiveStudySession>();
+  for (const session of activeStudySessions.values()) {
+    sessionMap.set(session.userId, session);
+  }
+  for (const data of restStudySessions.values()) {
+    sessionMap.set(data.session.userId, data.session);
+  }
+  return Array.from(sessionMap.values());
+}
+
+export function broadcastOnlineUsers() {
+  if (ioInstance) {
+    ioInstance.emit('presence:online_users', getOnlineUserIds());
+  }
+}
+
+export function broadcastStudySessions() {
+  if (ioInstance) {
+    ioInstance.emit('study:active_sessions', getActiveStudySessions());
+  }
+}
+
+export function touchUserPresence(userId: string, userName: string, userAvatarUrl?: string) {
+  restHeartbeats.set(userId, { userId, userName, userAvatarUrl, lastSeen: Date.now() });
+  broadcastOnlineUsers();
+}
+
+export function removeUserPresence(userId: string) {
+  restHeartbeats.delete(userId);
+  restStudySessions.delete(userId);
+  activeStudySessions.delete(userId);
+  broadcastOnlineUsers();
+  broadcastStudySessions();
+}
+
+export function touchStudySession(session: LiveStudySession) {
+  restStudySessions.set(session.userId, { session, lastSeen: Date.now() });
+  broadcastStudySessions();
+}
+
+export function removeStudySession(userId: string) {
+  restStudySessions.delete(userId);
+  activeStudySessions.delete(userId);
+  broadcastStudySessions();
+}
 
 export function setupSocketServer(httpServer: HttpServer) {
   const io = new Server(httpServer, {
@@ -22,6 +87,8 @@ export function setupSocketServer(httpServer: HttpServer) {
       methods: ['GET', 'POST']
     }
   });
+
+  ioInstance = io;
 
   io.on('connection', (socket: Socket) => {
     // 1. Presence & User Registration
@@ -39,7 +106,7 @@ export function setupSocketServer(httpServer: HttpServer) {
       // Broadcast online list to everyone
       broadcastOnlineUsers();
       // Send active study sessions
-      socket.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+      socket.emit('study:active_sessions', getActiveStudySessions());
     });
 
     // 2. Campaign Room Join / Leave
@@ -168,7 +235,7 @@ export function setupSocketServer(httpServer: HttpServer) {
 
       activeStudySessions.set(user.userId, session);
       io.emit('study:session_started', session);
-      io.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+      broadcastStudySessions();
     });
 
     socket.on('study:stop_session', () => {
@@ -178,7 +245,7 @@ export function setupSocketServer(httpServer: HttpServer) {
       if (activeStudySessions.has(user.userId)) {
         activeStudySessions.delete(user.userId);
         io.emit('study:session_ended', { userId: user.userId });
-        io.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+        broadcastStudySessions();
       }
     });
 
@@ -274,7 +341,7 @@ export function setupSocketServer(httpServer: HttpServer) {
         if (activeStudySessions.has(user.userId)) {
           activeStudySessions.delete(user.userId);
           io.emit('study:session_ended', { userId: user.userId });
-          io.emit('study:active_sessions', Array.from(activeStudySessions.values()));
+          broadcastStudySessions();
         }
         connectedUsers.delete(socket.id);
         broadcastOnlineUsers();
@@ -294,8 +361,9 @@ export function setupSocketServer(httpServer: HttpServer) {
   }
 
   function broadcastOnlineUsers() {
-    const onlineUserIds = Array.from(new Set(Array.from(connectedUsers.values()).map(u => u.userId)));
-    io.emit('presence:online_users', onlineUserIds);
+    if (ioInstance) {
+      ioInstance.emit('presence:online_users', getOnlineUserIds());
+    }
   }
 
   return io;

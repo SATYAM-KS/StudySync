@@ -90,7 +90,7 @@ function getInitialPersistedState(): PersistedSessionState | null {
 
 export function StudyProvider({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuth();
-  const { socket } = useSocket();
+  const { socket, syncPresenceNow, updateLocalActiveStudySessions } = useSocket();
 
   const initialSession = getInitialPersistedState();
   const initialElapsed = initialSession ? Math.max(0, Math.floor((Date.now() - initialSession.sessionStartedAt) / 1000)) : 0;
@@ -409,29 +409,23 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Study session REST heartbeat for multi-user live presence
+  // Study session REST heartbeat for multi-user live presence (1s interval)
   useEffect(() => {
     if (!isStudying || !activeCampaignId || !token) return;
 
     const sendStudyHeartbeat = async () => {
       try {
-        await fetch('/api/study/session/heartbeat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            campaignId: activeCampaignId,
-            campaignName: activeCampaignName,
-            subjectNote
-          })
+        await syncPresenceNow({
+          isStudying: true,
+          campaignId: activeCampaignId,
+          campaignName: activeCampaignName,
+          subjectNote
         });
       } catch {}
     };
 
     sendStudyHeartbeat();
-    const interval = setInterval(sendStudyHeartbeat, 3000);
+    const interval = setInterval(sendStudyHeartbeat, 1000);
     return () => clearInterval(interval);
   }, [isStudying, activeCampaignId, activeCampaignName, subjectNote, token]);
 
@@ -523,6 +517,27 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         sessionStartedAt: Date.now()
       }));
 
+      // Optimistic local update (0ms instant response)
+      if (user) {
+        updateLocalActiveStudySessions(prev => {
+          const filtered = prev.filter(s => s.userId !== user.id);
+          return [
+            ...filtered,
+            {
+              userId: user.id,
+              userName: user.name,
+              userAvatarUrl: user.avatarUrl,
+              campaignId,
+              campaignName,
+              subjectNote: subject,
+              startedAt: new Date().toISOString(),
+              activeMinutes: 0,
+              isScreenSharedLocally: true
+            }
+          ];
+        });
+      }
+
       if (socket) {
         socket.emit('study:start_session', {
           campaignId,
@@ -530,6 +545,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           subjectNote: subject
         });
       }
+
+      // Instant pulse sync
+      syncPresenceNow({
+        isStudying: true,
+        campaignId,
+        campaignName,
+        subjectNote: subject
+      }).catch(() => {});
 
       playSuccessChime();
       return true;
@@ -583,9 +606,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setIsAnalyzing(false);
     localStorage.removeItem(PERSISTED_SESSION_KEY);
 
+    // Optimistic local removal (0ms instant response)
+    if (user) {
+      updateLocalActiveStudySessions(prev => prev.filter(s => s.userId !== user.id));
+    }
+
     if (socket) {
       socket.emit('study:stop_session');
     }
+    syncPresenceNow({ isStudying: false }).catch(() => {});
     if (token) {
       fetch('/api/study/session/stop', {
         method: 'POST',

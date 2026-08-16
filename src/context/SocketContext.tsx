@@ -15,6 +15,8 @@ interface SocketContextType {
   reactToMessage: (messageId: string, emoji: string, campaignId?: string, recipientId?: string) => void;
   startTyping: (params: { campaignId?: string; recipientId?: string }) => void;
   stopTyping: (params: { campaignId?: string; recipientId?: string }) => void;
+  syncPresenceNow: (extraData?: any) => Promise<void>;
+  updateLocalActiveStudySessions: (updater: (prev: LiveStudySession[]) => LiveStudySession[]) => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -76,41 +78,64 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id]);
 
-  // Presence & Active Study Sessions Heartbeat via REST (ensures online users & live study peers sync even on Vercel)
+  // Presence & Active Study Sessions Heartbeat via REST (Single 1s pulse sync)
   const { token } = useAuth();
+
+  const syncPresenceAndSessions = async (extraData?: any) => {
+    if (!token || !user) return;
+    try {
+      const presRes = await fetch('/api/presence/heartbeat', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(extraData || {})
+      });
+      if (presRes.ok) {
+        const presData = await presRes.json();
+        if (Array.isArray(presData.onlineUserIds)) {
+          setOnlineUserIds(presData.onlineUserIds);
+        }
+        if (Array.isArray(presData.activeStudySessions)) {
+          setActiveStudySessions(presData.activeStudySessions);
+        }
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     if (!token || !user) return;
 
-    const syncPresenceAndSessions = async () => {
-      try {
-        // 1. Presence Heartbeat
-        const presRes = await fetch('/api/presence/heartbeat', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (presRes.ok) {
-          const presData = await presRes.json();
-          if (Array.isArray(presData.onlineUserIds)) {
-            setOnlineUserIds(presData.onlineUserIds);
-          }
-        }
+    syncPresenceAndSessions();
+    const interval = setInterval(syncPresenceAndSessions, 1000);
 
-        // 2. Active Study Sessions Query
-        const studyRes = await fetch('/api/study/sessions', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (studyRes.ok) {
-          const studyData = await studyRes.json();
-          if (Array.isArray(studyData)) {
-            setActiveStudySessions(studyData);
-          }
-        }
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncPresenceAndSessions();
+      }
+    };
+    const handleFocus = () => syncPresenceAndSessions();
+
+    const handleUnload = () => {
+      try {
+        const payload = JSON.stringify({ userId: user.id });
+        navigator.sendBeacon('/api/presence/leave', payload);
       } catch {}
     };
 
-    syncPresenceAndSessions();
-    const interval = setInterval(syncPresenceAndSessions, 2000);
-    return () => clearInterval(interval);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
   }, [token, user]);
 
   const joinCampaignRoom = (campaignId: string) => {
@@ -199,7 +224,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       sendMessage,
       reactToMessage,
       startTyping,
-      stopTyping
+      stopTyping,
+      syncPresenceNow: syncPresenceAndSessions,
+      updateLocalActiveStudySessions: setActiveStudySessions
     }}>
       {children}
     </SocketContext.Provider>

@@ -35,7 +35,15 @@ import {
   removeCallParticipant
 } from './src/server/db.ts';
 import { generateToken, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
-import { setupSocketServer } from './src/server/socket.ts';
+import { 
+  setupSocketServer, 
+  touchUserPresence, 
+  removeUserPresence, 
+  getOnlineUserIds, 
+  touchStudySession, 
+  removeStudySession, 
+  getActiveStudySessions 
+} from './src/server/socket.ts';
 import { analyzeScreenSnapshot } from './src/server/ai.ts';
 import { User, Campaign, CampaignMembership, StudyBlock, Message } from './src/types/index.ts';
 import { AccessToken } from 'livekit-server-sdk';
@@ -573,8 +581,6 @@ app.post('/api/study/block', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Live Active Study Sessions (Heartbeat & Query for Serverless)
-const activeStudySessionsMap = new Map<string, { userId: string; userName: string; userAvatarUrl?: string; campaignId: string; campaignName: string; subjectNote: string; startedAt: string; lastSeen: number }>();
-
 app.post('/api/study/session/heartbeat', authMiddleware, (req: AuthRequest, res) => {
   const { campaignId, campaignName, subjectNote, startedAt } = req.body;
   if (!campaignId) {
@@ -582,7 +588,7 @@ app.post('/api/study/session/heartbeat', authMiddleware, (req: AuthRequest, res)
     return;
   }
 
-  activeStudySessionsMap.set(req.user!.id, {
+  touchStudySession({
     userId: req.user!.id,
     userName: req.user!.name,
     userAvatarUrl: req.user!.avatarUrl,
@@ -590,24 +596,19 @@ app.post('/api/study/session/heartbeat', authMiddleware, (req: AuthRequest, res)
     campaignName: campaignName || 'Study Campaign',
     subjectNote: subjectNote || 'Focus Study',
     startedAt: startedAt || new Date().toISOString(),
-    lastSeen: Date.now()
+    activeMinutes: 0
   });
 
-  res.json({ success: true });
+  res.json({ success: true, activeStudySessions: getActiveStudySessions() });
 });
 
 app.post('/api/study/session/stop', authMiddleware, (req: AuthRequest, res) => {
-  activeStudySessionsMap.delete(req.user!.id);
-  res.json({ success: true });
+  removeStudySession(req.user!.id);
+  res.json({ success: true, activeStudySessions: getActiveStudySessions() });
 });
 
 app.get('/api/study/sessions', (_req, res) => {
-  const cutoff = Date.now() - 8000;
-  for (const [id, data] of activeStudySessionsMap.entries()) {
-    if (data.lastSeen < cutoff) activeStudySessionsMap.delete(id);
-  }
-  const sessions = Array.from(activeStudySessionsMap.values()).map(({ lastSeen, ...s }) => s);
-  res.json(sessions);
+  res.json(getActiveStudySessions());
 });
 
 // Automatic AI Screen Focus Verification (Every 5 mins)
@@ -810,32 +811,45 @@ app.post('/api/messages/:messageId/react', authMiddleware, async (req: AuthReque
 });
 
 // 7. Presence Heartbeat REST endpoint (for Serverless/Vercel)
-const activeHeartbeats = new Map<string, { userId: string; userName: string; lastSeen: number }>();
-
 app.post('/api/presence/heartbeat', authMiddleware, (req: AuthRequest, res) => {
   const userId = req.user!.id;
-  activeHeartbeats.set(userId, {
-    userId,
-    userName: req.user!.name,
-    lastSeen: Date.now()
-  });
+  touchUserPresence(userId, req.user!.name, req.user!.avatarUrl);
 
-  // Clean stale heartbeats older than 8s
-  const cutoff = Date.now() - 8000;
-  for (const [id, data] of activeHeartbeats.entries()) {
-    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
+  const { isStudying, campaignId, campaignName, subjectNote, startedAt } = req.body || {};
+  if (isStudying === true && campaignId) {
+    touchStudySession({
+      userId,
+      userName: req.user!.name,
+      userAvatarUrl: req.user!.avatarUrl,
+      campaignId,
+      campaignName: campaignName || 'Study Campaign',
+      subjectNote: subjectNote || 'Focus Study',
+      startedAt: startedAt || new Date().toISOString(),
+      activeMinutes: 0
+    });
+  } else if (isStudying === false) {
+    removeStudySession(userId);
   }
 
-  const onlineIds = Array.from(activeHeartbeats.keys());
-  res.json({ onlineUserIds: onlineIds });
+  res.json({ 
+    onlineUserIds: getOnlineUserIds(),
+    activeStudySessions: getActiveStudySessions()
+  });
+});
+
+app.post('/api/presence/leave', optionalAuthMiddleware, (req: AuthRequest, res) => {
+  const userId = req.user?.id || req.body?.userId;
+  if (userId) {
+    removeUserPresence(userId);
+  }
+  res.json({ success: true });
 });
 
 app.get('/api/presence', (_req, res) => {
-  const cutoff = Date.now() - 8000;
-  for (const [id, data] of activeHeartbeats.entries()) {
-    if (data.lastSeen < cutoff) activeHeartbeats.delete(id);
-  }
-  res.json({ onlineUserIds: Array.from(activeHeartbeats.keys()) });
+  res.json({ 
+    onlineUserIds: getOnlineUserIds(),
+    activeStudySessions: getActiveStudySessions()
+  });
 });
 
 // 7b. LiveKit Token Generation
