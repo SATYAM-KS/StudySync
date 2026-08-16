@@ -159,7 +159,7 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
               Voice &amp; Screen Channel
               {isConnected ? <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black font-bold uppercase animate-pulse">Live</span> : <span className="text-[10px] px-2.5 py-0.5 rounded-full glass-pill text-zinc-600 dark:text-zinc-400 font-bold">{channelParticipants.length} active</span>}
             </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Real-time audio + screen share powered by LiveKit</p>
+            <p className="text-xs text-zinc-400">Live voice channel</p>
           </div>
         </div>
         {!isConnected ? (

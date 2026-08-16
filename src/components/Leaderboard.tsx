@@ -191,6 +191,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                 Live Synced
               </span>
             </h3>
+            <p className="text-xs text-zinc-400">Live rankings</p>
           </div>
         </div>
 
