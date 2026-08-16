@@ -314,6 +314,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !token) return;
+    const originalFileName = file.name;
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -325,7 +326,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setAttachment({ url: data.url, type: data.type, filename: data.filename });
+        const realFileName = data.originalName || data.filename || data.name || originalFileName;
+        setAttachment({ url: data.url, type: data.type, filename: realFileName });
       }
     } catch (err) {
       console.error('Upload error:', err);
@@ -579,16 +581,16 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                   {/* Message Group */}
                   <div className="group/group">
                     {/* Author row (only once per group) */}
-                    <div className="flex items-start gap-3 px-3 pt-3 pb-0.5">
+                    <div className="flex items-center gap-3 px-3 pt-3 pb-1">
                       <UserAvatar
                         name={first.senderName}
                         avatarUrl={first.senderAvatarUrl}
                         size="md"
                         rounded="xl"
-                        className="mt-0.5"
+                        className="shrink-0"
                       />
-                      <div className="flex items-baseline gap-2 min-w-0">
-                        <span className={`text-sm font-bold leading-none truncate ${isMe ? 'text-zinc-950 dark:text-white' : 'text-zinc-800 dark:text-zinc-200'}`}>
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <span className={`text-sm font-bold leading-normal truncate pb-0.5 ${isMe ? 'text-zinc-950 dark:text-white' : 'text-zinc-800 dark:text-zinc-200'}`}>
                           {first.senderName}
                           {isMe && <span className="ml-1.5 text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">You</span>}
                         </span>
@@ -625,21 +627,26 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
 
                           {/* Image attachment */}
                           {msg.attachmentUrl && (msg.attachmentType === 'image' || msg.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)) && (
-                            <div className="mt-1.5 max-w-xs rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 cursor-pointer group/img"
+                            <div className="mt-1.5 max-w-xs rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 cursor-pointer group/img relative"
                               onClick={() => window.open(msg.attachmentUrl!, '_blank')}>
                               <img
                                 src={msg.attachmentUrl}
-                                alt="attachment"
+                                alt={msg.attachmentName || "attachment"}
                                 className="w-full max-h-60 object-cover group-hover/img:brightness-90 transition"
                               />
+                              {msg.attachmentName && (
+                                <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-xs text-[10px] text-white px-2.5 py-1 truncate opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                  {msg.attachmentName}
+                                </div>
+                              )}
                             </div>
                           )}
 
                           {/* File attachment — shows name + download */}
                           {msg.attachmentUrl && !(msg.attachmentType === 'image' || msg.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)) && (
-                            <div className="mt-1.5 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 max-w-xs">
+                            <div className="mt-1.5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700 max-w-xs shadow-xs">
                               {getFileIcon(msg.attachmentUrl, msg.attachmentName)}
-                              <span className="flex-1 text-xs text-zinc-700 dark:text-zinc-200 font-medium truncate min-w-0">
+                              <span className="flex-1 text-xs text-zinc-800 dark:text-zinc-100 font-semibold truncate min-w-0" title={msg.attachmentName || undefined}>
                                 {msg.attachmentName || msg.attachmentUrl.split('/').pop() || 'File'}
                               </span>
                               <a
@@ -647,7 +654,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                                 target="_blank"
                                 rel="noreferrer"
                                 download={msg.attachmentName || true}
-                                className="ml-1 p-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition cursor-pointer shrink-0"
+                                className="ml-1 p-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition cursor-pointer shrink-0 active:scale-95"
                                 title="Download file"
                                 onClick={e => e.stopPropagation()}
                               >

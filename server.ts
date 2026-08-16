@@ -806,7 +806,7 @@ app.get('/api/messages/direct/:otherUserId', authMiddleware, async (req: AuthReq
 
 app.post('/api/messages', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { campaignId, recipientId, content, attachmentUrl, attachmentType } = req.body;
+    const { campaignId, recipientId, content, attachmentUrl, attachmentName, attachmentType } = req.body;
     if (!content && !attachmentUrl) {
       res.status(400).json({ error: 'Message must have content or an attachment' });
       return;
@@ -822,6 +822,7 @@ app.post('/api/messages', authMiddleware, async (req: AuthRequest, res) => {
       recipientId: recipientId || null,
       content: content || '',
       attachmentUrl: attachmentUrl || null,
+      attachmentName: attachmentName || null,
       attachmentType: attachmentType || null,
       createdAt: now,
       timestamp: now,
@@ -858,6 +859,8 @@ app.post('/api/upload', authMiddleware, upload.single('file'), (req: AuthRequest
   res.json({
     url: fileUrl,
     filename: req.file.originalname,
+    originalName: req.file.originalname,
+    name: req.file.originalname,
     type: isImage ? 'image' : 'file',
     size: req.file.size
   });

@@ -129,7 +129,7 @@ export function setupSocketServer(httpServer: HttpServer) {
       if (!user) return;
 
       const newMsg: Message = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        id: messageData.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         senderId: user.userId,
         senderName: user.userName,
         senderAvatarUrl: user.userAvatarUrl,
@@ -137,6 +137,7 @@ export function setupSocketServer(httpServer: HttpServer) {
         recipientId: messageData.recipientId || null,
         content: messageData.content || '',
         attachmentUrl: messageData.attachmentUrl || null,
+        attachmentName: messageData.attachmentName || null,
         attachmentType: messageData.attachmentType || null,
         createdAt: new Date().toISOString(),
         reactions: []

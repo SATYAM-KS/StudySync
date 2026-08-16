@@ -932,7 +932,7 @@ function setupSocketServer(httpServer) {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
       const newMsg = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        id: messageData.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         senderId: user.userId,
         senderName: user.userName,
         senderAvatarUrl: user.userAvatarUrl,
@@ -940,6 +940,7 @@ function setupSocketServer(httpServer) {
         recipientId: messageData.recipientId || null,
         content: messageData.content || "",
         attachmentUrl: messageData.attachmentUrl || null,
+        attachmentName: messageData.attachmentName || null,
         attachmentType: messageData.attachmentType || null,
         createdAt: (/* @__PURE__ */ new Date()).toISOString(),
         reactions: []
@@ -1904,7 +1905,7 @@ app.get("/api/messages/direct/:otherUserId", authMiddleware, async (req, res) =>
 });
 app.post("/api/messages", authMiddleware, async (req, res) => {
   try {
-    const { campaignId, recipientId, content, attachmentUrl, attachmentType } = req.body;
+    const { campaignId, recipientId, content, attachmentUrl, attachmentName, attachmentType } = req.body;
     if (!content && !attachmentUrl) {
       res.status(400).json({ error: "Message must have content or an attachment" });
       return;
@@ -1919,6 +1920,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       recipientId: recipientId || null,
       content: content || "",
       attachmentUrl: attachmentUrl || null,
+      attachmentName: attachmentName || null,
       attachmentType: attachmentType || null,
       createdAt: now,
       timestamp: now,
@@ -1948,6 +1950,8 @@ app.post("/api/upload", authMiddleware, upload.single("file"), (req, res) => {
   res.json({
     url: fileUrl,
     filename: req.file.originalname,
+    originalName: req.file.originalname,
+    name: req.file.originalname,
     type: isImage ? "image" : "file",
     size: req.file.size
   });
