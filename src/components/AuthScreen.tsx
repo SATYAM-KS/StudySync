@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
 import { AnimatedBackground } from './AnimatedBackground.tsx';
+import { BrandLogo } from './BrandLogo.tsx';
 import { 
   BookOpen, 
   Clock, 
@@ -211,9 +212,7 @@ export const AuthScreen: React.FC = () => {
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-md">
-            <BookOpen className="w-6 h-6" />
-          </div>
+          <BrandLogo size="lg" rounded="rounded-2xl" className="shadow-lg" />
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
               StudySync

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
+import { BrandLogo } from './BrandLogo.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
 import { useCall } from '../context/CallContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { useTheme } from '../context/ThemeContext.tsx';
 import { 
-  BookOpen, 
   Clock, 
   Mic, 
   MicOff, 
@@ -50,9 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         
         {/* Brand */}
         <div className="flex items-center space-x-3 cursor-pointer group" onClick={onGoHome}>
-          <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-sm transition-all duration-300 group-hover:scale-105 group-hover:shadow-md">
-            <BookOpen className="w-4 h-4" />
-          </div>
+          <BrandLogo size="sm" rounded="rounded-xl" className="group-hover:scale-105 transition-transform" />
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white">

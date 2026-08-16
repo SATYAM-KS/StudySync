@@ -11,6 +11,7 @@ import { CampaignDetail } from './components/CampaignDetail.tsx';
 import { CreateCampaignModal } from './components/CreateCampaignModal.tsx';
 import { EditProfileModal } from './components/EditProfileModal.tsx';
 import { AnimatedBackground } from './components/AnimatedBackground.tsx';
+import { BrandLogo } from './components/BrandLogo.tsx';
 import { Campaign } from './types/index.ts';
 import { 
   Square, 
@@ -106,11 +107,9 @@ const MainApp: React.FC = () => {
   // Loading spinner on initial auth check
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-screen bg-[#fafafa] dark:bg-[#09090b] flex flex-col items-center justify-center space-y-4">
         <AnimatedBackground />
-        <div className="w-11 h-11 rounded-xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-sm relative z-10">
-          <BookOpen className="w-5 h-5" />
-        </div>
+        <BrandLogo size="lg" rounded="rounded-2xl" className="shadow-lg relative z-10" />
         <div className="w-5 h-5 border-2 border-zinc-900 dark:border-zinc-100 border-t-transparent dark:border-t-transparent rounded-full animate-spin relative z-10"></div>
       </div>
     );
