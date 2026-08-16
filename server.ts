@@ -77,6 +77,63 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use('/uploads', express.static(uploadsDir));
 
+// Explicit route for uploads to serve PDFs with Content-Disposition inline for browser PDF viewer
+app.get('/uploads/:filename', async (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(uploadsDir, filename);
+
+  if (fs.existsSync(filePath)) {
+    const ext = path.extname(filename).toLowerCase();
+    const contentType = ext === '.pdf' ? 'application/pdf' : ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', 'inline');
+    return res.sendFile(filePath);
+  }
+
+  // If Supabase is available, check if the file exists in Supabase Storage
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.storage.from('study-uploads').download(filename);
+      if (data && !error) {
+        const buffer = Buffer.from(await data.arrayBuffer());
+        const ext = path.extname(filename).toLowerCase();
+        const contentType = ext === '.pdf' ? 'application/pdf' : ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'application/octet-stream';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', 'inline');
+        return res.send(buffer);
+      }
+    } catch (e) {
+      console.warn('[Storage] Supabase download check warning:', e);
+    }
+  }
+
+  // If file expired from ephemeral disk
+  res.status(404).send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Document Expired - StudySync</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { margin: 0; background: #09090b; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+        .card { max-width: 440px; padding: 2.5rem; background: rgba(24, 24, 27, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.5rem; backdrop-filter: blur(20px); }
+        h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff; }
+        p { font-size: 0.875rem; color: #a1a1aa; line-height: 1.5; margin-bottom: 1.5rem; }
+        .btn { display: inline-block; padding: 0.75rem 1.5rem; background: #fff; color: #000; font-weight: 600; font-size: 0.875rem; border-radius: 0.75rem; text-decoration: none; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>Document Expired</h1>
+        <p>This file was uploaded during a previous server session before persistent cloud storage was enabled. Please re-upload the document in the cohort chat to open it directly in your browser's PDF viewer.</p>
+        <a href="/" class="btn">Back to Cohorts</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 } // 15MB
