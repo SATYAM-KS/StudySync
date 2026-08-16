@@ -156,10 +156,10 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
 
           {/* Screen Share Error Alert */}
           {screenShareError && (
-            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2.5">
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2.5 animate-shake">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-400" />
               <div>
-                <span className="font-bold">Screen Share Required:</span> To ensure honest cohort accountability and automated AI work verification, please share your entire screen when prompted.
+                <span className="font-bold">Entire Screen Required:</span> {screenShareError}
               </div>
             </div>
           )}

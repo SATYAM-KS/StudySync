@@ -538,12 +538,27 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           displaySurface: 'monitor',
           cursor: 'never'
         } as any,
-        audio: false
-      });
+        audio: false,
+        monitorTypeSurfaces: 'include',
+        surfaceSwitching: 'exclude',
+        selfBrowserSurface: 'exclude',
+        systemAudio: 'exclude',
+        preferCurrentTab: false
+      } as any);
 
       const track = stream.getVideoTracks()[0];
       if (!track) {
         setScreenShareError('Screen capture is required to start a verified focus session.');
+        return false;
+      }
+
+      // Verify that user selected Entire Screen / Monitor
+      const settings = track.getSettings?.() || {};
+      const surface = settings.displaySurface;
+      if (surface && surface !== 'monitor') {
+        track.stop();
+        stream.getTracks().forEach(t => t.stop());
+        setScreenShareError('Please select "Entire Screen" (Screen 1 or Screen 2). Sharing a single window or browser tab is not allowed for verified focus sessions.');
         return false;
       }
 
@@ -635,11 +650,26 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           displaySurface: 'monitor',
           cursor: 'never'
         } as any,
-        audio: false
-      });
+        audio: false,
+        monitorTypeSurfaces: 'include',
+        surfaceSwitching: 'exclude',
+        selfBrowserSurface: 'exclude',
+        systemAudio: 'exclude',
+        preferCurrentTab: false
+      } as any);
 
       const track = stream.getVideoTracks()[0];
       if (!track) return false;
+
+      // Verify that user selected Entire Screen / Monitor
+      const settings = track.getSettings?.() || {};
+      const surface = settings.displaySurface;
+      if (surface && surface !== 'monitor') {
+        track.stop();
+        stream.getTracks().forEach(t => t.stop());
+        setScreenShareError('Please select "Entire Screen" (Screen 1 or Screen 2). Sharing a single window or browser tab is not allowed for verified focus sessions.');
+        return false;
+      }
 
       track.onended = () => {
         setScreenStream(null);
