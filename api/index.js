@@ -1195,9 +1195,9 @@ Respond ONLY with valid JSON in this exact structure:
   "reason": "One concise, clear sentence explaining what is visible on screen and why it is recognized as productive study work or off-task timepass/shopping."
 }`;
     const candidateModels = [
-      "gemini-3.5-flash",
       "gemini-3.5-flash-lite",
       "gemini-3.7-flash",
+      "gemini-3.5-flash",
       "gemini-3.6-flash"
     ];
     let lastError = null;
