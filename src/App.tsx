@@ -104,9 +104,11 @@ const MainApp: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
   };
 
-  // Loading screen on initial auth check
-  if (isAuthLoading) {
-    return <AppLoadingScreen />;
+  const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
+
+  // Full introductory loading sequence on page load / refresh
+  if (isAuthLoading || !isInitialLoadDone) {
+    return <AppLoadingScreen onFinished={() => setIsInitialLoadDone(true)} minDurationMs={1800} />;
   }
 
   // If not logged in, show clean Auth Screen
