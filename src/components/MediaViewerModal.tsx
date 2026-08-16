@@ -10,6 +10,7 @@ import {
   FileImage,
   FileText
 } from 'lucide-react';
+import { AnimatedBackground } from './AnimatedBackground.tsx';
 
 interface MediaViewerModalProps {
   isOpen: boolean;
@@ -161,115 +162,123 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[100] flex flex-col justify-between bg-black/90 dark:bg-black/95 backdrop-blur-2xl animate-in fade-in duration-200 select-none"
+      className="fixed inset-0 z-[100] flex flex-col justify-between bg-black/75 dark:bg-black/80 backdrop-blur-3xl animate-in fade-in duration-300 select-none overflow-hidden"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* ── Top Header Bar ── */}
-      <div 
-        className="w-full shrink-0 flex items-center justify-between px-4 sm:px-6 py-3.5 bg-black/40 border-b border-white/[0.08] backdrop-blur-md z-20 text-white"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center space-x-3 min-w-0 pr-4">
-          <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-            {isPdf ? (
-              <FileText className="w-4 h-4 text-orange-400" />
-            ) : (
-              <FileImage className="w-4 h-4 text-zinc-300" />
-            )}
+      {/* Ambient Moving Mesh Gradient Orbs for Glass Refraction */}
+      <AnimatedBackground />
+
+      {/* ── Top Floating Glass Header ── */}
+      <div className="w-full shrink-0 px-3 sm:px-6 pt-3 sm:pt-4 z-20 pointer-events-none">
+        <div 
+          className="pointer-events-auto max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-5 py-3 rounded-2xl bg-zinc-950/70 dark:bg-zinc-950/80 border border-white/[0.12] backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-white"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center space-x-3 min-w-0 pr-4">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center shrink-0 shadow-inner">
+              {isPdf ? (
+                <FileText className="w-4 h-4 text-amber-400" />
+              ) : (
+                <FileImage className="w-4 h-4 text-emerald-400" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-bold text-white truncate max-w-xs sm:max-w-md tracking-tight">
+                {displayName}
+              </p>
+              <p className="text-[11px] text-zinc-400 truncate">
+                {isPdf ? 'PDF Document' : 'Image'} {senderName ? `· Shared by ${senderName}` : ''} {timestamp ? `· ${timestamp}` : ''}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-bold text-white truncate max-w-xs sm:max-w-md">
-              {displayName}
-            </p>
-            <p className="text-[11px] text-zinc-400 truncate">
-              {isPdf ? 'PDF Document' : 'Image'} {senderName ? `· Shared by ${senderName}` : ''} {timestamp ? `· ${timestamp}` : ''}
-            </p>
+
+          {/* Action buttons */}
+          <div className="flex items-center space-x-2 shrink-0">
+            {/* Download Button */}
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
+              title="Download file"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">{isDownloading ? 'Downloading...' : 'Download'}</span>
+            </button>
+
+            {/* Open original in new tab */}
+            <button
+              type="button"
+              onClick={() => window.open(pdfBlobUrl || mediaUrl, '_blank')}
+              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
+              title="Open in new tab"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
+              title="Close viewer (Esc)"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
-          {/* Download Button */}
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
-            title="Download file"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">{isDownloading ? 'Downloading...' : 'Download'}</span>
-          </button>
-
-          {/* Open original in new tab */}
-          <button
-            type="button"
-            onClick={() => window.open(pdfBlobUrl || mediaUrl, '_blank')}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
-            title="Open in new tab"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </button>
-
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition cursor-pointer active:scale-95"
-            title="Close viewer (Esc)"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
       {/* ── Main Media Display Area ── */}
       <div 
-        className="flex-1 relative flex items-center justify-center overflow-hidden p-2 sm:p-6"
+        className="flex-1 relative flex items-center justify-center overflow-hidden p-3 sm:p-6 z-10"
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
       >
         {isPdf ? (
-          /* PDF In-App Viewer */
-          <div className="w-full h-full max-w-5xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/[0.12] bg-[#1e1e24] relative">
+          /* PDF In-App Glass Container Viewer */
+          <div className="w-full h-full max-w-5xl max-h-[82vh] sm:max-h-[85vh] flex flex-col rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-white/[0.15] bg-zinc-950/60 backdrop-blur-2xl relative p-1 sm:p-2 transition-all">
             {pdfLoadFailed ? (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-zinc-900 text-white">
-                <FileText className="w-12 h-12 text-orange-400" />
+              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-zinc-950/80 backdrop-blur-xl text-white rounded-2xl">
+                <FileText className="w-12 h-12 text-amber-400" />
                 <p className="text-sm font-bold">{displayName}</p>
                 <p className="text-xs text-zinc-400 max-w-md">
-                  This document was uploaded before persistent cloud storage was enabled. Please re-upload the file in chat to read it in-app.
+                  This document could not be previewed inline. You can download the file or open it directly in a new tab.
                 </p>
                 <button
                   onClick={handleDownload}
-                  className="mt-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer"
+                  className="mt-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
                 >
-                  Try Download
+                  Download Document
                 </button>
               </div>
             ) : (
               <iframe
                 src={pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1` : `${mediaUrl}#toolbar=1`}
                 title={displayName}
-                className="w-full h-full border-0 rounded-2xl bg-zinc-900"
+                className="w-full h-full border-0 rounded-2xl bg-zinc-900/90 shadow-inner"
                 onError={() => setPdfLoadFailed(true)}
               />
             )}
           </div>
         ) : (
-          /* Image Zoomable Viewer */
+          /* Image Zoomable Viewer with Ambient Glass Glow */
           <div 
-            className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-200 ease-out"
+            className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-200 ease-out p-2"
             style={{
               transform: `scale(${zoom}) rotate(${rotation}deg)`
             }}
           >
+            {/* Ambient Image Glow */}
+            <div className="absolute inset-0 bg-white/5 rounded-3xl blur-2xl pointer-events-none scale-105" />
+            
             <img
               src={mediaUrl}
               alt={displayName}
-              className="max-h-[75vh] sm:max-h-[80vh] max-w-[92vw] sm:max-w-[85vw] object-contain rounded-2xl shadow-2xl border border-white/[0.08] pointer-events-auto"
+              className="max-h-[72vh] sm:max-h-[78vh] max-w-[92vw] sm:max-w-[85vw] object-contain rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-white/[0.14] pointer-events-auto backdrop-blur-sm"
               onClick={e => e.stopPropagation()}
               draggable={false}
             />
@@ -277,15 +286,15 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
         )}
       </div>
 
-      {/* ── Bottom Floating Controls (Image only) ── */}
+      {/* ── Bottom Floating Glass Controls (Image only) ── */}
       {!isPdf && (
         <div className="w-full shrink-0 flex items-center justify-center pb-5 pt-2 z-20 pointer-events-none">
-          <div className="pointer-events-auto flex items-center space-x-1 sm:space-x-2 px-4 py-2 rounded-2xl bg-zinc-900/90 border border-white/[0.1] backdrop-blur-xl shadow-2xl text-white">
+          <div className="pointer-events-auto flex items-center space-x-1.5 sm:space-x-2 px-4 py-2 rounded-2xl bg-zinc-950/75 border border-white/[0.14] backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] text-white">
             <button
               type="button"
               onClick={handleZoomOut}
               disabled={zoom <= 0.5}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
               title="Zoom out (-)"
             >
               <ZoomOut className="w-4 h-4" />
@@ -294,7 +303,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             <button
               type="button"
               onClick={handleResetZoom}
-              className="px-2.5 py-1 text-xs font-mono font-semibold rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer"
+              className="px-3 py-1 text-xs font-mono font-semibold rounded-lg hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer"
               title="Reset zoom (0)"
             >
               {Math.round(zoom * 100)}%
@@ -304,7 +313,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
               type="button"
               onClick={handleZoomIn}
               disabled={zoom >= 4}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition disabled:opacity-30 cursor-pointer active:scale-95"
               title="Zoom in (+)"
             >
               <ZoomIn className="w-4 h-4" />
@@ -315,7 +324,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             <button
               type="button"
               onClick={handleRotate}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               title="Rotate 90°"
             >
               <RotateCcw className="w-4 h-4" />
@@ -324,7 +333,7 @@ export const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             <button
               type="button"
               onClick={handleDownload}
-              className="p-2 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+              className="p-2 rounded-xl glass-pill hover:bg-white/20 text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
               title="Download image"
             >
               <Download className="w-4 h-4" />
