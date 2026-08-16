@@ -3,7 +3,7 @@ import { Message, Campaign } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
-import { Send, Paperclip, Hash, X, Smile, Download } from 'lucide-react';
+import { Send, Paperclip, Hash, X, Smile, Download, Search, File, FileText, FileImage } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 
 interface ChatRoomProps {
@@ -86,6 +86,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +237,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       campaignId: campaign.id,
       content,
       attachmentUrl: currentAttachment?.url ?? null,
+      attachmentName: currentAttachment?.filename ?? null,
       attachmentType: currentAttachment?.type ?? null,
       createdAt: nowIso,
       timestamp: nowIso,
@@ -249,6 +253,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
         campaignId: campaign.id,
         content,
         attachmentUrl: currentAttachment?.url ?? null,
+        attachmentName: currentAttachment?.filename ?? null,
         attachmentType: currentAttachment?.type ?? null,
       });
       if (res?.message) {
@@ -285,7 +290,30 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   };
 
   // ── Render ─────────────────────────────────────────────────────────
-  const grouped = groupMessages(messages);
+  // Filter messages by search query
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter(m =>
+        m.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.attachmentName?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages;
+  const grouped = groupMessages(filteredMessages);
+
+  // File icon helper
+  const getFileIcon = (url: string, name?: string | null) => {
+    const ext = (name || url).split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) return <FileImage className="w-4 h-4 shrink-0 text-blue-500" />;
+    if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext || '')) return <FileText className="w-4 h-4 shrink-0 text-orange-500" />;
+    return <File className="w-4 h-4 shrink-0 text-zinc-500" />;
+  };
+
+  const toggleSearch = () => {
+    setIsSearchOpen(v => {
+      if (!v) setTimeout(() => searchInputRef.current?.focus(), 50);
+      else setSearchQuery('');
+      return !v;
+    });
+  };
 
   return (
     <div
@@ -293,22 +321,64 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       onClick={() => reactionPickerMsgId && setReactionPickerMsgId(null)}
     >
       {/* ── Channel Header ── */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-          <Hash className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+      <div className="flex flex-col border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur shrink-0">
+        <div className="flex items-center gap-3 px-5 py-3.5">
+          <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+            <Hash className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-zinc-900 dark:text-white truncate leading-none">
+              {campaign.name}
+            </p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-none">
+              {searchQuery ? `Showing results for "${searchQuery}"` : 'Study lounge · ask questions, share notes, celebrate wins'}
+            </p>
+          </div>
+          {/* Search toggle */}
+          <button
+            type="button"
+            onClick={toggleSearch}
+            className={`p-2 rounded-lg transition cursor-pointer ${
+              isSearchOpen
+                ? 'bg-zinc-900 dark:bg-white text-white dark:text-black'
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            }`}
+            title="Search messages"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-700 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
+          </span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-zinc-900 dark:text-white truncate leading-none">
-            {campaign.name}
-          </p>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-none">
-            Study lounge · ask questions, share notes, celebrate wins
-          </p>
-        </div>
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-700 shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Live
-        </span>
+
+        {/* Search bar — slides in */}
+        {isSearchOpen && (
+          <div className="px-5 pb-3 flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
+              <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search messages…"
+                className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none"
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery('')} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-pointer">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0 font-medium">
+                {filteredMessages.length} result{filteredMessages.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Messages Area ── */}
@@ -402,17 +472,25 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                             </div>
                           )}
 
-                          {/* File attachment */}
+                          {/* File attachment — shows name + download */}
                           {msg.attachmentUrl && !(msg.attachmentType === 'image' || msg.attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)) && (
-                            <a
-                              href={msg.attachmentUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-1.5 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
-                            >
-                              <Download className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate max-w-[180px]">Download file</span>
-                            </a>
+                            <div className="mt-1.5 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 max-w-xs">
+                              {getFileIcon(msg.attachmentUrl, msg.attachmentName)}
+                              <span className="flex-1 text-xs text-zinc-700 dark:text-zinc-200 font-medium truncate min-w-0">
+                                {msg.attachmentName || msg.attachmentUrl.split('/').pop() || 'File'}
+                              </span>
+                              <a
+                                href={msg.attachmentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={msg.attachmentName || true}
+                                className="ml-1 p-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition cursor-pointer shrink-0"
+                                title="Download file"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
                           )}
 
                           {/* Reactions */}

@@ -91,6 +91,7 @@ export interface Message {
   recipientId?: string | null;
   content: string;
   attachmentUrl?: string | null;
+  attachmentName?: string | null;
   attachmentType?: 'image' | 'file' | null;
   createdAt: string;
   reactions?: MessageReaction[];
