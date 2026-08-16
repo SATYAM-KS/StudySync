@@ -42,7 +42,6 @@ export const AuthScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
-  const [studyGoal, setStudyGoal] = useState('');
   const [leetcodeUrl, setLeetcodeUrl] = useState('');
   const [hackerrankUrl, setHackerrankUrl] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string>('');
@@ -109,7 +108,7 @@ export const AuthScreen: React.FC = () => {
         email: signupEmail.trim(),
         password: signupPassword,
         avatarUrl: selectedAvatar,
-        studyGoal: studyGoal.trim() || 'Achieve daily study target',
+        studyGoal: 'Daily Problem Solving & Focus',
         bio: '',
         leetcodeUrl: leetcodeUrl.trim(),
         hackerrankUrl: hackerrankUrl.trim()
@@ -467,23 +466,6 @@ export const AuthScreen: React.FC = () => {
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                </div>
-              </div>
-
-              {/* Study Goal */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                  Primary Study Goal
-                </label>
-                <div className="relative">
-                  <Target className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                  <input
-                    type="text"
-                    value={studyGoal}
-                    onChange={(e) => setStudyGoal(e.target.value)}
-                    placeholder="e.g. 515+ on MCAT, Bar Exam, 4.0 GPA"
-                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition"
-                  />
                 </div>
               </div>
 
