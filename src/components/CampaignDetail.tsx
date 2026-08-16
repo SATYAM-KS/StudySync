@@ -291,28 +291,28 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
         {/* ═══ RIGHT PANEL: Tabs + content ═══ */}
         <div className="flex-1 flex flex-col overflow-hidden">
 
-          {/* Tab nav */}
-          <div className="shrink-0 flex items-center gap-1 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-x-auto">
+            {/* Tab nav */}
+          <div className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 border-b border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-zinc-950 overflow-x-auto">
             {([ 
-              { id: 'focus',       icon: Sparkles,     label: 'Focus Studio',      badge: isCallActive ? null : (activeInThisCamp.length > 0 ? '●' : null) },
+              { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: isCallActive ? null : (activeInThisCamp.length > 0 ? '●' : null) },
               { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
               { id: 'history',     icon: History,       label: 'Study History',     badge: null },
               { id: 'chat',        icon: MessageSquare, label: 'Lounge Chat',       badge: null },
-              { id: 'voice',       icon: Headphones,    label: 'Voice & Screen',    badge: isCallActive ? 'Live' : null },
+              { id: 'voice',       icon: Headphones,    label: 'Voice Channel',     badge: isCallActive ? 'Live' : null },
             ] as const).map(({ id, icon: Icon, label, badge }) => (
               <button
                 key={id}
                 onClick={() => handleTabChange(id)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
                   activeTab === id
-                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-sm'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{label}</span>
                 {badge === '●' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
-                {badge === 'Live' && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-zinc-900 text-white dark:bg-white dark:text-black font-bold">Live</span>}
+                {badge === 'Live' && <span className="text-[9px] px-1.5 py-0.2 rounded bg-zinc-900 text-white dark:bg-white dark:text-black font-bold font-mono">Live</span>}
               </button>
             ))}
           </div>

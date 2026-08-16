@@ -84,49 +84,49 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Welcome & Global Focus Header */}
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/[0.08] rounded-3xl p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Peer Accountability Platform
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                Focus Cohorts
               </span>
-              <h1 className="text-2xl sm:text-3xl font-black text-zinc-950 dark:text-white tracking-tight">
-                Welcome back, {user?.name?.split(' ')[0] || 'Learner'}
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-950 dark:text-white tracking-tight">
+                {user?.name || 'Study Dashboard'}
               </h1>
-              <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 max-w-xl">
-                Join study cohorts, complete your daily targets, and inspect your focus sessions automatically with AI.
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Verified accountability groups & AI-inspected study blocks
               </p>
             </div>
 
             {/* Quick Stats Banner */}
             <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-              <div className="flex-1 sm:flex-initial bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3.5 min-w-[130px] text-center">
+              <div className="flex-1 sm:flex-initial bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl p-3.5 min-w-[125px] text-center">
                 <div className="flex items-center justify-center space-x-1.5 text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                  <Clock className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                  <span>Today's Focus</span>
+                  <Clock className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                  <span className="text-[11px] font-medium">Today</span>
                 </div>
-                <p className="text-xl font-black text-zinc-950 dark:text-white">{stats?.todayHours || 0}h</p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">({stats?.todayMinutes || 0} mins logged)</p>
+                <p className="text-xl font-black text-zinc-950 dark:text-white font-mono">{stats?.todayHours || 0}h</p>
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">{stats?.todayMinutes || 0}m logged</p>
               </div>
 
-              <div className="flex-1 sm:flex-initial bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3.5 min-w-[130px] text-center">
+              <div className="flex-1 sm:flex-initial bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl p-3.5 min-w-[125px] text-center">
                 <div className="flex items-center justify-center space-x-1.5 text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                  <Flame className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                  <span>Study Streak</span>
+                  <Flame className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-[11px] font-medium">Streak</span>
                 </div>
-                <p className="text-xl font-black text-zinc-950 dark:text-white">
-                  {stats?.recentDays?.filter(d => d.minutes > 0).length || 1} Days
+                <p className="text-xl font-black text-zinc-950 dark:text-white font-mono">
+                  {stats?.recentDays?.filter(d => d.minutes > 0).length || 1}d
                 </p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Consistent learner</p>
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Active</p>
               </div>
 
-              <div className="flex-1 sm:flex-initial bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3.5 min-w-[130px] text-center">
+              <div className="flex-1 sm:flex-initial bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl p-3.5 min-w-[125px] text-center">
                 <div className="flex items-center justify-center space-x-1.5 text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                  <GraduationCap className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                  <span>Weekly Total</span>
+                  <GraduationCap className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                  <span className="text-[11px] font-medium">This Week</span>
                 </div>
-                <p className="text-xl font-black text-zinc-950 dark:text-white">{stats?.thisWeekHours || 0}h</p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">{stats?.totalBlocksCount || 0} blocks</p>
+                <p className="text-xl font-black text-zinc-950 dark:text-white font-mono">{stats?.thisWeekHours || 0}h</p>
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">{stats?.totalBlocksCount || 0} blocks</p>
               </div>
             </div>
           </div>

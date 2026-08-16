@@ -149,7 +149,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">{user?.name}</p>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">{user?.email}</p>
                   {user?.studyGoal && (
-                    <p className="text-[11px] text-zinc-700 dark:text-zinc-300 mt-1 truncate">🎯 {user.studyGoal}</p>
+                    <p className="text-[11px] text-zinc-600 dark:text-zinc-300 mt-1 truncate font-medium">Goal: {user.studyGoal}</p>
                   )}
                 </div>
 

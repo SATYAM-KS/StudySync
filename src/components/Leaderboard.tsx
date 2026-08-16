@@ -161,8 +161,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       {isLoading && sortedEntries.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col items-center animate-pulse">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-200 dark:bg-zinc-800 mb-3" />
+            <div key={i} className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-6 flex flex-col items-center animate-pulse">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-200 dark:bg-zinc-800 mb-3" />
               <div className="w-24 h-4 rounded bg-zinc-200 dark:bg-zinc-800 mb-2" />
               <div className="w-16 h-3 rounded bg-zinc-100 dark:bg-zinc-800 mb-3" />
               <div className="w-20 h-6 rounded bg-zinc-200 dark:bg-zinc-800" />
@@ -179,33 +179,33 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const targetHrs = getTimeframeTargetHours(topThree[1].targetDailyHours, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
-              <div className="order-2 md:order-1 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
-                <div className="absolute top-3 right-3 text-zinc-400 font-bold text-xs">#2</div>
+              <div className="order-2 md:order-1 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+                <div className="absolute top-3 right-3 text-zinc-400 font-mono font-bold text-xs">#2</div>
                 <div className="relative mb-3">
                   <UserAvatar
                     name={topThree[1].userName}
                     avatarUrl={topThree[1].userAvatarUrl}
-                    size="2xl"
+                    size="xl"
                     rounded="2xl"
-                    className="ring-2 ring-zinc-300 dark:ring-zinc-700 shadow-sm"
+                    className="ring-1 ring-zinc-200 dark:ring-zinc-700 shadow-sm"
                   />
-                  <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center font-black text-xs shadow border border-zinc-300 dark:border-zinc-600">
+                  <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px] border border-zinc-300 dark:border-zinc-700">
                     2
                   </div>
                 </div>
 
                 <h4 className="font-bold text-sm text-zinc-950 dark:text-white truncate max-w-[160px]">{topThree[1].userName}</h4>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-2">{topThree[1].role}</p>
+                <p className="text-[10px] text-zinc-400 mb-2 font-mono uppercase">{topThree[1].role}</p>
 
-                <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">
+                <div className="text-xl font-black text-zinc-950 dark:text-white font-mono">
                   {hrs.toFixed(1)} hrs
                 </div>
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : 'monthly'} target ({targetHrs.toFixed(1)}h)
+                <div className="mt-1 text-[11px] text-zinc-500 font-mono">
+                  {pct}% of target ({targetHrs.toFixed(1)}h)
                 </div>
-                <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-2 font-medium">
-                  <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
-                  {topThree[1].activeStreakDays} day streak
+                <p className="text-[10px] text-zinc-400 flex items-center gap-1 mt-2 font-mono">
+                  <Flame className="w-3 h-3 text-amber-500" />
+                  {topThree[1].activeStreakDays}d streak
                 </p>
               </div>
             );
@@ -218,37 +218,37 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const targetHrs = getTimeframeTargetHours(topThree[0].targetDailyHours, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
-              <div className="order-1 md:order-2 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-black dark:border-white p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden md:-translate-y-2">
-                <div className="absolute top-3 right-3 text-zinc-950 dark:text-white font-extrabold text-xs flex items-center gap-1">
-                  <Crown className="w-3.5 h-3.5 fill-current" />
-                  #1 Leader
+              <div className="order-1 md:order-2 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-900 dark:border-white/20 p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden md:-translate-y-1">
+                <div className="absolute top-3 right-3 text-zinc-950 dark:text-white font-bold text-xs flex items-center gap-1 font-mono">
+                  <Crown className="w-3.5 h-3.5 fill-current text-amber-500" />
+                  #1
                 </div>
                 
                 <div className="relative mb-3">
                   <UserAvatar
                     name={topThree[0].userName}
                     avatarUrl={topThree[0].userAvatarUrl}
-                    size="3xl"
+                    size="2xl"
                     rounded="2xl"
-                    className="ring-4 ring-black dark:ring-white shadow-md"
+                    className="ring-2 ring-zinc-950 dark:ring-white shadow-md"
                   />
-                  <div className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-black text-xs shadow-md">
+                  <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs shadow-sm">
                     1
                   </div>
                 </div>
 
                 <h4 className="font-extrabold text-base text-zinc-950 dark:text-white truncate max-w-[180px]">{topThree[0].userName}</h4>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">{topThree[0].role}</p>
+                <p className="text-[10px] text-zinc-400 mb-2 font-mono uppercase">{topThree[0].role}</p>
 
-                <div className="text-2xl font-black text-zinc-950 dark:text-white">
+                <div className="text-2xl font-black text-zinc-950 dark:text-white font-mono">
                   {hrs.toFixed(1)} hrs
                 </div>
-                <div className="mt-1 flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-300 font-medium">
-                  <span className="font-bold text-zinc-950 dark:text-white">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : 'monthly'} target ({targetHrs.toFixed(1)}h)
+                <div className="mt-1 text-xs text-zinc-500 font-mono">
+                  <span className="font-bold text-zinc-950 dark:text-white">{pct}%</span> of target ({targetHrs.toFixed(1)}h)
                 </div>
-                <p className="text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-2 font-semibold">
-                  <Flame className="w-3.5 h-3.5 text-zinc-950 dark:text-white fill-current" />
-                  {topThree[0].activeStreakDays} day streak
+                <p className="text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-1 mt-2 font-mono font-medium">
+                  <Flame className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                  {topThree[0].activeStreakDays}d streak
                 </p>
               </div>
             );
@@ -261,33 +261,33 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const targetHrs = getTimeframeTargetHours(topThree[2].targetDailyHours, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
-              <div className="order-3 md:order-3 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
-                <div className="absolute top-3 right-3 text-zinc-400 font-bold text-xs">#3</div>
+              <div className="order-3 md:order-3 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+                <div className="absolute top-3 right-3 text-zinc-400 font-mono font-bold text-xs">#3</div>
                 <div className="relative mb-3">
                   <UserAvatar
                     name={topThree[2].userName}
                     avatarUrl={topThree[2].userAvatarUrl}
-                    size="2xl"
+                    size="xl"
                     rounded="2xl"
-                    className="ring-2 ring-zinc-300 dark:ring-zinc-700 shadow-sm"
+                    className="ring-1 ring-zinc-200 dark:ring-zinc-700 shadow-sm"
                   />
-                  <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center font-black text-xs shadow border border-zinc-300 dark:border-zinc-600">
+                  <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px] border border-zinc-300 dark:border-zinc-700">
                     3
                   </div>
                 </div>
 
                 <h4 className="font-bold text-sm text-zinc-950 dark:text-white truncate max-w-[160px]">{topThree[2].userName}</h4>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-2">{topThree[2].role}</p>
+                <p className="text-[10px] text-zinc-400 mb-2 font-mono uppercase">{topThree[2].role}</p>
 
-                <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">
+                <div className="text-xl font-black text-zinc-950 dark:text-white font-mono">
                   {hrs.toFixed(1)} hrs
                 </div>
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : 'monthly'} target ({targetHrs.toFixed(1)}h)
+                <div className="mt-1 text-[11px] text-zinc-500 font-mono">
+                  {pct}% of target ({targetHrs.toFixed(1)}h)
                 </div>
-                <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-2 font-medium">
-                  <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
-                  {topThree[2].activeStreakDays} day streak
+                <p className="text-[10px] text-zinc-400 flex items-center gap-1 mt-2 font-mono">
+                  <Flame className="w-3 h-3 text-amber-500" />
+                  {topThree[2].activeStreakDays}d streak
                 </p>
               </div>
             );

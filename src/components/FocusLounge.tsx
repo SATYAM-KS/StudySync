@@ -81,29 +81,22 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100">
       
       {/* Daily Window Alert Banner */}
-      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors ${
-        isInsideWindow 
-          ? 'bg-zinc-100 dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100'
-          : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
-      }`}>
+      {/* Today's Schedule & Goal Bar */}
+      <div className="bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-white/[0.08] rounded-2xl px-4 py-3 flex items-center justify-between shadow-2xs">
         <div className="flex items-center space-x-3">
-          <div className={`w-2.5 h-2.5 rounded-full ${isInsideWindow ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`}></div>
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-zinc-950 dark:text-white">
-                {isInsideWindow ? 'Cohort Focus Window (Active Now)' : 'Flexible Study (Active Anytime)'}
-              </p>
-              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium">
-                {isInsideWindow ? 'Preferred group time' : 'Study anytime today'}
-              </span>
-            </div>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
-              Today's Goal: <strong className="text-zinc-950 dark:text-white font-bold">{scheduleStatus.todayHours}h</strong> (Any session logged today counts towards your goal · Preferred windows: <span className="font-semibold text-zinc-900 dark:text-zinc-200">{scheduleStatus.todaySlotsText}</span>)
-            </p>
+          <div className={`w-2 h-2 rounded-full ${isInsideWindow ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'}`} />
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-bold text-zinc-950 dark:text-white">
+              Today's Target: {scheduleStatus.todayHours}h
+            </span>
+            <span className="text-zinc-400 dark:text-zinc-500">·</span>
+            <span className="text-zinc-500 dark:text-zinc-400">
+              {scheduleStatus.todaySlotsText}
+            </span>
           </div>
         </div>
-        <span className="text-[11px] px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 font-mono font-semibold text-zinc-700 dark:text-zinc-300">
-          Time: {current12h}
+        <span className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500 hidden sm:inline">
+          {current12h}
         </span>
       </div>
 
@@ -111,35 +104,37 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left 2 Cols: Interactive Study Timer & Controls */}
-        <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8 space-y-6 shadow-sm">
+        <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-6 sm:p-8 space-y-6 shadow-sm">
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="w-5 h-5 text-zinc-900 dark:text-white" />
-              <h3 className="font-bold text-lg text-zinc-950 dark:text-white">AI Focus Studio</h3>
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-white">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <h3 className="font-extrabold text-base text-zinc-950 dark:text-white tracking-tight">Focus Studio</h3>
             </div>
 
             {isCurrentCampaignStudying && (
-              <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+              <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>AI Screen Verification Active</span>
+                <span>Proctor Active</span>
               </span>
             )}
           </div>
 
-          {/* Screen Share Re-attach Banner (if restored after page refresh) */}
+          {/* Screen Share Re-attach Banner */}
           {isCurrentCampaignStudying && !screenStream && (
             <div className="p-3.5 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border border-zinc-700">
               <div className="flex items-center space-x-2.5">
                 <Monitor className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="text-xs font-semibold">
-                  Session Resumed ({formatTime(sessionElapsedSeconds)} elapsed) — Re-attach screen share for AI verification.
+                  Session Resumed ({formatTime(sessionElapsedSeconds)} elapsed) — Re-attach screen share.
                 </span>
               </div>
               <button
                 type="button"
                 onClick={reattachScreenShare}
-                className="px-3.5 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-100 font-extrabold text-xs transition shrink-0 cursor-pointer shadow-sm"
+                className="px-3.5 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-100 font-bold text-xs transition shrink-0 cursor-pointer shadow-sm"
               >
                 Share Screen
               </button>
@@ -148,8 +143,8 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
 
           {/* Screen Share Error Alert */}
           {screenShareError && (
-            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2.5 animate-shake">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-400" />
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2.5 animate-shake">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
               <div>
                 <span className="font-bold">Entire Screen Required:</span> {screenShareError}
               </div>
@@ -162,45 +157,45 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
               lastAIAnalysis.status === 'analyzing'
                 ? 'bg-zinc-100 dark:bg-zinc-800/60 border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200'
                 : lastAIAnalysis.status === 'verified'
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
-                : 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+                ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
+                : 'bg-rose-50/70 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200'
             }`}>
               {lastAIAnalysis.status === 'analyzing' && (
-                <Loader2 className="w-4 h-4 text-zinc-600 dark:text-zinc-400 animate-spin shrink-0 mt-0.5" />
+                <Loader2 className="w-4 h-4 text-zinc-500 animate-spin shrink-0 mt-0.5" />
               )}
               {lastAIAnalysis.status === 'verified' && (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               )}
               {lastAIAnalysis.status === 'off_task' && (
-                <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <span className="font-bold">
                     {lastAIAnalysis.status === 'analyzing'
-                      ? 'AI Proctor Inspecting Screen...'
+                      ? 'Inspecting screen snapshot...'
                       : lastAIAnalysis.status === 'verified'
-                      ? `AI Verified Work (+5m Registered): ${lastAIAnalysis.summary}`
-                      : `Off-Task / Timepass Detected (0m Logged): ${lastAIAnalysis.summary}`}
+                      ? `Verified (+5m Logged): ${lastAIAnalysis.summary}`
+                      : `Off-Task Detected: ${lastAIAnalysis.summary}`}
                   </span>
                   <span className="text-[10px] opacity-75 font-mono">{lastAIAnalysis.timestamp}</span>
                 </div>
-                <p className="text-[11px] opacity-90 mt-0.5">{lastAIAnalysis.reason}</p>
+                <p className="text-[11px] opacity-85 mt-0.5">{lastAIAnalysis.reason}</p>
               </div>
             </div>
           )}
 
           {/* Central Timer Display */}
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="relative w-56 h-56 rounded-full border-4 border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 shadow-inner">
+          <div className="flex flex-col items-center justify-center py-4">
+            <div className="relative w-52 h-52 rounded-full border border-zinc-200 dark:border-white/[0.08] flex flex-col items-center justify-center bg-zinc-50/50 dark:bg-zinc-950/50 shadow-inner">
               
-              {/* Outer Ring when studying */}
+              {/* Outer Glow Ring when studying */}
               {isCurrentCampaignStudying && (
-                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-emerald-500 dark:border-t-emerald-400 animate-spin" style={{ animationDuration: '4s' }}></div>
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-500 animate-spin" style={{ animationDuration: '4s' }}></div>
               )}
 
-              <p className="text-xs uppercase font-bold text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">
-                {isCurrentCampaignStudying ? 'Session Elapsed' : 'Ready to Focus'}
+              <p className="text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500 tracking-widest mb-1">
+                {isCurrentCampaignStudying ? 'Elapsed' : 'Ready'}
               </p>
               
               <div className="font-mono text-4xl font-extrabold text-zinc-950 dark:text-white tracking-tight">
@@ -209,17 +204,16 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
 
               {isCurrentCampaignStudying ? (
                 <div className="mt-2 text-center px-4">
-                  <p className="text-[11px] text-zinc-800 dark:text-zinc-200 font-medium">
-                    AI check in {formatTime(blockRemainingSeconds)}
+                  <p className="text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
+                    Next check in {formatTime(blockRemainingSeconds)}
                   </p>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate max-w-[140px]">
+                  <p className="text-[10px] text-zinc-400 truncate max-w-[140px] mt-0.5">
                     {currentSubject}
                   </p>
                 </div>
               ) : (
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1">
-                  <Camera className="w-3 h-3" />
-                  <span>5-min AI verified blocks</span>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 font-medium">
+                  5m verified blocks
                 </p>
               )}
             </div>
@@ -233,27 +227,26 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
               const remainingMins = Math.max(0, todayTargetMins - todayCompletedMins);
 
               return (
-                <div className="mt-5 flex flex-col items-center space-y-2 w-full max-w-xs">
+                <div className="mt-5 flex flex-col items-center space-y-1.5 w-full max-w-xs">
                   <div className="flex items-center justify-between w-full text-xs">
-                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Daily Goal Progress</span>
-                    <span className="font-bold text-zinc-950 dark:text-white font-mono">
-                      {todayCompletedMins}m <span className="text-zinc-400 font-normal">/</span> {todayTargetMins}m
-                      <span className="ml-1 text-[11px] font-semibold text-zinc-500">({progressPct}%)</span>
+                    <span className="text-zinc-400 dark:text-zinc-500 text-[11px]">Today's Progress</span>
+                    <span className="font-bold text-zinc-950 dark:text-white font-mono text-[11px]">
+                      {todayCompletedMins}m / {todayTargetMins}m ({progressPct}%)
                     </span>
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden p-0.5">
+                  <div className="w-full bg-zinc-200/80 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-black dark:bg-white rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(todayCompletedMins > 0 ? 5 : 0, progressPct)}%` }}
+                      className="h-full bg-zinc-950 dark:bg-white rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(todayCompletedMins > 0 ? 4 : 0, progressPct)}%` }}
                     />
                   </div>
 
-                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
                     {todayCompletedMins >= todayTargetMins
-                      ? 'Daily focus goal completed'
-                      : `${remainingMins}m remaining today`}
+                      ? 'Goal reached'
+                      : `${remainingMins}m remaining`}
                   </p>
                 </div>
               );
@@ -262,9 +255,9 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
 
           {/* Subject Goal Input (User must write their specific study topic) */}
           {!isCurrentCampaignStudying ? (
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                What topic are you studying in this session? <span className="text-rose-500">*</span>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Study Topic <span className="text-zinc-400 font-normal">· AI Task Verification</span>
               </label>
               <input
                 type="text"
@@ -285,26 +278,26 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                     }
                   }
                 }}
-                placeholder="Type the exact study topic (e.g. Solving LeetCode DP problems, Physics Chapter 4 notes...)"
+                placeholder="e.g. Solving LeetCode DP problems, Physics notes..."
                 className={`w-full bg-zinc-50 dark:bg-zinc-950 border ${
-                  topicError ? 'border-rose-500 focus:border-rose-500' : 'border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-white'
-                } rounded-xl px-4 py-3 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none transition shadow-sm`}
+                  topicError ? 'border-rose-500' : 'border-zinc-200/80 dark:border-white/[0.08] focus:border-zinc-950 dark:focus:border-white'
+                } rounded-xl px-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none transition shadow-2xs`}
               />
               {topicError && (
                 <p className="text-xs text-rose-500 font-medium">
-                  Please enter the topic or subject you are studying before starting the focus session.
+                  Please enter your study topic before starting.
                 </p>
               )}
             </div>
           ) : (
-            <div className="p-3.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-between text-xs">
-              <span className="text-zinc-500 dark:text-zinc-400">Current Topic:</span>
-              <span className="font-semibold text-zinc-900 dark:text-white truncate max-w-[280px]">{currentSubject}</span>
+            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between text-xs">
+              <span className="text-zinc-400">Current Topic</span>
+              <span className="font-semibold text-zinc-900 dark:text-white truncate max-w-[260px]">{currentSubject}</span>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row gap-3 pt-1">
             {!isCurrentCampaignStudying ? (
               <button
                 onClick={() => {
@@ -315,18 +308,18 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                   setTopicError(false);
                   startStudying(campaign.id, campaign.name, subjectInput.trim());
                 }}
-                className="flex-1 py-3.5 px-6 rounded-2xl bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-extrabold text-sm shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 cursor-pointer"
+                className="flex-1 py-3 px-6 rounded-xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black font-extrabold text-xs shadow-sm flex items-center justify-center space-x-2 transition transform active:scale-98 cursor-pointer"
               >
-                <Play className="w-4 h-4 fill-current" />
-                <span>Start AI-Verified Focus (Share Screen)</span>
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Start Focus Session</span>
               </button>
             ) : (
               <button
                 onClick={stopStudying}
-                className="flex-1 py-3.5 px-6 rounded-2xl bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white font-bold text-sm border border-zinc-300 dark:border-zinc-700 flex items-center justify-center space-x-2 transition cursor-pointer shadow-sm"
+                className="flex-1 py-3 px-6 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white font-semibold text-xs border border-zinc-200 dark:border-zinc-700 flex items-center justify-center space-x-2 transition cursor-pointer"
               >
-                <Square className="w-4 h-4 fill-current" />
-                <span>End Study Session</span>
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>End Focus Session</span>
               </button>
             )}
           </div>
@@ -337,25 +330,24 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
         <div className="space-y-6">
           
           {/* Screen AI Monitor */}
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Monitor className="w-4 h-4 text-zinc-900 dark:text-white" />
-                <h4 className="font-bold text-sm text-zinc-950 dark:text-white">Screen AI Proctor</h4>
+                <h4 className="font-bold text-sm text-zinc-950 dark:text-white">AI Proctor</h4>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 flex items-center gap-1 font-semibold">
-                <Sparkles className="w-3 h-3 text-emerald-500" />
-                <span>AI Automated</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 font-mono">
+                5-Min Intervals
               </span>
             </div>
 
-            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Every 5 minutes, our Gemini AI inspects a snapshot of your screen. If productive study/work is detected, +5 minutes are automatically added to your total.
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Automated screen inspections verify study progress every 5 minutes.
             </p>
 
             {isScreenSharingEnabled ? (
               <div className="space-y-3">
-                <div className="relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-black aspect-video shadow-md">
+                <div className="relative rounded-2xl overflow-hidden border border-zinc-200/80 dark:border-white/[0.08] bg-black aspect-video shadow-md">
                   <video 
                     ref={videoRef} 
                     autoPlay 
@@ -363,59 +355,52 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                     muted 
                     className="w-full h-full object-cover" 
                   />
-                  <div className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/80 text-white text-[10px] font-bold flex items-center space-x-1.5 backdrop-blur border border-white/20">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Live Proctor Active</span>
+                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 text-white text-[10px] font-semibold flex items-center space-x-1.5 backdrop-blur border border-white/10">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Proctor Live</span>
                   </div>
 
-                  <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/80 text-white text-[10px] font-mono font-bold backdrop-blur border border-white/20">
-                    Next AI Check: {formatTime(blockRemainingSeconds)}
+                  <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 text-white text-[10px] font-mono font-medium backdrop-blur border border-white/10">
+                    Check in {formatTime(blockRemainingSeconds)}
                   </div>
                 </div>
 
-                {/* Verified 5-min Snapshot Timeline with AI Categorization */}
+                {/* Verified 5-min Snapshot Timeline */}
                 {verifiedSnapshots && verifiedSnapshots.length > 0 && (
                   <div className="pt-2 space-y-2 border-t border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-zinc-950 dark:text-white">
-                        AI Verification Timeline
+                        Inspections
                       </span>
-                      <span className="text-[10px] text-zinc-500 font-semibold">
+                      <span className="text-[10px] font-mono text-zinc-500">
                         +{verifiedSnapshots.filter(s => s.isProductive).length * 5}m earned
                       </span>
                     </div>
 
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
                       {verifiedSnapshots.map((snap) => (
                         <div 
                           key={snap.id} 
                           className={`p-2 rounded-xl border flex items-center gap-2.5 text-xs transition ${
                             snap.isProductive 
-                              ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50' 
-                              : 'bg-rose-50/50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50'
+                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40' 
+                              : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/40'
                           }`}
                         >
-                          <div className="w-14 h-10 rounded-lg overflow-hidden bg-black shrink-0 relative border border-zinc-200 dark:border-zinc-800">
+                          <div className="w-12 h-9 rounded-lg overflow-hidden bg-black shrink-0 relative border border-zinc-200 dark:border-zinc-800">
                             <img src={snap.imageUrl} alt="Screen frame" className="w-full h-full object-cover" />
-                            <div className="absolute bottom-0 right-0 px-1 text-[8px] font-bold bg-black/80 text-white font-mono">
-                              {snap.timestamp}
-                            </div>
                           </div>
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <span className="font-bold truncate text-zinc-900 dark:text-white text-[11px]">
+                              <span className="font-semibold truncate text-zinc-900 dark:text-white text-[11px]">
                                 {snap.activitySummary}
                               </span>
-                              <span className={`text-[10px] font-bold font-mono px-1.5 py-0.2 rounded ${
-                                snap.isProductive 
-                                  ? 'bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200' 
-                                  : 'bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-200'
-                              }`}>
+                              <span className="text-[10px] font-mono font-bold">
                                 {snap.isProductive ? '+5m' : '0m'}
                               </span>
                             </div>
-                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                            <p className="text-[10px] text-zinc-400 truncate mt-0.5">
                               {snap.reason}
                             </p>
                           </div>
@@ -426,60 +411,58 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                 )}
               </div>
             ) : (
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-center space-y-2">
-                <ShieldCheck className="w-8 h-8 text-zinc-400 mx-auto" />
+              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/[0.06] text-center space-y-1">
+                <ShieldCheck className="w-6 h-6 text-zinc-400 mx-auto mb-1" />
                 <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                  Automated Honest Verification
+                  Ready for Inspection
                 </p>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Start your focus session to begin live AI screen accountability.
+                <p className="text-[11px] text-zinc-400">
+                  Start session to activate AI screen verification.
                 </p>
               </div>
             )}
           </div>
 
           {/* Currently Studying Peers in this Campaign */}
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Flame className="w-4 h-4 text-zinc-900 dark:text-white" />
-                <h4 className="font-bold text-sm text-zinc-950 dark:text-white">Live Studying Now</h4>
+                <Flame className="w-4 h-4 text-amber-500" />
+                <h4 className="font-bold text-sm text-zinc-950 dark:text-white">Active Peers</h4>
               </div>
-              <span className="text-xs font-bold text-zinc-900 dark:text-white">
-                {campaignActiveSessions.length} active
+              <span className="text-xs font-mono font-bold text-zinc-900 dark:text-white">
+                {campaignActiveSessions.length} online
               </span>
             </div>
 
             {campaignActiveSessions.length === 0 ? (
-              <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4">
-                <Clock className="w-6 h-6 text-zinc-400 mx-auto mb-2" />
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">No members currently in a study block.</p>
-                <p className="text-[11px] text-zinc-500 mt-1">Be the first to start studying!</p>
+              <div className="text-center py-5 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-200/80 dark:border-white/[0.06] p-3">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">No members currently in a focus block.</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {campaignActiveSessions.map((session) => (
                   <div 
                     key={session.userId} 
-                    className="flex items-center space-x-3 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800"
+                    className="flex items-center space-x-3 p-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/[0.06]"
                   >
                     <div className="relative">
                       <UserAvatar
                         name={session.userName}
                         avatarUrl={session.userAvatarUrl}
-                        size="sm"
+                        size="xs"
                         rounded="lg"
                       />
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-black dark:bg-white border-2 border-white dark:border-zinc-900"></span>
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-zinc-900"></span>
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">{session.userName}</p>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">{session.subjectNote}</p>
+                      <p className="text-[10px] text-zinc-400 truncate">{session.subjectNote}</p>
                     </div>
 
-                    <span className="text-[10px] font-mono font-bold text-zinc-900 dark:text-white bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-700">
-                      Studying
+                    <span className="text-[10px] font-mono text-zinc-500 bg-zinc-200/60 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                      Live
                     </span>
                   </div>
                 ))}

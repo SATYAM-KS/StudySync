@@ -9,10 +9,10 @@
 
 @layer base {
   * {
-    border-color: var(--color-zinc-200);
+    border-color: rgba(228, 228, 231, 0.8);
   }
   .dark * {
-    border-color: var(--color-zinc-800);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   html, body {
@@ -20,6 +20,10 @@
     min-height: 100%;
     margin: 0;
     padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.01em;
   }
 
   #root {
@@ -28,10 +32,10 @@
   }
 }
 
-/* Minimal Custom Scrollbar */
+/* Minimal Luxury Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -39,18 +43,24 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(150, 150, 150, 0.25);
+  background: rgba(160, 160, 160, 0.2);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(150, 150, 150, 0.45);
+  background: rgba(160, 160, 160, 0.35);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Subtle Posh Focus ring */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
