@@ -423,7 +423,11 @@ export async function updateCampaign(id: string, updates: Partial<Campaign>): Pr
     if (updates.bannerColor !== undefined) payload.banner_color = updates.bannerColor;
 
     const { data, error } = await supabase.from('campaigns').update(payload).eq('id', id).select().single();
-    if (!error && data) return mapCampaignFromDb(data);
+    if (error) {
+      console.error('[updateCampaign] Supabase error:', error);
+      throw new Error(error.message);
+    }
+    if (data) return mapCampaignFromDb(data);
   }
 
   const db = await initDb();

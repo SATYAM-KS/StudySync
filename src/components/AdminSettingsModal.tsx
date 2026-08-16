@@ -150,6 +150,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setStatusMessage('');
     const autoTargetDailyHours = calculateAverageDailyHours(schedule);
     const firstEnabledDay = schedule.find(d => d.enabled && d.slots.length > 0);
     const fallbackStart = firstEnabledDay?.slots[0]?.startTime || '07:00';
@@ -173,13 +174,17 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
         })
       });
 
+      const data = await res.json();
       if (res.ok) {
-        const updated = await res.json();
-        onCampaignUpdated(updated);
-        setStatusMessage('Campaign settings updated successfully!');
+        onCampaignUpdated(data);
+        setStatusMessage('✓ Campaign settings updated successfully!');
+      } else {
+        console.error('Update failed:', data);
+        setStatusMessage(`Error: ${data.error || 'Failed to save settings. Please try again.'}`);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Save settings error:', err);
+      setStatusMessage('Network error: Could not reach the server.');
     } finally {
       setIsSaving(false);
     }
@@ -202,10 +207,11 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-zinc-900 dark:text-zinc-100 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm">
+      <div className="relative w-full max-w-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl text-zinc-900 dark:text-zinc-100 flex flex-col" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
         
-        {/* Header */}
+        {/* Header - Fixed */}
+        <div className="flex-shrink-0 px-6 sm:px-8 pt-6 sm:pt-8">
         <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4 mb-5">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-white">
@@ -273,6 +279,10 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
             <span>Cohort Settings</span>
           </button>
         </div>
+        </div>{/* End fixed header */}
+
+        {/* Scrollable Tab Content */}
+        <div className="flex-1 overflow-y-auto px-6 sm:px-8 pb-6 sm:pb-8">
 
         {/* Tab 1: Pending Join Requests */}
         {activeTab === 'requests' && (
@@ -461,6 +471,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
           </form>
         )}
 
+        </div>{/* End scrollable content */}
       </div>
     </div>
   );
