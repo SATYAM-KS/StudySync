@@ -3,6 +3,7 @@ import { Message, Campaign } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
+import { MediaViewerModal } from './MediaViewerModal.tsx';
 import { Send, Paperclip, Hash, X, Smile, Download, Search, File, FileText, FileImage, Image as ImageIcon, MessageSquare } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 
@@ -89,6 +90,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [chatView, setChatView] = useState<'chat' | 'media' | 'docs'>('chat');
+  const [activeMediaViewer, setActiveMediaViewer] = useState<{
+    url: string;
+    name?: string | null;
+    senderName?: string | null;
+    timestamp?: string | null;
+  } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -505,7 +512,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                     <div
                       key={m.id}
                       className="relative aspect-square rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 cursor-pointer group"
-                      onClick={() => window.open(m.attachmentUrl!, '_blank')}
+                      onClick={() => setActiveMediaViewer({
+                        url: m.attachmentUrl!,
+                        name: m.attachmentName,
+                        senderName: m.senderName,
+                        timestamp: format(safeDate(m.createdAt), 'h:mm a')
+                      })}
                     >
                       <img src={m.attachmentUrl!} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end p-1.5">
@@ -656,7 +668,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                           {/* Image attachment */}
                           {msg.attachmentUrl && isImageAttachment(msg.attachmentUrl, msg.attachmentType, msg.attachmentName) && (
                             <div className="mt-1.5 max-w-xs rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 cursor-pointer group/img relative bg-zinc-100 dark:bg-zinc-800"
-                              onClick={() => window.open(msg.attachmentUrl!, '_blank')}>
+                              onClick={() => setActiveMediaViewer({
+                                url: msg.attachmentUrl!,
+                                name: msg.attachmentName,
+                                senderName: msg.senderName,
+                                timestamp: format(safeDate(msg.createdAt), 'h:mm a')
+                              })}>
                               <img
                                 src={msg.attachmentUrl}
                                 alt={msg.attachmentName || "image"}
@@ -854,6 +871,18 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
         </p>
       </div>
       </div>
+
+      {/* ── Custom Media Viewer Modal ── */}
+      {activeMediaViewer && (
+        <MediaViewerModal
+          isOpen={Boolean(activeMediaViewer)}
+          onClose={() => setActiveMediaViewer(null)}
+          mediaUrl={activeMediaViewer.url}
+          mediaName={activeMediaViewer.name}
+          senderName={activeMediaViewer.senderName}
+          timestamp={activeMediaViewer.timestamp}
+        />
+      )}
     </div>
   );
 };
