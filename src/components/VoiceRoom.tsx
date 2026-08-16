@@ -150,24 +150,24 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
   const disconnect = () => { setIsConnected(false); setLivekitToken(null); setIsScreenSharing(false); setIsMuted(false); setLiveKitConnected(null); };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8 space-y-6 shadow-sm text-zinc-900 dark:text-zinc-100 transition-colors">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
+    <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm text-zinc-900 dark:text-zinc-100 transition-colors">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-200/60 dark:border-white/[0.08] pb-5">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-white"><Headphones className="w-5 h-5" /></div>
+          <div className="w-10 h-10 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs"><Headphones className="w-5 h-5" /></div>
           <div>
             <h3 className="font-bold text-base text-zinc-950 dark:text-white flex items-center gap-2">
               Voice &amp; Screen Channel
-              {isConnected ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-bold uppercase animate-pulse">Live</span> : <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-bold">{channelParticipants.length} active</span>}
+              {isConnected ? <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black font-bold uppercase animate-pulse">Live</span> : <span className="text-[10px] px-2.5 py-0.5 rounded-full glass-pill text-zinc-600 dark:text-zinc-400 font-bold">{channelParticipants.length} active</span>}
             </h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Real-time audio + screen share powered by LiveKit</p>
           </div>
         </div>
         {!isConnected ? (
-          <button onClick={connectToRoom} disabled={isConnecting} className="px-5 py-2.5 rounded-xl bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-bold text-xs shadow-sm flex items-center space-x-2 transition transform active:scale-95 cursor-pointer disabled:opacity-50">
+          <button onClick={connectToRoom} disabled={isConnecting} className="px-5 py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black font-bold text-xs shadow-sm flex items-center space-x-2 transition transform active:scale-95 cursor-pointer disabled:opacity-50">
             <Headphones className="w-4 h-4" /><span>{isConnecting ? "Connecting..." : "Connect to Voice"}</span>
           </button>
         ) : (
-          <button onClick={disconnect} className="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white font-bold text-xs border border-zinc-300 dark:border-zinc-700 flex items-center space-x-1.5 transition cursor-pointer">
+          <button onClick={disconnect} className="px-4 py-2 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-900 dark:text-white font-bold text-xs flex items-center space-x-1.5 transition cursor-pointer active:scale-95">
             <PhoneOff className="w-4 h-4" /><span>Disconnect</span>
           </button>
         )}
@@ -175,8 +175,8 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
 
       {!isConnected ? (
         <div className="space-y-6">
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex items-center space-x-3">
-            <div className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white animate-pulse shrink-0" />
+          <div className="p-4 rounded-2xl glass-card flex items-center space-x-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
             <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
               {channelParticipants.length > 0
                 ? `${channelParticipants.length} student${channelParticipants.length > 1 ? "s" : ""} currently active in this voice channel`
@@ -186,7 +186,7 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
           {channelParticipants.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {channelParticipants.map(p => (
-                <div key={p.userId} className="rounded-2xl p-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center space-y-3 min-h-[160px]">
+                <div key={p.userId} className="rounded-2xl p-5 glass-card flex flex-col items-center justify-center text-center space-y-3 min-h-[160px]">
                   <div className="relative">
                     <UserAvatar name={p.userName} avatarUrl={p.userAvatarUrl} size="2xl" rounded="2xl" className="ring-1 ring-zinc-300 dark:ring-zinc-700" />
                     <div className={`absolute -bottom-1 -right-1 p-1 rounded-full border-2 border-white dark:border-zinc-950 ${p.isMuted ? "bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300" : "bg-black text-white dark:bg-white dark:text-black"}`}>{p.isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}</div>
@@ -196,17 +196,35 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-10 flex flex-col items-center justify-center text-center">
-              <Users className="w-7 h-7 text-zinc-400 dark:text-zinc-600 mb-2" />
-              <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Voice Channel Empty</p>
-              <p className="text-[10px] text-zinc-500 mt-0.5">Click &ldquo;Connect to Voice&rdquo; in the top-right corner to join</p>
+            <div className="rounded-2xl border-2 border-dashed border-zinc-200/80 dark:border-white/[0.08] glass-card p-10 flex flex-col items-center justify-center text-center">
+              <Users className="w-7 h-7 text-zinc-400 dark:text-zinc-500 mb-2" />
+              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Voice Channel Empty</p>
+              <p className="text-xs text-zinc-400 mt-1 max-w-sm">Click &ldquo;Connect to Voice&rdquo; in the top-right corner to join</p>
             </div>
           )}
+          <div className="p-4 rounded-2xl glass-card text-xs text-zinc-500 dark:text-zinc-400">
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">Voice Etiquette:</span> Noise suppression is enabled. Share your entire screen to review study material or work side-by-side.
+          </div>
         </div>
       ) : (
         livekitToken && (
-          <LiveKitRoom token={livekitToken} serverUrl={livekitUrl} connect={true} audio={true} video={false} onDisconnected={disconnect} options={{ adaptiveStream: true, dynacast: true }}>
-            <LiveKitRoomUI campaign={campaign} onLeave={disconnect} isScreenSharing={isScreenSharing} setIsScreenSharing={setIsScreenSharing} isMuted={isMuted} setIsMuted={setIsMuted} />
+          <LiveKitRoom
+            serverUrl={livekitUrl}
+            token={livekitToken}
+            connect={true}
+            video={false}
+            audio={true}
+            onDisconnected={disconnect}
+            className="w-full"
+          >
+            <LiveKitRoomUI
+              campaign={campaign}
+              onLeave={disconnect}
+              isScreenSharing={isScreenSharing}
+              setIsScreenSharing={setIsScreenSharing}
+              isMuted={isMuted}
+              setIsMuted={setIsMuted}
+            />
           </LiveKitRoom>
         )
       )}

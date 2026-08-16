@@ -157,19 +157,19 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
     <div className="h-full flex flex-col text-zinc-900 dark:text-zinc-100 overflow-hidden">
 
       {/* ── Top bar: back + admin ── full width, always pinned */}
-      <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+      <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav">
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 text-xs font-semibold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition cursor-pointer"
+          className="flex items-center space-x-2 text-xs font-semibold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 px-3.5 py-2 rounded-xl transition cursor-pointer active:scale-95"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>All Campaigns</span>
+          <span>All Cohorts</span>
         </button>
 
         {isAdminOrCoAdmin && (
           <button
             onClick={() => setShowAdminModal(true)}
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 text-xs font-bold transition cursor-pointer"
+            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-900 dark:text-white text-xs font-bold transition cursor-pointer active:scale-95"
           >
             <Settings className="w-4 h-4" />
             <span>Admin Settings</span>
@@ -181,16 +181,16 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
       <div className="flex-1 flex overflow-hidden">
 
         {/* ═══ LEFT PANEL: Campaign info ═══ */}
-        <div className="w-72 shrink-0 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+        <div className="w-72 shrink-0 flex flex-col border-r border-zinc-200/60 dark:border-white/[0.08] glass-panel overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
           <div className="p-5 space-y-5">
 
             {/* Tags */}
             <div className="flex flex-wrap gap-1.5">
-              <span className="px-2.5 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black text-[10px] font-bold tracking-wide uppercase">
+              <span className="px-2.5 py-1 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black text-[10px] font-bold tracking-wide uppercase">
                 {campaign.category}
               </span>
               {(campaign.tags || []).map(t => (
-                <span key={t} className="px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[10px] font-medium">
+                <span key={t} className="px-2 py-0.5 rounded-full glass-pill text-zinc-600 dark:text-zinc-400 text-[10px] font-medium">
                   #{t}
                 </span>
               ))}
@@ -207,7 +207,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             </div>
 
             {/* Divider */}
-            <div className="h-px bg-zinc-200 dark:bg-zinc-800" />
+            <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />
 
             {/* Stats */}
             {(() => {
@@ -215,7 +215,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               return (
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
                       <Target className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                     </div>
                     <div>
@@ -227,7 +227,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                   </div>
 
                   <div className="flex items-start gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0 mt-0.5">
                       <Clock className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -235,7 +235,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                       {todayStatus.todaySchedule?.slots && todayStatus.todaySchedule.slots.length > 0 ? (
                         <div className="space-y-1">
                           {sortSlotsChronologically(todayStatus.todaySchedule.slots).map((slot, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-2xs">
+                            <div key={idx} className="flex items-center justify-between text-xs glass-pill px-2.5 py-1 rounded-lg">
                               <span className="font-bold text-zinc-950 dark:text-white">
                                 {formatTimeTo12h(slot.startTime)} – {formatTimeTo12h(slot.endTime)}
                               </span>
@@ -254,7 +254,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
                       <Users className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                     </div>
                     <div>
@@ -264,7 +264,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
                       <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                     </div>
                     <div>
@@ -279,7 +279,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             {/* Active session indicator */}
             {activeInThisCamp.length > 0 && (
               <>
-                <div className="h-px bg-zinc-200 dark:bg-zinc-800" />
+                <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <span className="font-semibold text-zinc-700 dark:text-zinc-300">
@@ -294,8 +294,8 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
         {/* ═══ RIGHT PANEL: Tabs + content ═══ */}
         <div className="flex-1 flex flex-col overflow-hidden">
 
-            {/* Tab nav */}
-          <div className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 border-b border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-zinc-950 overflow-x-auto">
+          {/* Tab nav */}
+          <div className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav overflow-x-auto">
             {([ 
               { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: isCallActive ? null : (activeInThisCamp.length > 0 ? '●' : null) },
               { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
@@ -306,10 +306,10 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               <button
                 key={id}
                 onClick={() => handleTabChange(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
                   activeTab === id
                     ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />

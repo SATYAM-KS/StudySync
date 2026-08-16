@@ -237,9 +237,9 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100 pb-8">
       
       {/* Top Header & Timeframe Tabs */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] shadow-sm transition-colors">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl shadow-sm transition-colors">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-white">
+          <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs">
             <History className="w-4 h-4" />
           </div>
           <div>
@@ -251,10 +251,10 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         </div>
 
         {/* Timeframe Tabs: Today | This Week | This Month */}
-        <div className="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200/80 dark:border-white/[0.08] w-full sm:w-auto">
+        <div className="flex items-center space-x-1 glass-pill p-1 rounded-xl w-full sm:w-auto">
           <button
             onClick={() => setTimeframe('today')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'today'
                 ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -264,7 +264,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
           </button>
           <button
             onClick={() => setTimeframe('week')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'week'
                 ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -274,7 +274,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
           </button>
           <button
             onClick={() => setTimeframe('month')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'month'
                 ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -289,7 +289,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Focus Time */}
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 shadow-sm space-y-1.5">
+        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-semibold uppercase tracking-wider">Registered Focus</span>
             <Clock className="w-3.5 h-3.5" />
@@ -303,7 +303,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         </div>
 
         {/* Verified 5-Min Blocks */}
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 shadow-sm space-y-1.5">
+        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-semibold uppercase tracking-wider">Focus Blocks</span>
             <Layers className="w-3.5 h-3.5" />
@@ -317,7 +317,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         </div>
 
         {/* Goal Target Progress */}
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 shadow-sm space-y-1.5">
+        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-semibold uppercase tracking-wider">Goal Progress</span>
             <Target className="w-3.5 h-3.5" />
@@ -326,16 +326,16 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
             <span className="text-2xl font-black text-zinc-950 dark:text-white font-mono">{progressPct}%</span>
             <span className="text-xs text-zinc-400 font-mono">{currentHours.toFixed(1)} / {targetHours.toFixed(1)}h</span>
           </div>
-          <div className="w-full bg-zinc-200/80 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+          <div className="w-full bg-zinc-200/80 dark:bg-zinc-800/80 h-1.5 rounded-full overflow-hidden glass-pill">
             <div 
-              className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-500"
+              className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-500 shadow-xs"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
 
         {/* Total Lifetime Focus */}
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 shadow-sm space-y-1.5">
+        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-semibold uppercase tracking-wider">All Sessions</span>
             <Flame className="w-3.5 h-3.5 text-amber-500" />
@@ -351,19 +351,19 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       </div>
 
       {/* Focus Blocks Log Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between">
+      <div className="glass-panel rounded-3xl overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-zinc-200/60 dark:border-white/[0.08] flex items-center justify-between">
           <h4 className="font-bold text-sm text-zinc-950 dark:text-white">
             {timeframe === 'today' ? 'Today\'s Focus Log' : timeframe === 'week' ? 'This Week\'s Focus Log' : 'This Month\'s Focus Log'}
           </h4>
-          <span className="text-[11px] font-mono font-semibold text-zinc-400">
+          <span className="text-[11px] font-mono font-semibold text-zinc-400 glass-pill px-2.5 py-0.5 rounded-full">
             {filteredBlocks.length} {filteredBlocks.length === 1 ? 'Record' : 'Records'}
           </span>
         </div>
 
-        <div className="divide-y divide-zinc-200/80 dark:divide-white/[0.06] overflow-x-auto">
+        <div className="divide-y divide-zinc-200/60 dark:divide-white/[0.06] overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-400 uppercase font-semibold text-[10px] tracking-wider">
+            <thead className="bg-zinc-100/60 dark:bg-zinc-800/30 text-zinc-400 uppercase font-semibold text-[10px] tracking-wider">
               <tr>
                 <th className="py-3 px-4">Date & Time</th>
                 <th className="py-3 px-4">Study Topic</th>

@@ -363,20 +363,20 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
 
   return (
     <div
-      className="flex flex-col h-full bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm"
+      className="flex flex-col h-full glass-panel rounded-3xl overflow-hidden shadow-sm"
       onClick={() => reactionPickerMsgId && setReactionPickerMsgId(null)}
     >
       {/* ── Channel Header ── */}
-      <div className="flex flex-col border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur shrink-0">
+      <div className="flex flex-col border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav shrink-0">
         <div className="flex items-center gap-3 px-5 py-3.5">
-          <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 flex items-center justify-center">
             <Hash className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-zinc-900 dark:text-white truncate leading-none">
+            <p className="text-sm font-bold text-zinc-950 dark:text-white truncate leading-none">
               {campaign.name}
             </p>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-none">
+            <p className="text-[11px] text-zinc-400 mt-1 leading-none">
               {searchQuery ? `Showing results for "${searchQuery}"` : 'Study lounge · ask questions, share notes, celebrate wins'}
             </p>
           </div>
@@ -384,16 +384,16 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
           <button
             type="button"
             onClick={toggleSearch}
-            className={`p-2 rounded-lg transition cursor-pointer ${
+            className={`p-2 rounded-xl transition cursor-pointer active:scale-95 ${
               isSearchOpen
-                ? 'bg-zinc-900 dark:bg-white text-white dark:text-black'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'glass-pill text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
             }`}
             title="Search messages"
           >
             <Search className="w-4 h-4" />
           </button>
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-700 shrink-0">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 glass-pill px-3 py-1 rounded-full shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Live
           </span>
@@ -402,7 +402,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
         {/* Search bar — slides in */}
         {isSearchOpen && (
           <div className="px-5 pb-3 flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
+            <div className="flex-1 flex items-center gap-2 glass-card rounded-xl px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
               <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
               <input
                 ref={searchInputRef}
@@ -428,7 +428,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       </div>
 
       {/* ── View Tabs (Chat / Media / Docs) ── */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 shrink-0">
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-200/60 dark:border-white/[0.06] glass-nav shrink-0">
         {(['chat', 'media', 'docs'] as const).map(view => {
           const labels: Record<typeof view, { label: string; icon: React.ReactNode }> = {
             chat: { label: 'Chat', icon: <MessageSquare className="w-3.5 h-3.5" /> },
@@ -441,10 +441,10 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
               key={view}
               type="button"
               onClick={() => setChatView(view)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 ${
                 active
-                  ? 'bg-zinc-900 dark:bg-white text-white dark:text-black'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
               }`}
             >
               {labels[view].icon}

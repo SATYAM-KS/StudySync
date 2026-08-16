@@ -176,14 +176,22 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-y-auto font-sans transition-colors duration-200">
-      <div className="min-h-full flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 relative">
+    <div className="relative w-full h-full min-h-screen bg-[#fafafa] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-y-auto font-sans transition-colors duration-300">
+      
+      {/* Subtle Ambient Background Mesh Orbs for Frosted Glass Refraction */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
+        <div className="absolute top-1/3 -right-40 w-96 h-96 rounded-full bg-amber-500/10 dark:bg-amber-500/[0.05] blur-3xl" />
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-indigo-500/10 dark:bg-indigo-500/[0.05] blur-3xl" />
+      </div>
+
+      <div className="min-h-full flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 relative z-10">
       
       {/* Top Right Theme Toggle */}
       <div className="absolute top-6 right-6 z-20">
         <button
           onClick={toggleTheme}
-          className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 shadow-sm transition cursor-pointer"
+          className="p-2.5 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 shadow-sm transition cursor-pointer active:scale-95"
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4 text-zinc-200" /> : <Moon className="w-4 h-4 text-zinc-800" />}
@@ -194,25 +202,25 @@ export const AuthScreen: React.FC = () => {
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-md">
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
               StudySync
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              Minimalist Accountability Study Cohorts
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+              Peer Accountability & AI-Proctored Focus
             </p>
           </div>
         </div>
 
         {/* Card Container */}
-        <div className="mt-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <div className="mt-8 glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
           
           {/* Mode Switcher Tabs */}
           {mode !== 'forgot' ? (
-            <div className="flex bg-zinc-100 dark:bg-zinc-950 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+            <div className="flex glass-pill p-1 rounded-2xl">
               <button
                 type="button"
                 onClick={() => {
@@ -220,10 +228,10 @@ export const AuthScreen: React.FC = () => {
                   setErrorMessage(null);
                   setSuccessMessage(null);
                 }}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer active:scale-95 ${
                   mode === 'login'
-                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                    : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
                 }`}
               >
                 Sign In
@@ -235,24 +243,24 @@ export const AuthScreen: React.FC = () => {
                   setErrorMessage(null);
                   setSuccessMessage(null);
                 }}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer active:scale-95 ${
                   mode === 'signup'
-                    ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                    : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
                 }`}
               >
                 Create Account
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+            <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-white/[0.08] pb-3">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-zinc-100">
+                <div className="w-8 h-8 rounded-xl glass-pill flex items-center justify-center text-zinc-900 dark:text-zinc-100">
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-zinc-950 dark:text-white">Reset Password</h2>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[11px] text-zinc-400">
                     {forgotStep === 1 ? 'Step 1: Account Email' : 'Step 2: New Password'}
                   </p>
                 </div>

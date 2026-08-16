@@ -121,17 +121,26 @@ const MainApp: React.FC = () => {
 
   // Dashboard for authenticated user
   return (
-    <div className="h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-black font-sans antialiased transition-colors duration-200">
+    <div className="relative h-screen overflow-hidden bg-[#fafafa] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 flex flex-col selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-black font-sans antialiased transition-colors duration-300">
       
+      {/* Subtle Ambient Background Mesh Orbs for Frosted Glass Refraction */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-500/10 dark:bg-emerald-500/[0.07] blur-3xl" />
+        <div className="absolute top-1/3 -right-40 w-96 h-96 rounded-full bg-amber-500/10 dark:bg-amber-500/[0.05] blur-3xl" />
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-indigo-500/10 dark:bg-indigo-500/[0.05] blur-3xl" />
+      </div>
+
       {/* Top Navigation */}
-      <Navbar
-        onOpenCreateModal={() => setIsCreateModalOpen(true)}
-        onOpenProfile={() => setIsProfileModalOpen(true)}
-        onGoHome={() => handleSelectCampaign(null)}
-      />
+      <div className="relative z-40">
+        <Navbar
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
+          onGoHome={() => handleSelectCampaign(null)}
+        />
+      </div>
 
       {/* Main Content Area — overflow-hidden, internal containers handle their own scroll */}
-      <main className="flex-1 overflow-hidden h-full">
+      <main className="relative z-10 flex-1 overflow-hidden h-full">
         {selectedCampaignId ? (
           <CampaignDetail
             campaignId={selectedCampaignId}

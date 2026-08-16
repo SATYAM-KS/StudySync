@@ -106,15 +106,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100">
       
       {/* Top Controls & Timeframe Selector */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl shadow-sm transition-colors">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-white">
+          <div className="w-10 h-10 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs">
             <Trophy className="w-5 h-5" />
           </div>
           <div>
             <h3 className="font-bold text-base text-zinc-950 dark:text-white flex items-center gap-2">
               Cohort Leaderboard
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full glass-pill text-zinc-700 dark:text-zinc-300">
                 Live Synced
               </span>
             </h3>
@@ -123,33 +123,33 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
         </div>
 
         {/* Timeframe Tabs: Today | This Week | This Month */}
-        <div className="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 w-full sm:w-auto">
+        <div className="flex items-center space-x-1 glass-pill p-1 rounded-xl w-full sm:w-auto">
           <button
             onClick={() => setTimeframe('today')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'today'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
             }`}
           >
             Today
           </button>
           <button
             onClick={() => setTimeframe('week')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'week'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
             }`}
           >
             This Week
           </button>
           <button
             onClick={() => setTimeframe('month')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'month'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
             }`}
           >
             This Month
@@ -161,7 +161,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       {isLoading && sortedEntries.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-6 flex flex-col items-center animate-pulse">
+            <div key={i} className="glass-card rounded-3xl p-6 flex flex-col items-center animate-pulse">
               <div className="w-14 h-14 rounded-2xl bg-zinc-200 dark:bg-zinc-800 mb-3" />
               <div className="w-24 h-4 rounded bg-zinc-200 dark:bg-zinc-800 mb-2" />
               <div className="w-16 h-3 rounded bg-zinc-100 dark:bg-zinc-800 mb-3" />
@@ -179,7 +179,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const targetHrs = getTimeframeTargetHours(topThree[1].targetDailyHours, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
-              <div className="order-2 md:order-1 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+              <div className="order-2 md:order-1 glass-card rounded-3xl p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
                 <div className="absolute top-3 right-3 text-zinc-400 font-mono font-bold text-xs">#2</div>
                 <div className="relative mb-3">
                   <UserAvatar
@@ -218,7 +218,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const targetHrs = getTimeframeTargetHours(topThree[0].targetDailyHours, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
-              <div className="order-1 md:order-2 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-900 dark:border-white/20 p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden md:-translate-y-1">
+              <div className="order-1 md:order-2 glass-panel rounded-3xl border-2 border-zinc-950/80 dark:border-white/40 p-6 flex flex-col items-center text-center shadow-lg relative overflow-hidden md:-translate-y-1">
                 <div className="absolute top-3 right-3 text-zinc-950 dark:text-white font-bold text-xs flex items-center gap-1 font-mono">
                   <Crown className="w-3.5 h-3.5 fill-current text-amber-500" />
                   #1
@@ -261,7 +261,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const targetHrs = getTimeframeTargetHours(topThree[2].targetDailyHours, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
-              <div className="order-3 md:order-3 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-white/[0.08] p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+              <div className="order-3 md:order-3 glass-card rounded-3xl p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
                 <div className="absolute top-3 right-3 text-zinc-400 font-mono font-bold text-xs">#3</div>
                 <div className="relative mb-3">
                   <UserAvatar
@@ -297,15 +297,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       ) : null}
 
       {/* Detailed Ranking Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+      <div className="glass-panel rounded-3xl overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-zinc-200/60 dark:border-white/[0.08] flex items-center justify-between">
           <h4 className="font-bold text-sm text-zinc-950 dark:text-white">Full Cohort Rankings</h4>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">{sortedEntries.length} Members</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 glass-pill px-2.5 py-0.5 rounded-full font-mono">{sortedEntries.length} Members</span>
         </div>
 
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800 overflow-x-auto">
+        <div className="divide-y divide-zinc-200/60 dark:divide-white/[0.06] overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400 uppercase font-semibold text-[10px]">
+            <thead className="bg-zinc-100/60 dark:bg-zinc-800/30 text-zinc-500 dark:text-zinc-400 uppercase font-semibold text-[10px]">
               <tr>
                 <th className="py-3 px-4">Rank</th>
                 <th className="py-3 px-4">Student</th>

@@ -207,45 +207,45 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl text-zinc-900 dark:text-zinc-100 flex flex-col" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="relative w-full max-w-3xl glass-panel rounded-3xl shadow-2xl text-zinc-900 dark:text-zinc-100 flex flex-col animate-in fade-in zoom-in-95 duration-200" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
         
         {/* Header - Fixed */}
         <div className="flex-shrink-0 px-6 sm:px-8 pt-6 sm:pt-8">
-        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4 mb-5">
+        <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-white/[0.08] pb-4 mb-5">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-white">
+            <div className="w-10 h-10 rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-black flex items-center justify-center shadow-xs">
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Campaign Admin Controls</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Manage memberships, join requests, and cohort rules</p>
+              <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Cohort Admin Controls</h2>
+              <p className="text-xs text-zinc-400">Manage memberships, join requests, and cohort rules</p>
             </div>
           </div>
 
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer"
+            className="p-2 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer active:scale-95"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {statusMessage && (
-          <div className="mb-4 p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 text-xs flex items-center justify-between">
+          <div className="mb-4 p-3 rounded-xl glass-card text-zinc-900 dark:text-zinc-100 text-xs flex items-center justify-between">
             <span>{statusMessage}</span>
             <button onClick={() => setStatusMessage('')} className="text-zinc-950 dark:text-white font-bold cursor-pointer">×</button>
           </div>
         )}
 
         {/* Tab Navigation */}
-        <div className="flex items-center space-x-2 border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-6">
+        <div className="flex items-center space-x-2 border-b border-zinc-200/60 dark:border-white/[0.08] pb-3 mb-6">
           <button
             onClick={() => setActiveTab('requests')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer active:scale-95 ${
               activeTab === 'requests'
-                ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white bg-zinc-100 dark:bg-zinc-800'
+                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white glass-pill'
             }`}
           >
             <span>Join Requests</span>

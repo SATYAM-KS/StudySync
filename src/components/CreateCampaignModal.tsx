@@ -174,7 +174,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 dark:bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 dark:bg-black/75 backdrop-blur-xl animate-in fade-in duration-200"
       onClick={(e) => {
         // If clicked on backdrop overlay (outside dialog)
         if (e.target === e.currentTarget) {
@@ -184,28 +184,28 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
     >
       <div 
         ref={modalRef}
-        className="relative w-full max-w-2xl max-h-[90vh] sm:max-h-[86vh] flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl text-zinc-900 dark:text-zinc-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="relative w-full max-w-2xl max-h-[90vh] sm:max-h-[86vh] flex flex-col glass-panel rounded-3xl shadow-2xl text-zinc-900 dark:text-zinc-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
       >
         
         {/* Pinned Modal Header */}
-        <div className="shrink-0 flex items-center justify-between p-4 sm:p-5 border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur z-10">
+        <div className="shrink-0 flex items-center justify-between p-4 sm:p-5 border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav z-10">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-black flex items-center justify-center font-bold shadow-xs">
               <Plus className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold text-zinc-950 dark:text-white">
-                  Create Study Campaign
+                  Create Study Cohort
                 </h2>
                 {hasDraft && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-200 dark:border-zinc-700">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 glass-pill px-2 py-0.5 rounded-md">
                     <Bookmark className="w-2.5 h-2.5" />
                     Draft Saved
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-zinc-400">
                 Auto-saves your changes as a draft
               </p>
             </div>
