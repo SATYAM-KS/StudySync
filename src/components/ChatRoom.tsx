@@ -406,15 +406,15 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       {/* ── Channel Header ── */}
       <div className="flex flex-col border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav shrink-0">
         <div className="flex items-center gap-3 px-5 py-3.5">
-          <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800/80 flex items-center justify-center">
-            <Hash className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+          <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs shrink-0">
+            <MessageSquare className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-zinc-950 dark:text-white truncate">
-              {campaign.name}
-            </p>
-            <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
-              {searchQuery ? `Showing results for "${searchQuery}"` : 'Cohort lounge'}
+            <h3 className="font-bold text-base text-zinc-950 dark:text-white tracking-tight leading-none">
+              Cohort Lounge
+            </h3>
+            <p className="text-xs text-zinc-400 mt-1 truncate leading-none">
+              {searchQuery ? `Showing results for "${searchQuery}"` : 'Live discussion'}
             </p>
           </div>
           {/* Search toggle */}
