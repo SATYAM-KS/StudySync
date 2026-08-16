@@ -14,7 +14,7 @@ interface LeaderboardProps {
   targetDailyHours: number;
 }
 
-type Timeframe = 'today' | 'week' | 'all';
+type Timeframe = 'today' | 'week' | 'month' | 'all';
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours }) => {
   const { socket } = useSocket();
@@ -52,21 +52,41 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     };
   }, [socket]);
 
-  // Sort according to active timeframe
-  const sortedEntries = [...entries].sort((a, b) => {
-    if (timeframe === 'today') return b.todayMinutes - a.todayMinutes;
-    if (timeframe === 'week') return b.thisWeekMinutes - a.thisWeekMinutes;
-    return b.totalMinutes - a.totalMinutes;
-  });
-
-  const getMinutesForTimeframe = (entry: LeaderboardEntry) => {
-    if (timeframe === 'today') return entry.todayMinutes;
-    if (timeframe === 'week') return entry.thisWeekMinutes;
-    return entry.totalMinutes;
+  const getDaysInCurrentMonth = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   };
 
+  const getTimeframeTargetHours = (dailyTarget: number, tf: Timeframe) => {
+    const baseDaily = dailyTarget || targetDailyHours || 3;
+    if (tf === 'today') return baseDaily;
+    if (tf === 'week') return baseDaily * 7;
+    if (tf === 'month') return baseDaily * getDaysInCurrentMonth();
+    return baseDaily * 30; // Campaign / All-time standard target benchmark
+  };
+
+  const getTimeframeTitle = (tf: Timeframe) => {
+    if (tf === 'today') return 'Daily Goal Progress';
+    if (tf === 'week') return 'Weekly Goal Progress';
+    if (tf === 'month') return 'Monthly Goal Progress';
+    return 'Campaign Goal Progress';
+  };
+
+  const getMinutesForTimeframe = (entry: LeaderboardEntry, tf: Timeframe) => {
+    if (tf === 'today') return entry.todayMinutes || 0;
+    if (tf === 'week') return entry.thisWeekMinutes || 0;
+    if (tf === 'month') return entry.thisMonthMinutes ?? entry.thisWeekMinutes ?? 0;
+    return entry.totalMinutes || 0;
+  };
+
+  // Sort according to active timeframe
+  const sortedEntries = [...entries].sort((a, b) => {
+    const minA = getMinutesForTimeframe(a, timeframe);
+    const minB = getMinutesForTimeframe(b, timeframe);
+    return minB - minA;
+  });
+
   const topThree = sortedEntries.slice(0, 3);
-  const remaining = sortedEntries.slice(3);
 
   return (
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100">
@@ -89,10 +109,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
         </div>
 
         {/* Timeframe Tabs */}
-        <div className="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 w-full sm:w-auto">
+        <div className="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 w-full sm:w-auto overflow-x-auto">
           <button
             onClick={() => setTimeframe('today')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'today'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -102,7 +122,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           </button>
           <button
             onClick={() => setTimeframe('week')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'week'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -111,8 +131,18 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             This Week
           </button>
           <button
+            onClick={() => setTimeframe('month')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+              timeframe === 'month'
+                ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
+                : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+            }`}
+          >
+            This Month
+          </button>
+          <button
             onClick={() => setTimeframe('all')}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               timeframe === 'all'
                 ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
                 : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
@@ -128,98 +158,125 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
           
           {/* 2nd Place */}
-          {topThree[1] && (
-            <div className="order-2 md:order-1 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
-              <div className="absolute top-3 right-3 text-zinc-400 font-bold text-xs">#2</div>
-              <div className="relative mb-3">
-                <UserAvatar
-                  name={topThree[1].userName}
-                  avatarUrl={topThree[1].userAvatarUrl}
-                  size="2xl"
-                  rounded="2xl"
-                  className="ring-2 ring-zinc-300 dark:ring-zinc-700 shadow-sm"
-                />
-                <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center font-black text-xs shadow border border-zinc-300 dark:border-zinc-600">
-                  2
+          {topThree[1] && (() => {
+            const mins = getMinutesForTimeframe(topThree[1], timeframe);
+            const hrs = mins / 60;
+            const targetHrs = getTimeframeTargetHours(topThree[1].targetDailyHours, timeframe);
+            const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
+            return (
+              <div className="order-2 md:order-1 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+                <div className="absolute top-3 right-3 text-zinc-400 font-bold text-xs">#2</div>
+                <div className="relative mb-3">
+                  <UserAvatar
+                    name={topThree[1].userName}
+                    avatarUrl={topThree[1].userAvatarUrl}
+                    size="2xl"
+                    rounded="2xl"
+                    className="ring-2 ring-zinc-300 dark:ring-zinc-700 shadow-sm"
+                  />
+                  <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center font-black text-xs shadow border border-zinc-300 dark:border-zinc-600">
+                    2
+                  </div>
                 </div>
-              </div>
 
-              <h4 className="font-bold text-sm text-zinc-950 dark:text-white truncate max-w-[160px]">{topThree[1].userName}</h4>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-2">{topThree[1].role}</p>
+                <h4 className="font-bold text-sm text-zinc-950 dark:text-white truncate max-w-[160px]">{topThree[1].userName}</h4>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-2">{topThree[1].role}</p>
 
-              <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">
-                {(getMinutesForTimeframe(topThree[1]) / 60).toFixed(1)} hrs
+                <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">
+                  {hrs.toFixed(1)} hrs
+                </div>
+                <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : timeframe === 'month' ? 'monthly' : 'goal'} target ({targetHrs.toFixed(1)}h)
+                </div>
+                <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-2 font-medium">
+                  <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
+                  {topThree[1].activeStreakDays} day streak
+                </p>
               </div>
-              <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-1 font-medium">
-                <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
-                {topThree[1].activeStreakDays} day streak
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 1st Place */}
-          {topThree[0] && (
-            <div className="order-1 md:order-2 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-black dark:border-white p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden md:-translate-y-2">
-              <div className="absolute top-3 right-3 text-zinc-950 dark:text-white font-extrabold text-xs flex items-center gap-1">
-                <Crown className="w-3.5 h-3.5 fill-current" />
-                #1 Leader
-              </div>
-              
-              <div className="relative mb-3">
-                <UserAvatar
-                  name={topThree[0].userName}
-                  avatarUrl={topThree[0].userAvatarUrl}
-                  size="3xl"
-                  rounded="2xl"
-                  className="ring-4 ring-black dark:ring-white shadow-md"
-                />
-                <div className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-black text-xs shadow-md">
-                  1
+          {topThree[0] && (() => {
+            const mins = getMinutesForTimeframe(topThree[0], timeframe);
+            const hrs = mins / 60;
+            const targetHrs = getTimeframeTargetHours(topThree[0].targetDailyHours, timeframe);
+            const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
+            return (
+              <div className="order-1 md:order-2 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-black dark:border-white p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden md:-translate-y-2">
+                <div className="absolute top-3 right-3 text-zinc-950 dark:text-white font-extrabold text-xs flex items-center gap-1">
+                  <Crown className="w-3.5 h-3.5 fill-current" />
+                  #1 Leader
                 </div>
-              </div>
+                
+                <div className="relative mb-3">
+                  <UserAvatar
+                    name={topThree[0].userName}
+                    avatarUrl={topThree[0].userAvatarUrl}
+                    size="3xl"
+                    rounded="2xl"
+                    className="ring-4 ring-black dark:ring-white shadow-md"
+                  />
+                  <div className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-black text-xs shadow-md">
+                    1
+                  </div>
+                </div>
 
-              <h4 className="font-extrabold text-base text-zinc-950 dark:text-white truncate max-w-[180px]">{topThree[0].userName}</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">{topThree[0].role}</p>
+                <h4 className="font-extrabold text-base text-zinc-950 dark:text-white truncate max-w-[180px]">{topThree[0].userName}</h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">{topThree[0].role}</p>
 
-              <div className="text-2xl font-black text-zinc-950 dark:text-white">
-                {(getMinutesForTimeframe(topThree[0]) / 60).toFixed(1)} hrs
+                <div className="text-2xl font-black text-zinc-950 dark:text-white">
+                  {hrs.toFixed(1)} hrs
+                </div>
+                <div className="mt-1 flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-300 font-medium">
+                  <span className="font-bold text-zinc-950 dark:text-white">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : timeframe === 'month' ? 'monthly' : 'goal'} target ({targetHrs.toFixed(1)}h)
+                </div>
+                <p className="text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-2 font-semibold">
+                  <Flame className="w-3.5 h-3.5 text-zinc-950 dark:text-white fill-current" />
+                  {topThree[0].activeStreakDays} day streak
+                </p>
               </div>
-              <p className="text-xs text-zinc-800 dark:text-zinc-200 flex items-center gap-1 mt-1 font-semibold">
-                <Flame className="w-3.5 h-3.5 text-zinc-950 dark:text-white fill-current" />
-                {topThree[0].activeStreakDays} day streak
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 3rd Place */}
-          {topThree[2] && (
-            <div className="order-3 md:order-3 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
-              <div className="absolute top-3 right-3 text-zinc-400 font-bold text-xs">#3</div>
-              <div className="relative mb-3">
-                <UserAvatar
-                  name={topThree[2].userName}
-                  avatarUrl={topThree[2].userAvatarUrl}
-                  size="2xl"
-                  rounded="2xl"
-                  className="ring-2 ring-zinc-300 dark:ring-zinc-700 shadow-sm"
-                />
-                <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center font-black text-xs shadow border border-zinc-300 dark:border-zinc-600">
-                  3
+          {topThree[2] && (() => {
+            const mins = getMinutesForTimeframe(topThree[2], timeframe);
+            const hrs = mins / 60;
+            const targetHrs = getTimeframeTargetHours(topThree[2].targetDailyHours, timeframe);
+            const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
+            return (
+              <div className="order-3 md:order-3 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-5 flex flex-col items-center text-center shadow-sm relative overflow-hidden">
+                <div className="absolute top-3 right-3 text-zinc-400 font-bold text-xs">#3</div>
+                <div className="relative mb-3">
+                  <UserAvatar
+                    name={topThree[2].userName}
+                    avatarUrl={topThree[2].userAvatarUrl}
+                    size="2xl"
+                    rounded="2xl"
+                    className="ring-2 ring-zinc-300 dark:ring-zinc-700 shadow-sm"
+                  />
+                  <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-white flex items-center justify-center font-black text-xs shadow border border-zinc-300 dark:border-zinc-600">
+                    3
+                  </div>
                 </div>
-              </div>
 
-              <h4 className="font-bold text-sm text-zinc-950 dark:text-white truncate max-w-[160px]">{topThree[2].userName}</h4>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-2">{topThree[2].role}</p>
+                <h4 className="font-bold text-sm text-zinc-950 dark:text-white truncate max-w-[160px]">{topThree[2].userName}</h4>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-2">{topThree[2].role}</p>
 
-              <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">
-                {(getMinutesForTimeframe(topThree[2]) / 60).toFixed(1)} hrs
+                <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">
+                  {hrs.toFixed(1)} hrs
+                </div>
+                <div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{pct}%</span> of {timeframe === 'today' ? 'daily' : timeframe === 'week' ? 'weekly' : timeframe === 'month' ? 'monthly' : 'goal'} target ({targetHrs.toFixed(1)}h)
+                </div>
+                <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-2 font-medium">
+                  <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
+                  {topThree[2].activeStreakDays} day streak
+                </p>
               </div>
-              <p className="text-[10px] text-zinc-600 dark:text-zinc-400 flex items-center gap-1 mt-1 font-medium">
-                <Flame className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />
-                {topThree[2].activeStreakDays} day streak
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       )}
@@ -239,16 +296,17 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                 <th className="py-3 px-4">Student</th>
                 <th className="py-3 px-4">Role</th>
                 <th className="py-3 px-4">Streak</th>
-                <th className="py-3 px-4">Daily Goal Progress</th>
+                <th className="py-3 px-4">{getTimeframeTitle(timeframe)}</th>
                 <th className="py-3 px-4 text-right">Logged Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {sortedEntries.map((entry, idx) => {
-                const minutes = getMinutesForTimeframe(entry);
+                const minutes = getMinutesForTimeframe(entry, timeframe);
                 const hours = minutes / 60;
-                const dailyTarget = entry.targetDailyHours || targetDailyHours;
-                const progressPct = Math.min(100, Math.round((hours / dailyTarget) * 100));
+                const dailyTarget = entry.targetDailyHours || targetDailyHours || 3;
+                const targetHours = getTimeframeTargetHours(dailyTarget, timeframe);
+                const progressPct = targetHours > 0 ? Math.min(100, Math.round((hours / targetHours) * 100)) : 0;
 
                 return (
                   <tr key={entry.userId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
@@ -288,18 +346,20 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                       </div>
                     </td>
 
-                    {/* Progress Bar */}
-                    <td className="py-3.5 px-4 min-w-[180px]">
+                    {/* Dynamic Timeframe Progress Bar */}
+                    <td className="py-3.5 px-4 min-w-[200px]">
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-zinc-500 dark:text-zinc-400">{hours.toFixed(1)} / {dailyTarget}h</span>
+                          <span className="text-zinc-500 dark:text-zinc-400">
+                            {hours.toFixed(1)} / {targetHours.toFixed(1)}h
+                          </span>
                           <span className="font-bold text-zinc-900 dark:text-white">
                             {progressPct}%
                           </span>
                         </div>
                         <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
                           <div 
-                            className="h-full rounded-full bg-black dark:bg-white"
+                            className="h-full rounded-full bg-black dark:bg-white transition-all duration-300"
                             style={{ width: `${progressPct}%` }}
                           ></div>
                         </div>

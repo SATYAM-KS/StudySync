@@ -556,10 +556,12 @@ async function getCampaignLeaderboard(campaignId) {
   const now = /* @__PURE__ */ new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const weekStart = todayStart - 6 * 864e5;
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const entries = approvedMembers.map((member) => {
     const userBlocks = campaignBlocks.filter((b) => b.userId === member.userId);
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
+    let thisMonthMinutes = 0;
     let totalMinutes = 0;
     let lastActive = void 0;
     const activeDaysSet = /* @__PURE__ */ new Set();
@@ -573,6 +575,9 @@ async function getCampaignLeaderboard(campaignId) {
       }
       if (bTime >= weekStart) {
         thisWeekMinutes += b.durationMinutes;
+      }
+      if (bTime >= monthStart) {
+        thisMonthMinutes += b.durationMinutes;
       }
       if (!lastActive || new Date(b.timestamp) > new Date(lastActive)) {
         lastActive = b.timestamp;
@@ -597,13 +602,19 @@ async function getCampaignLeaderboard(campaignId) {
       userId: member.userId,
       userName: member.userName,
       userAvatarUrl: member.userAvatarUrl,
+      role: member.role || "member",
       todayMinutes,
       todayHours,
       thisWeekMinutes,
       thisWeekHours: Number((thisWeekMinutes / 60).toFixed(1)),
+      thisMonthMinutes,
+      thisMonthHours: Number((thisMonthMinutes / 60).toFixed(1)),
       totalMinutes,
       totalHours: Number((totalMinutes / 60).toFixed(1)),
+      activeStreakDays: currentStreak,
       streakDays: currentStreak,
+      targetDailyHours: targetHours,
+      todayTargetMet: targetCompleted,
       targetCompleted,
       progressPercentage,
       lastActive

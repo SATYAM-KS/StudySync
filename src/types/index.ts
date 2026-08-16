@@ -127,6 +127,7 @@ export interface LeaderboardEntry {
   role: Role;
   todayMinutes: number;
   thisWeekMinutes: number;
+  thisMonthMinutes?: number;
   totalMinutes: number;
   activeStreakDays: number;
   lastActive?: string;
