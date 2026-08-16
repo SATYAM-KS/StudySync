@@ -252,7 +252,7 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
 
                   <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                     {todayCompletedMins >= todayTargetMins
-                      ? '🎉 Daily focus goal completed!'
+                      ? 'Daily focus goal completed'
                       : `${remainingMins}m remaining today`}
                   </p>
                 </div>

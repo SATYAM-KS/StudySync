@@ -91,7 +91,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                 Peer Accountability Platform
               </span>
               <h1 className="text-2xl sm:text-3xl font-black text-zinc-950 dark:text-white tracking-tight">
-                Welcome back, {user?.name?.split(' ')[0] || 'Learner'} 👋
+                Welcome back, {user?.name?.split(' ')[0] || 'Learner'}
               </h1>
               <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 max-w-xl">
                 Join study cohorts, complete your daily targets, and inspect your focus sessions automatically with AI.

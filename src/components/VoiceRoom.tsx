@@ -211,9 +211,8 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
         )
       )}
 
-      <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400 flex items-start space-x-3">
-        <Sparkles className="w-4 h-4 text-zinc-800 dark:text-zinc-200 shrink-0 mt-0.5" />
-        <div><span className="font-bold text-zinc-900 dark:text-zinc-200">Study Lounge Etiquette:</span> Microphones are active with noise suppression. Share your screen to review problems, inspect code, or study side-by-side!</div>
+      <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400">
+        <span className="font-bold text-zinc-900 dark:text-zinc-200">Voice Etiquette:</span> Noise suppression is enabled. Share your entire screen to review study material or work side-by-side.
       </div>
     </div>
   );
