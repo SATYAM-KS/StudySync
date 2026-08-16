@@ -97,7 +97,7 @@ app.get('/api/health', (_req, res) => {
 // 1. Auth routes
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, password, avatarUrl, bio, studyGoal } = req.body;
+    const { name, email, password, avatarUrl, bio, studyGoal, leetcodeUrl, hackerrankUrl } = req.body;
     if (!name || !email || !password) {
       res.status(400).json({ error: 'Name, email, and password are required' });
       return;
@@ -118,6 +118,8 @@ app.post('/api/auth/signup', async (req, res) => {
       avatarUrl: avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name)}`,
       bio: bio || '',
       studyGoal: studyGoal || '',
+      leetcodeUrl: leetcodeUrl || '',
+      hackerrankUrl: hackerrankUrl || '',
       createdAt: new Date().toISOString()
     };
 
@@ -269,12 +271,14 @@ app.get('/api/auth/users', async (_req, res) => {
 
 app.put('/api/auth/profile', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { name, avatarUrl, bio, studyGoal } = req.body;
+    const { name, avatarUrl, bio, studyGoal, leetcodeUrl, hackerrankUrl } = req.body;
     const updated = await updateUser(req.user!.id, {
       ...(name !== undefined && { name }),
       ...(avatarUrl !== undefined && { avatarUrl: avatarUrl || '' }),
       ...(bio !== undefined && { bio }),
-      ...(studyGoal !== undefined && { studyGoal })
+      ...(studyGoal !== undefined && { studyGoal }),
+      ...(leetcodeUrl !== undefined && { leetcodeUrl }),
+      ...(hackerrankUrl !== undefined && { hackerrankUrl })
     });
     res.json({ user: updated });
   } catch (err: any) {

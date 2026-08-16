@@ -6,7 +6,16 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: { name: string; email: string; password?: string; avatarUrl?: string; bio?: string; studyGoal?: string }) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: { 
+    name: string; 
+    email: string; 
+    password?: string; 
+    avatarUrl?: string; 
+    bio?: string; 
+    studyGoal?: string;
+    leetcodeUrl?: string;
+    hackerrankUrl?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; code?: string; message?: string; error?: string }>;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   logout: () => void;
@@ -93,7 +102,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (data: { name: string; email: string; password?: string; avatarUrl?: string; bio?: string; studyGoal?: string }): Promise<{ success: boolean; error?: string }> => {
+  const signup = async (data: { 
+    name: string; 
+    email: string; 
+    password?: string; 
+    avatarUrl?: string; 
+    bio?: string; 
+    studyGoal?: string;
+    leetcodeUrl?: string;
+    hackerrankUrl?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -104,7 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password: data.password || 'password123',
           avatarUrl: data.avatarUrl,
           bio: data.bio,
-          studyGoal: data.studyGoal
+          studyGoal: data.studyGoal,
+          leetcodeUrl: data.leetcodeUrl,
+          hackerrankUrl: data.hackerrankUrl
         })
       });
       const text = await res.text();

@@ -77,6 +77,8 @@ function mapUserFromDb(row: any): User & { passwordHash: string } {
     avatarUrl: row.avatar_url || '',
     bio: row.bio || '',
     studyGoal: row.study_goal || '',
+    leetcodeUrl: row.leetcode_url || row.leetcodeUrl || '',
+    hackerrankUrl: row.hackerrank_url || row.hackerrankUrl || '',
     createdAt: row.created_at
   };
 }
@@ -199,6 +201,8 @@ export async function createUser(userData: User & { passwordHash: string }): Pro
       avatar_url: userData.avatarUrl || '',
       bio: userData.bio || '',
       study_goal: userData.studyGoal || '',
+      leetcode_url: userData.leetcodeUrl || '',
+      hackerrank_url: userData.hackerrankUrl || '',
       created_at: userData.createdAt || new Date().toISOString()
     });
     if (error) console.error('Supabase createUser error:', error);
@@ -230,6 +234,8 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
     if (updates.bio !== undefined) payload.bio = updates.bio;
     if (updates.studyGoal !== undefined) payload.study_goal = updates.studyGoal;
+    if (updates.leetcodeUrl !== undefined) payload.leetcode_url = updates.leetcodeUrl;
+    if (updates.hackerrankUrl !== undefined) payload.hackerrank_url = updates.hackerrankUrl;
 
     const { data, error } = await supabase.from('users').update(payload).eq('id', id).select().single();
     if (!error && data) {
@@ -573,22 +579,36 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
   let approvedMembers: CampaignMembership[] = [];
   let campaignBlocks: StudyBlock[] = [];
   let targetHours = 4;
+  let allUsers: Array<{ id: string; leetcodeUrl?: string; hackerrankUrl?: string }> = [];
 
   if (supabase) {
-    const [campRes, memsRes, blksRes] = await Promise.all([
+    const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
       supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
       supabase.from('memberships').select('*').eq('campaign_id', campaignId).eq('status', 'approved'),
-      supabase.from('study_blocks').select('*').eq('campaign_id', campaignId).eq('status', 'active')
+      supabase.from('study_blocks').select('*').eq('campaign_id', campaignId).eq('status', 'active'),
+      supabase.from('users').select('id, leetcode_url, hackerrank_url')
     ]);
     if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
     if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
     if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
+    if (usersRes.data) {
+      allUsers = usersRes.data.map((u: any) => ({
+        id: u.id,
+        leetcodeUrl: u.leetcode_url || '',
+        hackerrankUrl: u.hackerrank_url || ''
+      }));
+    }
   } else {
     const db = await initDb();
     const campaign = db.campaigns.find(c => c.id === campaignId);
     targetHours = campaign?.targetDailyHours || 4;
     approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && m.status === 'approved');
     campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
+    allUsers = db.users.map(u => ({
+      id: u.id,
+      leetcodeUrl: u.leetcodeUrl || '',
+      hackerrankUrl: u.hackerrankUrl || ''
+    }));
   }
 
   const now = new Date();
@@ -598,6 +618,7 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
 
   const entries: LeaderboardEntry[] = approvedMembers.map(member => {
     const userBlocks = campaignBlocks.filter(b => b.userId === member.userId);
+    const userProfile = allUsers.find(u => u.id === member.userId);
 
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
@@ -650,6 +671,8 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
       userId: member.userId,
       userName: member.userName,
       userAvatarUrl: member.userAvatarUrl,
+      leetcodeUrl: userProfile?.leetcodeUrl || '',
+      hackerrankUrl: userProfile?.hackerrankUrl || '',
       role: member.role || 'member',
       todayMinutes,
       todayHours,

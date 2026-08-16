@@ -10,7 +10,9 @@ import {
   CheckCircle2,
   Upload,
   Trash2,
-  Loader2
+  Loader2,
+  Code2,
+  Terminal
 } from 'lucide-react';
 
 interface EditProfileModalProps {
@@ -24,6 +26,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
   const [name, setName] = useState(user?.name || '');
   const [studyGoal, setStudyGoal] = useState(user?.studyGoal || '');
   const [bio, setBio] = useState(user?.bio || '');
+  const [leetcodeUrl, setLeetcodeUrl] = useState(user?.leetcodeUrl || '');
+  const [hackerrankUrl, setHackerrankUrl] = useState(user?.hackerrankUrl || '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl || null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -90,6 +94,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
       name: name.trim(),
       studyGoal: studyGoal.trim(),
       bio: bio.trim(),
+      leetcodeUrl: leetcodeUrl.trim(),
+      hackerrankUrl: hackerrankUrl.trim(),
       avatarUrl: avatarUrl || ''
     });
 
@@ -248,6 +254,48 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
               placeholder="Tell your study cohort about your study routine or focus areas..."
               className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white resize-none"
             />
+          </div>
+
+          {/* LeetCode Profile */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <Code2 className="w-3.5 h-3.5 text-amber-500" />
+                <span>LeetCode Profile</span>
+              </label>
+              <span className="text-[10px] text-zinc-400 font-medium">Visible on Leaderboard</span>
+            </div>
+            <div className="relative">
+              <Code2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+              <input
+                type="text"
+                value={leetcodeUrl}
+                onChange={(e) => setLeetcodeUrl(e.target.value)}
+                placeholder="https://leetcode.com/u/username or username"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+              />
+            </div>
+          </div>
+
+          {/* HackerRank Profile */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+                <span>HackerRank Profile</span>
+              </label>
+              <span className="text-[10px] text-zinc-400 font-medium">Visible on Leaderboard</span>
+            </div>
+            <div className="relative">
+              <Terminal className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+              <input
+                type="text"
+                value={hackerrankUrl}
+                onChange={(e) => setHackerrankUrl(e.target.value)}
+                placeholder="https://www.hackerrank.com/profile/username or username"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+              />
+            </div>
           </div>
 
           {/* Footer Actions */}

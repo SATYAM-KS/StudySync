@@ -9,6 +9,8 @@ export interface User {
   avatarUrl?: string;
   bio?: string;
   studyGoal?: string;
+  leetcodeUrl?: string;
+  hackerrankUrl?: string;
   createdAt: string;
 }
 
@@ -124,6 +126,8 @@ export interface LeaderboardEntry {
   userId: string;
   userName: string;
   userAvatarUrl?: string;
+  leetcodeUrl?: string;
+  hackerrankUrl?: string;
   role: Role;
   todayMinutes: number;
   thisWeekMinutes: number;

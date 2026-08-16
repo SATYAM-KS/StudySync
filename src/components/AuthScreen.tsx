@@ -20,7 +20,9 @@ import {
   ArrowLeft,
   RefreshCw,
   Sun,
-  Moon
+  Moon,
+  Code2,
+  Terminal
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar.tsx';
 
@@ -42,6 +44,8 @@ export const AuthScreen: React.FC = () => {
   const [signupPassword, setSignupPassword] = useState('');
   const [studyGoal, setStudyGoal] = useState('');
   const [bio, setBio] = useState('');
+  const [leetcodeUrl, setLeetcodeUrl] = useState('');
+  const [hackerrankUrl, setHackerrankUrl] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string>('');
 
   // Forgot Password form state
@@ -99,7 +103,9 @@ export const AuthScreen: React.FC = () => {
         password: signupPassword,
         avatarUrl: selectedAvatar,
         studyGoal: studyGoal.trim() || 'Achieve daily study target',
-        bio: bio.trim()
+        bio: bio.trim(),
+        leetcodeUrl: leetcodeUrl.trim(),
+        hackerrankUrl: hackerrankUrl.trim()
       });
       if (!res.success) {
         setErrorMessage(res.error || 'Sign up failed.');
@@ -486,6 +492,48 @@ export const AuthScreen: React.FC = () => {
                   placeholder="e.g. Pre-med student aiming for 5h daily focus"
                   className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition"
                 />
+              </div>
+
+              {/* LeetCode Profile Link */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <Code2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>LeetCode Profile</span>
+                  </label>
+                  <span className="text-[10px] text-zinc-400 font-medium">Optional</span>
+                </div>
+                <div className="relative">
+                  <Code2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+                  <input
+                    type="text"
+                    value={leetcodeUrl}
+                    onChange={(e) => setLeetcodeUrl(e.target.value)}
+                    placeholder="https://leetcode.com/u/username or username"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition"
+                  />
+                </div>
+              </div>
+
+              {/* HackerRank Profile Link */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>HackerRank Profile</span>
+                  </label>
+                  <span className="text-[10px] text-zinc-400 font-medium">Optional</span>
+                </div>
+                <div className="relative">
+                  <Terminal className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+                  <input
+                    type="text"
+                    value={hackerrankUrl}
+                    onChange={(e) => setHackerrankUrl(e.target.value)}
+                    placeholder="https://www.hackerrank.com/profile/username or username"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition"
+                  />
+                </div>
               </div>
 
               {/* Avatar Preview */}
