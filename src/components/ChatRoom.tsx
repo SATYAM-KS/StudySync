@@ -170,12 +170,22 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   }, [socket, campaign.id]);
 
   // ── Scroll helpers ─────────────────────────────────────────────────
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
+  const hasInitiallyScrolledRef = useRef(false);
+
+  const scrollToBottom = useCallback((force = false) => {
+    const doScroll = () => {
       const el = messagesContainerRef.current;
       if (!el) return;
       el.scrollTop = el.scrollHeight;
-    });
+    };
+    if (force) {
+      isAtBottomRef.current = true;
+    }
+    doScroll();
+    requestAnimationFrame(doScroll);
+    setTimeout(doScroll, 20);
+    setTimeout(doScroll, 80);
+    setTimeout(doScroll, 200);
   }, []);
 
   // Track whether user is near bottom
@@ -185,16 +195,44 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  useEffect(() => { scrollToBottom(); }, [campaign.id]);
+  useEffect(() => {
+    hasInitiallyScrolledRef.current = false;
+    scrollToBottom(true);
+  }, [campaign.id, scrollToBottom]);
 
-  // Only auto-scroll on new messages if user was already at bottom
+  // When switching between chatView ('chat', 'media', 'docs'), ensure we land on the latest chat
+  useEffect(() => {
+    if (chatView === 'chat') {
+      scrollToBottom(true);
+    }
+  }, [chatView, scrollToBottom]);
+
+  // Listen for tab switch events from parent (e.g. CampaignDetail switching to chat)
+  useEffect(() => {
+    const onScrollToBottomEvent = () => {
+      if (chatView === 'chat') {
+        scrollToBottom(true);
+      }
+    };
+    window.addEventListener('chat:scroll_to_bottom', onScrollToBottomEvent);
+    return () => window.removeEventListener('chat:scroll_to_bottom', onScrollToBottomEvent);
+  }, [chatView, scrollToBottom]);
+
+  // Auto-scroll on initial load and when new messages arrive if user was at bottom
+  useEffect(() => {
+    if (messages.length > 0) {
+      if (!hasInitiallyScrolledRef.current) {
+        hasInitiallyScrolledRef.current = true;
+        scrollToBottom(true);
+      } else if (isAtBottomRef.current) {
+        scrollToBottom();
+      }
+    }
+  }, [messages.length, scrollToBottom]);
+
   useEffect(() => {
     if (isAtBottomRef.current) scrollToBottom();
-  }, [messages.length]);
-
-  useEffect(() => {
-    if (isAtBottomRef.current) scrollToBottom();
-  }, [typingUsers.length]);
+  }, [typingUsers.length, scrollToBottom]);
 
   // ── Auto-resize textarea ───────────────────────────────────────────
   const resizeTextarea = () => {
@@ -504,12 +542,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       })()}
 
       {/* ── Messages Area (chat view only) ── */}
-      {chatView === 'chat' && (
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-2"
-        style={{ overscrollBehavior: 'contain' }}
+        style={{
+          overscrollBehavior: 'contain',
+          display: chatView === 'chat' ? 'block' : 'none'
+        }}
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-2 text-center py-10">
@@ -697,12 +737,10 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
           </div>
         )}
       </div>
-      )}{/* end chatView==='chat' messages area */}
 
       {/* ── Attachment preview + Input Bar (chat view only) ── */}
-      {chatView === 'chat' && (
-        <>
-      {attachment && (
+      <div className={chatView === 'chat' ? 'block' : 'hidden'}>
+        {attachment && (
         <div className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs text-zinc-700 dark:text-zinc-300">
           <Paperclip className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
           <span className="truncate flex-1">{attachment.filename}</span>
@@ -768,8 +806,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
           <kbd className="font-mono">Enter</kbd> to send · <kbd className="font-mono">Shift+Enter</kbd> for new line
         </p>
       </div>
-    </>
-      )}{/* end chatView==='chat' input */}
+      </div>
     </div>
   );
 };

@@ -53,6 +53,9 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     sessionStorage.setItem('study_tab_' + campaignId, tab);
+    if (tab === 'chat') {
+      window.dispatchEvent(new CustomEvent('chat:scroll_to_bottom'));
+    }
   };
 
   const fetchCampaign = async () => {
