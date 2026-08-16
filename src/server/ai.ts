@@ -38,37 +38,42 @@ export async function analyzeScreenSnapshot(
       data = match[2];
     }
 
-    const prompt = `You are a strict, objective AI Proctor for a computer science, engineering, and technical study accountability platform.
-Campaign Name: "${campaignName}"
-Claimed Task: "${subjectNote}"
+    const prompt = `You are an intelligent, objective, and fair AI Screen Proctor for StudySync, an online accountability study group platform.
+Campaign: "${campaignName}"
+Claimed Subject / Task: "${subjectNote}"
 
-Examine the attached screenshot of the student's screen carefully. Determine if the visible window contains GENUINE CODE, ENGINEERING, COMPUTER SCIENCE, OR TECHNICAL STUDY WORK.
+Examine the student's screen screenshot carefully. Your goal is to distinguish between genuine STUDYING / ACADEMIC / TECHNICAL / PRODUCTIVE WORK and TIMEPASS / LEISURE / ENTERTAINMENT / DISTRACTION.
 
-CRITERIA FOR WORK / STUDY (isProductiveWork = true):
-- Writing, debugging, or reviewing code in IDEs (VS Code, Cursor, PyCharm, IntelliJ, terminal, shell, Neovim, Jupyter notebooks, Colab, GitHub, GitLab)
-- Coding practice & problem solving (LeetCode, HackerRank, Codeforces, NeetCode)
-- Technical documentation & references (MDN, Stack Overflow, DevDocs, official API docs, system architecture diagrams)
-- Engineering & CS textbooks, academic research papers, technical PDFs, lecture slides, course materials, formula sheets
-- Mathematical derivations, engineering calculations, CAD/EDA tools, circuit design
-- Technical study notes in Notion, Obsidian, Google Docs, Word, Markdown
-- Academic & technical flashcards (Anki, Quizlet)
-- YouTube videos ONLY IF they are actual educational coding tutorials, technical lectures, or system design breakdowns with visible code, slides, or technical diagrams.
+============================================================
+CRITERIA FOR STUDY & PRODUCTIVE WORK (isProductiveWork = true):
+============================================================
+1. CODING & TECH: Writing, editing, running, or debugging code in IDEs (VS Code, Cursor, PyCharm, IntelliJ, Terminal, Shell, Jupyter Notebooks, Google Colab, GitHub, GitLab, LeetCode, HackerRank, Codeforces, NeetCode).
+2. ACADEMIC STUDY (ANY SUBJECT): Reading, studying, or reviewing materials in Computer Science, Engineering, Mathematics, Physics, Chemistry, Biology, Medicine/Healthcare, Law, Business/Finance, Humanities, Languages, or Competitive Exam Prep (UPSC, SAT, GRE, MCAT, JEE, NEET, etc.).
+3. READING & RESEARCH: Textbooks, lecture slides, academic research papers (arXiv, PubMed, IEEE, etc.), technical PDFs, documentation (MDN, Stack Overflow, DevDocs), formula sheets, Wikipedia/Google educational articles.
+4. NOTE-TAKING & WRITING: Writing notes, assignments, reports, essays, summaries in Notion, Obsidian, Google Docs, MS Word, OneNote, Apple Notes, Markdown editors.
+5. PRACTICE & RECALL: Flashcards (Anki, Quizlet), practice exams, problem sets, calculator, CAD, spreadsheet data analysis.
+6. EDUCATIONAL VIDEOS & LECTURES: Video lectures, tutorials, educational courses (YouTube, Coursera, edX, Udemy, Khan Academy) showing educational content, coding demonstrations, slides, mathematical derivations, or academic explanations.
+7. STUDY PLATFORM: StudySync interface or study timer alongside or while setting up study session.
 
-CRITERIA FOR OFF-TASK / DISTRACTION (isProductiveWork = false):
-- Vlogs, daily lifestyle videos, travel videos, car videos, entertainment YouTube videos, comedy clips, reaction videos, movie trailers, anime, Netflix, sports highlights
-- Social media feeds (Instagram, TikTok, Twitter/X timeline, Reddit memes, Facebook)
-- Video gaming (Steam, PC games, Twitch gaming streams)
-- Online shopping, casual lifestyle browsing, general non-technical entertainment
+============================================================
+CRITERIA FOR TIMEPASS & DISTRACTION (isProductiveWork = false):
+============================================================
+1. ENTERTAINMENT VIDEOS: Movies, TV series, anime, sitcoms, comedy sketches, vlogs, travel vlogs, celebrity gossip, reaction videos, music videos, sports matches/highlights, gaming livestreams (Twitch/YouTube Gaming).
+2. SOCIAL MEDIA & DOOMSCROLLING: Instagram (Reels/Feed), TikTok, YouTube Shorts, Twitter/X feeds, Reddit memes/jokes, Facebook, Snapchat, Discord non-study chats.
+3. GAMING: Playing PC/Console games, Steam games, mobile games, browser games, Minecraft, FPS games, etc.
+4. CASUAL SHOPPING & BROWSING: Online shopping (Amazon, Flipkart, clothing, cars, real estate), casual non-academic news/gossip browsing.
+5. BLANK / IDLE: Completely blank/black screen, lock screen, screensaver, or desktop with no open apps/study material.
 
-If the screenshot shows an entertainment vlog, lifestyle video, casual YouTube stream, or non-technical entertainment, you MUST return "isProductiveWork": false.
-
+============================================================
+OUTPUT FORMAT:
+============================================================
 Respond ONLY with valid JSON in this exact structure:
 {
   "isProductiveWork": true or false,
   "confidence": 85-100,
-  "activitySummary": "Brief 3 to 6 words summary of visible window (e.g. 'Watching YouTube Lifestyle Vlog', 'Coding in VS Code', 'Reading Data Structures PDF')",
+  "activitySummary": "Brief 3 to 6 words summary of visible screen (e.g. 'Coding in VS Code', 'Watching YouTube Entertainment Vlog', 'Reading Chemistry Textbook', 'Practicing LeetCode Problems')",
   "category": "coding" | "studying" | "reading" | "research" | "writing" | "entertainment" | "social_media" | "gaming" | "idle" | "other",
-  "reason": "One concise sentence explaining why this is or is not recognized as genuine technical/engineering/CS study work."
+  "reason": "One concise, clear sentence explaining what is visible and why it is recognized as productive study work or off-task timepass."
 }`;
 
     const res = await ai.interactions.create({
@@ -86,9 +91,9 @@ Respond ONLY with valid JSON in this exact structure:
       return {
         isProductiveWork: Boolean(parsed.isProductiveWork),
         confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 90,
-        activitySummary: parsed.activitySummary || (parsed.isProductiveWork ? 'Technical Study Session' : 'Entertainment/Distraction Detected'),
+        activitySummary: parsed.activitySummary || (parsed.isProductiveWork ? 'Active Study Session' : 'Entertainment/Distraction Detected'),
         category: parsed.category || (parsed.isProductiveWork ? 'studying' : 'entertainment'),
-        reason: parsed.reason || (parsed.isProductiveWork ? 'Technical study content verified on screen.' : 'Non-technical entertainment/vlog detected on screen.')
+        reason: parsed.reason || (parsed.isProductiveWork ? 'Study content verified on screen.' : 'Off-task/entertainment detected on screen.')
       };
     }
 
@@ -96,17 +101,17 @@ Respond ONLY with valid JSON in this exact structure:
       isProductiveWork: false,
       confidence: 85,
       activitySummary: 'Unverified Screen Content',
-      category: 'entertainment',
-      reason: 'No clear technical or engineering study content detected.'
+      category: 'idle',
+      reason: 'No clear study or productive content detected on screen.'
     };
   } catch (err: any) {
     console.error('AI Screen Analysis error:', err?.message || err);
     return {
       isProductiveWork: false,
       confidence: 75,
-      activitySummary: 'Inspection Timeout',
+      activitySummary: 'Inspection Error',
       category: 'other',
-      reason: 'Could not verify technical study content.'
+      reason: 'Could not complete screen verification.'
     };
   }
 }

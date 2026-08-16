@@ -184,13 +184,17 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     // 1. Direct capture from preferred or DOM video element (instant 0ms)
     if (preferredVideoElement && preferredVideoElement.videoWidth > 0) {
       try {
+        const vw = preferredVideoElement.videoWidth;
+        const vh = preferredVideoElement.videoHeight;
+        const targetW = Math.min(vw, 1280);
+        const targetH = Math.round(targetW * (vh / vw)) || 720;
         const canvas = document.createElement('canvas');
-        canvas.width = Math.min(preferredVideoElement.videoWidth, 800);
-        canvas.height = Math.min(preferredVideoElement.videoHeight, 450);
+        canvas.width = targetW;
+        canvas.height = targetH;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(preferredVideoElement, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
           if (dataUrl && dataUrl.length > 500) {
             return dataUrl;
           }
@@ -215,13 +219,17 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       const domVideos = Array.from(document.querySelectorAll('video')) as HTMLVideoElement[];
       const activeVideo = domVideos.find(v => v.srcObject === stream && v.videoWidth > 0) || domVideos.find(v => v.videoWidth > 0);
       if (activeVideo && activeVideo.videoWidth > 0) {
+        const vw = activeVideo.videoWidth;
+        const vh = activeVideo.videoHeight;
+        const targetW = Math.min(vw, 1280);
+        const targetH = Math.round(targetW * (vh / vw)) || 720;
         const canvas = document.createElement('canvas');
-        canvas.width = Math.min(activeVideo.videoWidth, 800);
-        canvas.height = Math.min(activeVideo.videoHeight, 450);
+        canvas.width = targetW;
+        canvas.height = targetH;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(activeVideo, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
           if (dataUrl && dataUrl.length > 500) {
             return dataUrl;
           }
@@ -233,13 +241,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         try {
           const imageCapture = new (window as any).ImageCapture(track);
           const bitmap = await imageCapture.grabFrame();
+          const targetW = Math.min(bitmap.width || 1280, 1280);
+          const targetH = Math.round(targetW * ((bitmap.height || 720) / (bitmap.width || 1280))) || 720;
           const canvas = document.createElement('canvas');
-          canvas.width = Math.min(bitmap.width || 800, 800);
-          canvas.height = Math.min(bitmap.height || 450, 450);
+          canvas.width = targetW;
+          canvas.height = targetH;
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
             return dataUrl;
           }
         } catch (icErr) {}
@@ -271,16 +281,18 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         setTimeout(done, 150);
       });
 
+      const vw = video.videoWidth > 0 ? video.videoWidth : 1280;
+      const vh = video.videoHeight > 0 ? video.videoHeight : 720;
+      const targetW = Math.min(vw, 1280);
+      const targetH = Math.round(targetW * (vh / vw)) || 720;
       const canvas = document.createElement('canvas');
-      const w = video.videoWidth > 0 ? video.videoWidth : 800;
-      const h = video.videoHeight > 0 ? video.videoHeight : 450;
-      canvas.width = Math.min(w, 800);
-      canvas.height = Math.min(h, 450);
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext('2d');
       let dataUrl: string | null = null;
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+        dataUrl = canvas.toDataURL('image/jpeg', 0.80);
       }
       document.body.removeChild(video);
       return dataUrl;
