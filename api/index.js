@@ -832,7 +832,7 @@ var restHeartbeats = /* @__PURE__ */ new Map();
 var restStudySessions = /* @__PURE__ */ new Map();
 var ioInstance = null;
 function getOnlineUserIds() {
-  const cutoff = Date.now() - 3500;
+  const cutoff = Date.now() - 12e3;
   for (const [id, data] of restHeartbeats.entries()) {
     if (data.lastSeen < cutoff) restHeartbeats.delete(id);
   }
@@ -841,7 +841,7 @@ function getOnlineUserIds() {
   return Array.from(/* @__PURE__ */ new Set([...socketUserIds, ...restUserIds]));
 }
 function getActiveStudySessions() {
-  const cutoff = Date.now() - 3500;
+  const cutoff = Date.now() - 12e3;
   for (const [id, data] of restStudySessions.entries()) {
     if (data.lastSeen < cutoff) restStudySessions.delete(id);
   }

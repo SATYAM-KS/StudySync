@@ -84,13 +84,31 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const syncPresenceAndSessions = async (extraData?: any) => {
     if (!token || !user) return;
     try {
+      let bodyData = extraData;
+      if (bodyData === undefined) {
+        try {
+          const persisted = localStorage.getItem('studysync_active_session');
+          if (persisted) {
+            const parsed = JSON.parse(persisted);
+            if (parsed && parsed.campaignId) {
+              bodyData = {
+                isStudying: true,
+                campaignId: parsed.campaignId,
+                campaignName: parsed.campaignName,
+                subjectNote: parsed.subjectNote
+              };
+            }
+          }
+        } catch {}
+      }
+
       const presRes = await fetch('/api/presence/heartbeat', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify(extraData || {})
+        body: JSON.stringify(bodyData || {})
       });
       if (presRes.ok) {
         const presData = await presRes.json();
@@ -98,7 +116,31 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           setOnlineUserIds(presData.onlineUserIds);
         }
         if (Array.isArray(presData.activeStudySessions)) {
-          setActiveStudySessions(presData.activeStudySessions);
+          let sessions: LiveStudySession[] = presData.activeStudySessions;
+          // Ensure current user is present if currently studying in localStorage
+          try {
+            const persisted = localStorage.getItem('studysync_active_session');
+            if (persisted && (bodyData?.isStudying !== false)) {
+              const parsed = JSON.parse(persisted);
+              if (parsed && parsed.campaignId && !sessions.some(s => s.userId === user.id)) {
+                sessions = [
+                  ...sessions,
+                  {
+                    userId: user.id,
+                    userName: user.name,
+                    userAvatarUrl: user.avatarUrl,
+                    campaignId: parsed.campaignId,
+                    campaignName: parsed.campaignName,
+                    subjectNote: parsed.subjectNote || 'Focus Study',
+                    startedAt: new Date(parsed.sessionStartedAt || Date.now()).toISOString(),
+                    activeMinutes: 0,
+                    isScreenSharedLocally: true
+                  }
+                ];
+              }
+            }
+          } catch {}
+          setActiveStudySessions(sessions);
         }
       }
     } catch {}
