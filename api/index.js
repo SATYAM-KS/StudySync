@@ -1132,11 +1132,29 @@ async function analyzeScreenSnapshot(base64Image, campaignName = "General Study"
   try {
     const ai = new GoogleGenAI({ apiKey });
     let mimeType = "image/jpeg";
-    let data = base64Image;
-    const match = base64Image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-    if (match) {
-      mimeType = match[1];
-      data = match[2];
+    let data = base64Image ? base64Image.trim() : "";
+    if (data.includes(";base64,")) {
+      const parts = data.split(";base64,");
+      const mimeMatch = parts[0].match(/data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+)/);
+      if (mimeMatch) {
+        mimeType = mimeMatch[1];
+      }
+      data = parts[1];
+    } else if (data.startsWith("data:")) {
+      const commaIdx = data.indexOf(",");
+      if (commaIdx !== -1) {
+        data = data.slice(commaIdx + 1);
+      }
+    }
+    data = data.replace(/\s+/g, "");
+    if (!data || data.length < 50) {
+      return {
+        isProductiveWork: false,
+        confidence: 85,
+        activitySummary: "No Screen Frame",
+        category: "idle",
+        reason: "No screen capture frame was received."
+      };
     }
     const prompt = `You are a strict, objective, and fair AI Screen Proctor for StudySync, an online accountability study platform.
 Campaign: "${campaignName}"
