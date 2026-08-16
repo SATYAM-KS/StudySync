@@ -15,43 +15,107 @@
 
 [Live Demo](https://123studysync.vercel.app) · [Report Bug](https://github.com/SATYAM-KS/StudySync/issues) · [Request Feature](https://github.com/SATYAM-KS/StudySync/issues)
 
+<br/>
+
+<img src="assets/screenshots/focus_studio.png" alt="StudySync AI Focus Studio" width="100%" style="border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);" />
+
 </div>
 
 ---
 
 ## Executive Overview
 
-**StudySync** is a full-stack, real-time peer accountability platform engineered for students, engineers, and competitive exam cohorts who demand genuine deep work. Traditional timers rely on honest self-reporting; StudySync pairs flexible daily study targets with automated **AI Screen Verification powered by Google Gemini Multimodal Vision** to inspect and verify authentic academic productivity in 5-minute blocks.
+**StudySync** is a full-stack, real-time peer accountability platform engineered for students, engineers, and competitive exam cohorts who demand genuine deep work. Traditional study timers rely on honor-system self-reporting; StudySync pairs flexible daily study targets with automated **AI Screen Verification powered by Google Gemini Multimodal Vision** to inspect and verify authentic academic productivity in 5-minute blocks.
 
-The platform provides a minimal, distraction-free monochrome interface packed with real-time WebSockets, WebRTC/LiveKit voice lounges, synchronized group leaderboards, and an instant zero-latency study history ledger.
+The platform delivers a minimal, distraction-free monochrome interface packed with real-time WebSockets, WebRTC/LiveKit voice lounges, synchronized group leaderboards, and an instant zero-latency study history ledger.
+
+---
+
+## Platform Showcase & Visuals
+
+### 1. AI Focus Studio & Screen Proctor
+> Real-time circular session timer, mandatory custom study topic entry, full-screen monitor verification, and automated 5-minute Gemini AI screen inspections.
+
+<div align="center">
+  <img src="assets/screenshots/focus_studio.png" alt="AI Focus Studio" width="95%" style="border-radius: 12px; margin-bottom: 24px;" />
+</div>
+
+---
+
+### 2. Live Cohort Leaderboard & Streaks
+> Real-time cohort rankings computed strictly from verified deep-work blocks. Features a top-3 podium, streak counters, and multi-period filters (Today, This Week, This Month).
+
+<div align="center">
+  <img src="assets/screenshots/leaderboard.png" alt="Cohort Leaderboard" width="95%" style="border-radius: 12px; margin-bottom: 24px;" />
+</div>
+
+---
+
+### 3. Study History & Focus Log Ledger
+> Complete chronological focus block records with 0ms optimistic local updates, daily goal percentages, and visual snapshot inspection verification proofs.
+
+<div align="center">
+  <img src="assets/screenshots/study_history.png" alt="Study History & Focus Log" width="95%" style="border-radius: 12px; margin-bottom: 24px;" />
+</div>
+
+---
+
+### 4. Cohort Lounge Chat & Document Vault
+> Low-latency Socket.IO room messaging with file attachment downloads, reactions, typing status, and smart scroll geometry that preserves position across tabs.
+
+<div align="center">
+  <img src="assets/screenshots/lounge_chat.png" alt="Cohort Lounge Chat" width="95%" style="border-radius: 12px; margin-bottom: 24px;" />
+</div>
+
+---
+
+### 5. LiveKit WebRTC Voice & Screen Co-Working
+> Instant peer-to-peer audio co-working channels with active acoustic noise suppression, live speaking indicators, and simultaneous screen review.
+
+<div align="center">
+  <img src="assets/screenshots/voice_channel.png" alt="Voice Channel" width="95%" style="border-radius: 12px; margin-bottom: 24px;" />
+</div>
+
+---
+
+## Video & Live Interactive Demo
+
+Experience the full interactive workflow on the live deployment:
+
+<div align="center">
+  <a href="https://123studysync.vercel.app" target="_blank">
+    <img src="assets/screenshots/focus_studio.png" alt="Watch Live Demo" width="90%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);" />
+  </a>
+  <p><em>Click the preview above to try the live application at <a href="https://123studysync.vercel.app">123studysync.vercel.app</a></em></p>
+</div>
 
 ---
 
 ## Key Features
 
-### 1. AI Focus Studio & Screen Proctor
+### AI Focus Studio & Screen Proctor
 - **Automated Multimodal Inspection**: Analyzes periodic screen snapshots using Google Gemini 2.5/3.6 Flash vision models.
 - **Deep-Work Classification**: Distinguishes genuine engineering, programming, and academic coursework (IDEs, terminals, research papers, textbooks, lecture slides) from distraction and timepass (social media, entertainment video streams, gaming).
 - **Strict Full-Screen Enforcement**: Requires selection of entire monitors (`displaySurface: 'monitor'`) and rejects single tab or window shares to prevent hidden off-task browser windows.
 - **Granular 5-Minute Verified Credit**: Automatically registers verified study time in 5-minute increments with instant UI confirmation and snapshot timeline history.
 - **Session Continuity**: Focus timers and active blocks persist seamlessly across browser refreshes and tab re-entries.
 
-### 2. Flexible Cohort Schedules & Daily Targets
+### Flexible Cohort Schedules & Daily Targets
 - **Custom Daily Goals**: Set daily targets (e.g., 4h/day) with clear progress metrics (`45m / 240m · 19%`).
 - **Flexible & Preferred Windows**: Define core cohort study windows while allowing members to study asynchronously anytime throughout the day.
 - **Admin Access Gating**: Private cohorts with host review and admission approval workflows.
 
-### 3. Study History & Verified Focus Ledger
+### Study History & Verified Focus Ledger
 - **Multi-Period Aggregations**: Instant filtering by **Today**, **This Week**, and **This Month**.
 - **0ms Optimistic Synchronization**: Client-side event bus immediately ingests verified blocks without waiting for network latency or requiring manual page refreshes.
 - **Visual Inspection Proof**: Expand and inspect individual verified screen snapshots alongside the AI reasoning and timestamp.
 
-### 4. Real-Time Cohort Leaderboard & Streaks
+### Real-Time Cohort Leaderboard & Streaks
 - **Live Focus Rankings**: Real-time rank calculations driven by verified study blocks.
 - **Podium & Metrics**: Top 3 podium display with active daily streak counts and percent-of-goal completion.
 - **Timeframe Switching**: Compare standings across daily sprints, weekly goals, or monthly totals.
 
-### 5. Collaborative Study Lounge & Channels
+### Collaborative Study Lounge & Channels
 - **Real-Time Group Chat**: Low-latency Socket.IO room messaging with Markdown support, reactions, and typing indicators.
 - **Media & Document Repositories**: Filtered views for uploaded study materials, PDF documents, and diagrams.
 - **Smart Scroll Geometry**: Preserves message viewport state across tab switches and automatically scrolls to the newest message upon re-entry.
@@ -119,6 +183,13 @@ flowchart TD
 StudySync/
 ├── api/                    # Vercel serverless build output
 │   └── index.js            # Bundled Node.js backend handler
+├── assets/
+│   └── screenshots/        # Real application UI screenshots
+│       ├── focus_studio.png
+│       ├── leaderboard.png
+│       ├── lounge_chat.png
+│       ├── study_history.png
+│       └── voice_channel.png
 ├── src/
 │   ├── components/         # Modular React components
 │   │   ├── AdminSettingsModal.tsx  # Cohort member & schedule administration
