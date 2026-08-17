@@ -11,8 +11,7 @@ import {
   User as UserIcon,
   Plus,
   Sparkles,
-  Flame,
-  Radio
+  Flame
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -73,14 +72,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-mono font-bold bg-zinc-950 text-white dark:bg-white dark:text-black px-2 py-0.5 rounded-md text-[11px] shadow-xs">
                 {formatTimer(sessionElapsedSeconds)}
               </span>
-            </div>
-          )}
-
-          {/* Active Voice Call Floating Pill */}
-          {isInCall && (
-            <div className="flex items-center space-x-2 bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 px-3.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md shadow-sm">
-              <Radio className="w-3.5 h-3.5 animate-pulse" />
-              <span>Voice Channel Live</span>
             </div>
           )}
 
