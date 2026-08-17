@@ -592,7 +592,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       </div>
 
       {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart (Inspired by Greenfield / Energy Robotics) ═══ */}
-      {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart (Ultra-Luxury Redesign) ═══ */}
+      {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart ═══ */}
       <div className="posh-card rounded-3xl p-6 sm:p-7 shadow-sm space-y-6">
         
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -606,52 +606,31 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Daily verified hours logged over the last 7 study cycles
+              Daily verified hours logged over the last 7 study cycles (Top of chart = {todayTargetHours}h Target)
             </p>
           </div>
 
           {/* Legend */}
           <div className="flex items-center gap-4 text-xs text-zinc-400 font-medium">
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-white dark:bg-white shadow-xs" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
               <span className="text-zinc-700 dark:text-zinc-300 font-semibold">Today</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-zinc-400 dark:bg-zinc-600" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600/90" />
               <span>Previous Days</span>
-            </span>
-            <span className="hidden sm:flex items-center gap-1.5 text-zinc-500">
-              <span className="w-3 h-0.5 border-t border-dashed border-emerald-500/60" />
-              <span>{todayTargetHours}h Target</span>
             </span>
           </div>
         </div>
 
-        {/* Chart Canvas with Subtle Dashed Target Guideline */}
-        <div className="relative pt-4 pb-2">
+        {/* Chart Canvas */}
+        <div className="relative pt-2 pb-2">
           
-          {/* Target Guideline Line */}
-          {(() => {
-            const chartMax = Math.max(todayTargetHours || 4, ...sevenDayBreakdown.days.map(d => d.hours), 4);
-            const targetPct = Math.min(92, Math.max(10, Math.round(((todayTargetHours || 4) / chartMax) * 100)));
-            return (
-              <div 
-                className="absolute left-0 right-0 z-0 flex items-center pointer-events-none transition-all duration-300"
-                style={{ bottom: `calc(52px + ${targetPct * 1.5}px)` }}
-              >
-                <div className="w-full border-t border-dashed border-zinc-300/80 dark:border-white/15" />
-                <span className="shrink-0 text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 px-2 py-0.5 ml-2 rounded bg-zinc-100 dark:bg-zinc-800/80">
-                  {todayTargetHours}h Goal
-                </span>
-              </div>
-            );
-          })()}
-
           {/* 7 Vertical Bar Pillars Grid */}
           <div className="grid grid-cols-7 gap-2 sm:gap-6 items-end h-52 sm:h-60 relative z-10">
             {sevenDayBreakdown.days.map((day, idx) => {
-              const chartMax = Math.max(todayTargetHours || 4, ...sevenDayBreakdown.days.map(d => d.hours), 4);
-              const heightPct = day.hours > 0 ? Math.min(100, Math.max(12, Math.round((day.hours / chartMax) * 100))) : 0;
+              const chartTargetMax = Math.max(todayTargetHours || 4, ...sevenDayBreakdown.days.map(d => d.hours));
+              const heightPct = day.hours > 0 ? Math.min(100, Math.max(10, Math.round((day.hours / chartTargetMax) * 100))) : 0;
               const isHovered = activeHoverDayIdx === idx;
 
               return (
@@ -663,8 +642,8 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                 >
                   {/* Floating Tooltip Capsule on Hover */}
                   {isHovered && (
-                    <div className="absolute -top-14 z-30 bg-zinc-950 text-white dark:bg-white dark:text-black px-3 py-1.5 rounded-xl text-xs font-mono font-bold whitespace-nowrap shadow-2xl animate-in fade-in zoom-in-95 duration-150 pointer-events-none border border-white/10 dark:border-black/10 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <div className="absolute -top-14 z-30 bg-zinc-950 text-white dark:bg-zinc-900 dark:text-white px-3 py-1.5 rounded-xl text-xs font-mono font-bold whitespace-nowrap shadow-2xl animate-in fade-in zoom-in-95 duration-150 pointer-events-none border border-emerald-500/30 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]"></span>
                       <span>{day.fullDateStr}: {day.hours}h ({day.passCount} passes)</span>
                     </div>
                   )}
@@ -672,35 +651,37 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                   {/* Hours Label on Top of Pillar */}
                   <span className={`text-[11px] sm:text-xs font-mono font-bold mb-2 transition-all duration-200 ${
                     day.isToday 
-                      ? 'text-zinc-950 dark:text-white scale-105' 
+                      ? 'text-emerald-500 dark:text-emerald-400 font-black scale-105' 
                       : day.hours > 0 
-                      ? 'text-zinc-500 group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-white' 
+                      ? 'text-zinc-600 dark:text-zinc-300 group-hover:text-emerald-400' 
                       : 'text-zinc-400/60 dark:text-zinc-600'
                   }`}>
                     {day.hours > 0 ? `${day.hours}h` : '0h'}
                   </span>
 
-                  {/* Pillar Column Track & Filled Bar */}
-                  <div className="w-full max-w-[28px] sm:max-w-[42px] h-36 sm:h-44 flex items-end justify-center relative rounded-2xl bg-zinc-100/50 dark:bg-white/[0.02] p-1 group-hover:bg-zinc-200/50 dark:group-hover:bg-white/[0.05] transition-colors border border-transparent group-hover:border-zinc-200 dark:group-hover:border-white/10">
+                  {/* Pillar Column Track & Filled Emerald Bar */}
+                  <div className="w-full max-w-[28px] sm:max-w-[42px] h-36 sm:h-44 flex items-end justify-center relative rounded-2xl bg-zinc-100/50 dark:bg-white/[0.02] p-1 group-hover:bg-zinc-200/50 dark:group-hover:bg-white/[0.05] transition-colors border border-transparent group-hover:border-emerald-500/20">
                     
                     {day.hours > 0 ? (
-                      /* Filled Bar with Smooth Vertical Gradient & Top Crest */
+                      /* Filled Bar with Smooth Vertical Emerald Gradient & Luminous Crest */
                       <div 
-                        className={`w-full rounded-t-2xl rounded-b-lg transition-all duration-500 relative flex flex-col justify-between overflow-hidden shadow-sm ${
+                        className={`w-full rounded-t-2xl rounded-b-lg transition-all duration-500 relative flex flex-col justify-between overflow-hidden ${
                           day.isToday
-                            ? 'bg-gradient-to-t from-zinc-300 via-zinc-100 to-white dark:from-zinc-700 dark:via-zinc-300 dark:to-white shadow-[0_-2px_16px_rgba(255,255,255,0.4)]'
-                            : 'bg-gradient-to-t from-zinc-300/60 via-zinc-400/80 to-zinc-500 dark:from-zinc-800/80 dark:via-zinc-600/90 dark:to-zinc-400 group-hover:brightness-110'
+                            ? 'bg-gradient-to-t from-emerald-950 via-emerald-600 to-emerald-400 shadow-[0_-2px_18px_rgba(16,185,129,0.55)]'
+                            : 'bg-gradient-to-t from-emerald-950/80 via-emerald-800/90 to-emerald-600 group-hover:brightness-110 shadow-[0_-1px_8px_rgba(16,185,129,0.25)]'
                         }`}
                         style={{ height: `${heightPct}%` }}
                       >
-                        {/* Glossy Top Edge Highlight Line */}
-                        <div className="w-full h-1 bg-white/80 dark:bg-white shrink-0 rounded-t-2xl" />
+                        {/* Glowing Emerald Top Edge Highlight Line */}
+                        <div className={`w-full h-1 shrink-0 rounded-t-2xl ${
+                          day.isToday ? 'bg-emerald-300 shadow-[0_0_8px_rgba(16,185,129,1)]' : 'bg-emerald-400/80'
+                        }`} />
                         {/* Subtle Inner Gradient Flare */}
                         <div className="w-full flex-1 bg-gradient-to-b from-white/20 to-transparent" />
                       </div>
                     ) : (
                       /* Minimalist Elegant Baseline Dot for 0h */
-                      <div className="w-4 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700/80 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-500 transition-colors" />
+                      <div className="w-4 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-800 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-700 transition-colors" />
                     )}
 
                   </div>
@@ -708,14 +689,14 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                   {/* Day Footer Label (M, T, W, TH, F, SA, S + Date Number) */}
                   <div className="mt-3 text-center flex flex-col items-center gap-0.5">
                     <span className={`text-xs sm:text-sm font-black transition ${
-                      day.isToday ? 'text-zinc-950 dark:text-white' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200'
+                      day.isToday ? 'text-emerald-500 dark:text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200'
                     }`}>
                       {day.dayShort}
                     </span>
                     
                     <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md transition ${
                       day.isToday 
-                        ? 'bg-zinc-950 text-white dark:bg-white dark:text-black font-bold shadow-xs' 
+                        ? 'bg-emerald-500 text-white dark:bg-emerald-500 dark:text-black font-extrabold shadow-xs' 
                         : 'text-zinc-400 dark:text-zinc-500'
                     }`}>
                       {day.fullDateStr.split(' ')[1]}
