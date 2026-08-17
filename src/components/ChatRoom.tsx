@@ -451,8 +451,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
               <h3 className="font-bold text-base text-zinc-950 dark:text-white tracking-tight leading-none truncate">
                 Cohort Lounge
               </h3>
-              <p className="text-xs text-zinc-400 mt-1 truncate leading-none">
-                {searchQuery ? `Showing results for "${searchQuery}"` : 'Live discussion'}
+              <p className="text-xs text-zinc-400 mt-1 truncate leading-none flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span>{searchQuery ? `Showing results for "${searchQuery}"` : 'Live discussion • Auto-cleans after 30d'}</span>
               </p>
             </div>
           </div>

@@ -31,6 +31,7 @@ import {
   createMessage,
   getMessageById,
   deleteMessage,
+  cleanupExpiredMessages,
   getCallSession,
   saveCallSession,
   addCallParticipant,
@@ -1135,6 +1136,25 @@ app.post('/api/calls/:campaignId/leave', authMiddleware, async (req: AuthRequest
     res.status(500).json({ error: 'Failed to leave call' });
   }
 });
+
+// 8. 30-Day Auto-Disappearing Cleanup Endpoint
+app.post('/api/maintenance/cleanup', optionalAuthMiddleware, async (_req, res) => {
+  try {
+    const result = await cleanupExpiredMessages(30);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Cleanup failed', details: err.message });
+  }
+});
+
+// Run cleanup on startup and once every 24 hours
+setTimeout(() => {
+  cleanupExpiredMessages(30).catch(err => console.warn('[Auto-Cleanup] Initial run warning:', err));
+}, 5000);
+
+setInterval(() => {
+  cleanupExpiredMessages(30).catch(err => console.warn('[Auto-Cleanup] Interval run warning:', err));
+}, 24 * 60 * 60 * 1000);
 
 // ==========================================
 // Vite Middleware & Static Server

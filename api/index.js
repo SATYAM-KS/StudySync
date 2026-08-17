@@ -949,6 +949,55 @@ async function deleteMessage(messageId) {
   }
   return true;
 }
+async function cleanupExpiredMessages(daysToKeep = 30) {
+  const cutoffDate = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1e3).toISOString();
+  let deletedCount = 0;
+  let deletedFiles = 0;
+  try {
+    if (supabase) {
+      const { data: expiredMessages, error: fetchErr } = await supabase.from("messages").select("id, attachment_url").lt("timestamp", cutoffDate);
+      if (!fetchErr && Array.isArray(expiredMessages) && expiredMessages.length > 0) {
+        const fileNamesToDelete = [];
+        for (const msg of expiredMessages) {
+          if (msg.attachment_url && typeof msg.attachment_url === "string") {
+            if (msg.attachment_url.includes("/study-uploads/")) {
+              const parts = msg.attachment_url.split("/study-uploads/");
+              if (parts[1]) {
+                const cleanedName = parts[1].split("?")[0];
+                if (cleanedName) fileNamesToDelete.push(cleanedName);
+              }
+            }
+          }
+        }
+        if (fileNamesToDelete.length > 0) {
+          try {
+            await supabase.storage.from("study-uploads").remove(fileNamesToDelete);
+            deletedFiles = fileNamesToDelete.length;
+          } catch (storageErr) {
+            console.warn("[Cleanup] Supabase Storage purge error:", storageErr);
+          }
+        }
+        const { error: deleteErr } = await supabase.from("messages").delete().lt("timestamp", cutoffDate);
+        if (!deleteErr) {
+          deletedCount = expiredMessages.length;
+          invalidateCache("msgs");
+        }
+      }
+    }
+    const db = await initDb();
+    const initialLen = db.messages.length;
+    db.messages = db.messages.filter((m) => {
+      const ts = m.timestamp || m.createdAt;
+      return !ts || new Date(ts).getTime() >= new Date(cutoffDate).getTime();
+    });
+    deletedCount = Math.max(deletedCount, initialLen - db.messages.length);
+    saveDb();
+    console.log(`[Auto-Cleanup] Successfully purged ${deletedCount} messages and ${deletedFiles} attachments older than ${daysToKeep} days.`);
+  } catch (err) {
+    console.error("[Auto-Cleanup] Error cleaning expired messages:", err);
+  }
+  return { deletedCount, deletedFiles };
+}
 async function getCallSession(campaignId) {
   if (supabase) {
     const { data, error } = await supabase.from("active_calls").select("*").eq("campaign_id", campaignId).single();
@@ -2614,6 +2663,20 @@ app.post("/api/calls/:campaignId/leave", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to leave call" });
   }
 });
+app.post("/api/maintenance/cleanup", optionalAuthMiddleware, async (_req, res) => {
+  try {
+    const result = await cleanupExpiredMessages(30);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: "Cleanup failed", details: err.message });
+  }
+});
+setTimeout(() => {
+  cleanupExpiredMessages(30).catch((err) => console.warn("[Auto-Cleanup] Initial run warning:", err));
+}, 5e3);
+setInterval(() => {
+  cleanupExpiredMessages(30).catch((err) => console.warn("[Auto-Cleanup] Interval run warning:", err));
+}, 24 * 60 * 60 * 1e3);
 async function startServer() {
   await initDb();
   if (process.env.NODE_ENV !== "production") {
