@@ -895,10 +895,10 @@ async function sendPasswordResetEmail(email, code, userName) {
   </body>
   </html>
   `;
-  const emailjsServiceId = process.env.EMAILJS_SERVICE_ID;
-  const emailjsTemplateId = process.env.EMAILJS_TEMPLATE_ID;
-  const emailjsPublicKey = process.env.EMAILJS_PUBLIC_KEY || process.env.EMAILJS_USER_ID;
-  const emailjsPrivateKey = process.env.EMAILJS_PRIVATE_KEY;
+  const emailjsServiceId = process.env.EMAILJS_SERVICE_ID || "service_i6r1yid";
+  const emailjsTemplateId = process.env.EMAILJS_TEMPLATE_ID || "template_1akl3na";
+  const emailjsPublicKey = process.env.EMAILJS_PUBLIC_KEY || process.env.EMAILJS_USER_ID || "tLbdllvmFDU2XM2B1";
+  const emailjsPrivateKey = process.env.EMAILJS_PRIVATE_KEY || "24OR0gLbbuC4ErQekfstW";
   if (emailjsServiceId && emailjsTemplateId && (emailjsPublicKey || emailjsPrivateKey)) {
     try {
       const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
@@ -912,20 +912,26 @@ async function sendPasswordResetEmail(email, code, userName) {
           template_params: {
             to_email: cleanEmail,
             email: cleanEmail,
+            user_email: cleanEmail,
+            recipient_email: cleanEmail,
             to_name: displayName,
             name: displayName,
+            user_name: displayName,
             otp_code: code,
             code,
-            passcode: code
+            otp: code,
+            passcode: code,
+            verification_code: code,
+            message: `Your StudySync 6-digit verification code is: ${code}. It expires in 15 minutes.`
           }
         })
       });
       if (res.ok) {
-        console.log(`[Email] EmailJS dispatched OTP to ${cleanEmail}`);
+        console.log(`[Email] EmailJS successfully dispatched OTP to ${cleanEmail}`);
         return { success: true };
       } else {
         const errText = await res.text().catch(() => "");
-        console.warn("[Email] EmailJS API error response:", errText);
+        console.warn("[Email] EmailJS API response status:", res.status, errText);
       }
     } catch (ejsErr) {
       console.warn("[Email] EmailJS API exception:", ejsErr);

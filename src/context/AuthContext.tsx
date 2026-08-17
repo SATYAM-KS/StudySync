@@ -157,11 +157,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try { data = JSON.parse(text); } catch { data = { error: 'Server returned an invalid response' }; }
 
       if (res.ok && data.success) {
+        let delivered = Boolean(data.emailDelivered);
+
+        // If backend couldn't send directly and returned a code, dispatch via browser EmailJS client
+        if (!delivered && data.previewCode) {
+          try {
+            const ejsRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                service_id: 'service_i6r1yid',
+                template_id: 'template_1akl3na',
+                user_id: 'tLbdllvmFDU2XM2B1',
+                template_params: {
+                  to_email: email.trim().toLowerCase(),
+                  email: email.trim().toLowerCase(),
+                  user_email: email.trim().toLowerCase(),
+                  recipient_email: email.trim().toLowerCase(),
+                  to_name: 'Student',
+                  name: 'Student',
+                  otp_code: data.previewCode,
+                  code: data.previewCode,
+                  otp: data.previewCode,
+                  passcode: data.previewCode,
+                  message: `Your StudySync verification code is: ${data.previewCode}`
+                }
+              })
+            });
+            if (ejsRes.ok) {
+              delivered = true;
+            }
+          } catch (e) {
+            console.warn('Client EmailJS dispatch error:', e);
+          }
+        }
+
         return { 
           success: true, 
           message: data.message,
           previewCode: data.previewCode,
-          emailDelivered: data.emailDelivered
+          emailDelivered: delivered
         };
       }
       return { success: false, error: data.error || 'Failed to send reset code' };
