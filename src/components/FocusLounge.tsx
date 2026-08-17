@@ -94,14 +94,14 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
               </div>
               <div>
                 <h3 className="font-extrabold text-base text-zinc-950 dark:text-white tracking-tight">Focus Studio</h3>
-                <p className="text-xs text-zinc-400">Autonomous AI screen-proctored workspace</p>
+                <p className="text-xs text-zinc-400">Deep work focus workspace</p>
               </div>
             </div>
 
             {isCurrentCampaignStudying && (
               <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold backdrop-blur-md shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Proctor Active</span>
+                <span>Focus Active</span>
               </span>
             )}
           </div>
@@ -308,12 +308,12 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
         {/* Right Col: Screen AI Monitor & Live Peer Presence */}
         <div className="space-y-6">
           
-          {/* Screen AI Monitor */}
+          {/* Screen Monitor */}
           <div className="posh-card rounded-3xl p-5 space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Monitor className="w-4 h-4 text-zinc-900 dark:text-white" />
-                <h4 className="font-bold text-sm text-zinc-950 dark:text-white">AI Proctor</h4>
+                <h4 className="font-bold text-sm text-zinc-950 dark:text-white">Screen Verification</h4>
               </div>
               <span className="text-[10px] px-2.5 py-0.5 rounded-full glass-pill text-zinc-600 dark:text-zinc-400 font-mono">
                 5-Min Intervals
@@ -321,7 +321,7 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
             </div>
 
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              Automated screen inspections verify study progress every 5 minutes.
+              Periodic screen verification ensures focused study progress every 5 minutes.
             </p>
 
             {isScreenSharingEnabled ? (
@@ -336,7 +336,7 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                   />
                   <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-md bg-black/80 text-white text-[10px] font-semibold flex items-center space-x-1.5 backdrop-blur-md border border-white/10">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>Proctor Live</span>
+                    <span>Live</span>
                   </div>
 
                   <div className="absolute bottom-2 right-2 px-2.5 py-0.5 rounded-md bg-black/80 text-white text-[10px] font-mono font-medium backdrop-blur-md border border-white/10">

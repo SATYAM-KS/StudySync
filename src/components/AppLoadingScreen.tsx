@@ -62,7 +62,7 @@ export const AppLoadingScreen: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-zinc-400 font-medium tracking-wide">
-            Peer Accountability & AI-Proctored Deep Work
+            Peer Accountability & Deep Work Hub
           </p>
         </div>
 

@@ -512,10 +512,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
               <span className="text-[11px] font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs">
                 {campaignName}
               </span>
-              <span className="text-xs font-semibold px-3 py-1 rounded-full glass-pill border border-zinc-200/80 dark:border-white/10 text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-emerald-500" />
-                Live AI Screen Proctor
-              </span>
             </div>
 
             <div>
@@ -523,22 +519,17 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                 Track Focus & Progress
               </h2>
               <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                Explore an ultra-precise breakdown of your focused study sittings, verified intervals, and AI inspection records.
+                Explore a detailed breakdown of your focused study sittings and verified intervals.
               </p>
             </div>
 
             {/* Quick Status Pills */}
             <div className="flex items-center gap-3 pt-1 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setShowRoutineModal(true)}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 transition cursor-pointer shadow-xs active:scale-95 text-xs"
-              >
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-xs">
                 <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 <span className="font-bold text-zinc-900 dark:text-white">{todayTargetHours}h Goal</span>
                 <span className="text-[10px] text-zinc-400">({collegeRoutine === 'college' ? 'College' : 'No College'})</span>
-                <ArrowUpRight className="w-3 h-3 opacity-60 ml-0.5" />
-              </button>
+              </div>
 
               <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl glass-pill text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                 <Flame className="w-3.5 h-3.5 text-amber-500" />
@@ -578,7 +569,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
             </div>
 
             <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-200/60 dark:border-white/[0.06]">
-              <span>AI Pass Rate</span>
+              <span>Focus Pass Rate</span>
               <span className="font-bold text-zinc-950 dark:text-white font-mono">{overallStats.rate}% ({overallStats.passed}/{overallStats.total})</span>
             </div>
           </div>
@@ -994,7 +985,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                     <div className="bg-zinc-50/70 dark:bg-zinc-950/60 p-3 sm:p-5 border-t border-zinc-200/60 dark:border-white/[0.06] animate-in fade-in zoom-in-98 duration-150">
                       
                       <div className="mb-3 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-semibold px-2">
-                        <span>AI Proctor Checkpoints ({session.blocks.length} 5-minute intervals)</span>
+                        <span>Study Checkpoints ({session.blocks.length} intervals)</span>
                         <span>Time: {session.timeWindowLabel}</span>
                       </div>
 
@@ -1104,7 +1095,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
             </div>
 
             <div className="text-xs text-zinc-400 text-center">
-              Verified by Gemini Vision AI Screen Proctor • 100% Privacy-Preserved Study Sync
+              Verified Study Session • Privacy-Preserved StudySync
             </div>
           </div>
         </div>

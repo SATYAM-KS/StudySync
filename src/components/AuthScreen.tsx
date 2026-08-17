@@ -198,7 +198,7 @@ export const AuthScreen: React.FC = () => {
               StudySync
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Peer Accountability & AI-Proctored Focus
+              Peer Accountability & Focused Study
             </p>
           </div>
         </div>

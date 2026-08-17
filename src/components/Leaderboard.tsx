@@ -284,13 +284,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             <Trophy className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-extrabold text-base text-zinc-950 dark:text-white flex items-center gap-2">
+            <h3 className="font-extrabold text-base text-zinc-950 dark:text-white">
               Cohort Leaderboard
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full glass-pill text-zinc-700 dark:text-zinc-300 font-mono">
-                Live Synced
-              </span>
             </h3>
-            <p className="text-xs text-zinc-400">Rankings based on verified AI study minutes</p>
+            <p className="text-xs text-zinc-400">Rankings based on study minutes</p>
           </div>
         </div>
 
