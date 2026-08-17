@@ -57,9 +57,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Center Live Badges (Dynamic Status Hub) */}
-        <div className="hidden md:flex items-center space-x-3">
-          {/* Active Study Session Indicator */}
+        {/* Right Actions */}
+        <div className="flex items-center space-x-2.5">
+          {/* Active Study Session Indicator (Right-aligned in Navbar) */}
           {isStudying && (
             <div className="flex items-center space-x-2 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 rounded-full text-xs animate-pulse shadow-sm">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" style={{ animationDuration: '2s' }} />
@@ -69,11 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
           )}
-        </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center space-x-2.5">
-          
           {/* Create Campaign Shortcut */}
           <button
             onClick={onOpenCreateModal}
