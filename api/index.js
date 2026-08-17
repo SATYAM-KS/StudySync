@@ -783,6 +783,35 @@ async function toggleMessageReaction2(messageId, emoji, userId, userName) {
   saveDb();
   return msg;
 }
+async function getMessageById(messageId) {
+  const db = await initDb();
+  const local = db.messages.find((m) => m.id === messageId);
+  if (local) return local;
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from("messages").select("*").eq("id", messageId).single();
+      if (!error && data) {
+        return {
+          id: data.id,
+          campaignId: data.campaign_id,
+          senderId: data.sender_id,
+          senderName: data.sender_name,
+          senderAvatarUrl: data.sender_avatar_url,
+          content: data.content,
+          fileUrl: data.file_url,
+          fileName: data.file_name,
+          fileType: data.file_type,
+          fileSize: data.file_size,
+          timestamp: data.timestamp,
+          isSystem: data.is_system,
+          reactions: data.reactions
+        };
+      }
+    } catch {
+    }
+  }
+  return null;
+}
 async function deleteMessage(messageId) {
   if (supabase) {
     try {
@@ -1209,6 +1238,22 @@ function setupSocketServer(httpServer) {
     socket.on("message:delete", async ({ messageId, campaignId, recipientId }) => {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
+      const msg = await getMessageById(messageId);
+      if (msg) {
+        const isAuthor = msg.senderId === user.userId;
+        let isAdmin = false;
+        const targetCampaignId = msg.campaignId || campaignId;
+        if (targetCampaignId) {
+          const campaign = await getCampaignById(targetCampaignId, user.userId);
+          if (campaign) {
+            isAdmin = campaign.adminId === user.userId || campaign.userRole === "admin" || campaign.userRole === "co-admin";
+          }
+        }
+        if (!isAuthor && !isAdmin) {
+          socket.emit("error", { message: "You are only authorized to delete your own messages." });
+          return;
+        }
+      }
       await deleteMessage(messageId);
       if (campaignId) {
         io2.to(`campaign:${campaignId}`).emit("message:deleted", { id: messageId, messageId, campaignId });
@@ -2224,6 +2269,23 @@ app.delete("/api/messages/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const campaignId = req.query.campaignId;
+    const userId = req.user.id;
+    const msg = await getMessageById(id);
+    if (msg) {
+      const isAuthor = msg.senderId === userId;
+      let isAdmin = false;
+      const targetCampaignId = msg.campaignId || campaignId;
+      if (targetCampaignId) {
+        const campaign = await getCampaignById(targetCampaignId, userId);
+        if (campaign) {
+          isAdmin = campaign.adminId === userId || campaign.userRole === "admin" || campaign.userRole === "co-admin";
+        }
+      }
+      if (!isAuthor && !isAdmin) {
+        res.status(403).json({ error: "You are only authorized to delete your own messages." });
+        return;
+      }
+    }
     await deleteMessage(id);
     if (io) {
       if (campaignId) {

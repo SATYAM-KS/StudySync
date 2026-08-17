@@ -863,6 +863,36 @@ export async function toggleMessageReaction(messageId: string, emoji: string, us
   return msg;
 }
 
+export async function getMessageById(messageId: string): Promise<Message | null> {
+  const db = await initDb();
+  const local = db.messages.find(m => m.id === messageId);
+  if (local) return local;
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('messages').select('*').eq('id', messageId).single();
+      if (!error && data) {
+        return {
+          id: data.id,
+          campaignId: data.campaign_id,
+          senderId: data.sender_id,
+          senderName: data.sender_name,
+          senderAvatarUrl: data.sender_avatar_url,
+          content: data.content,
+          fileUrl: data.file_url,
+          fileName: data.file_name,
+          fileType: data.file_type,
+          fileSize: data.file_size,
+          timestamp: data.timestamp,
+          isSystem: data.is_system,
+          reactions: data.reactions
+        };
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export async function deleteMessage(messageId: string): Promise<boolean> {
   if (supabase) {
     try {

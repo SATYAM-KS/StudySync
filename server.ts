@@ -29,6 +29,7 @@ import {
   getCampaignMessages,
   getDirectMessages,
   createMessage,
+  getMessageById,
   deleteMessage,
   getCallSession,
   saveCallSession,
@@ -864,6 +865,28 @@ app.delete('/api/messages/:id', authMiddleware, async (req: AuthRequest, res) =>
   try {
     const { id } = req.params;
     const campaignId = req.query.campaignId as string | undefined;
+    const userId = req.user!.id;
+
+    // Check message deletion permissions
+    const msg = await getMessageById(id);
+    if (msg) {
+      const isAuthor = msg.senderId === userId;
+      let isAdmin = false;
+
+      const targetCampaignId = msg.campaignId || campaignId;
+      if (targetCampaignId) {
+        const campaign = await getCampaignById(targetCampaignId, userId);
+        if (campaign) {
+          isAdmin = campaign.adminId === userId || campaign.userRole === 'admin' || campaign.userRole === 'co-admin';
+        }
+      }
+
+      if (!isAuthor && !isAdmin) {
+        res.status(403).json({ error: 'You are only authorized to delete your own messages.' });
+        return;
+      }
+    }
+
     await deleteMessage(id);
 
     if (io) {

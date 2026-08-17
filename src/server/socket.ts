@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { createMessage, toggleMessageReaction, deleteMessage, addCallParticipant, removeCallParticipant, updateParticipantState, getCallSession } from './db.ts';
+import { createMessage, toggleMessageReaction, deleteMessage, getMessageById, getCampaignById, addCallParticipant, removeCallParticipant, updateParticipantState, getCallSession } from './db.ts';
 import { Message, CallParticipant, LiveStudySession } from '../types/index.ts';
 
 interface ConnectedUser {
@@ -175,6 +175,25 @@ export function setupSocketServer(httpServer: HttpServer) {
     socket.on('message:delete', async ({ messageId, campaignId, recipientId }: { messageId: string; campaignId?: string; recipientId?: string }) => {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
+
+      const msg = await getMessageById(messageId);
+      if (msg) {
+        const isAuthor = msg.senderId === user.userId;
+        let isAdmin = false;
+
+        const targetCampaignId = msg.campaignId || campaignId;
+        if (targetCampaignId) {
+          const campaign = await getCampaignById(targetCampaignId, user.userId);
+          if (campaign) {
+            isAdmin = campaign.adminId === user.userId || campaign.userRole === 'admin' || campaign.userRole === 'co-admin';
+          }
+        }
+
+        if (!isAuthor && !isAdmin) {
+          socket.emit('error', { message: 'You are only authorized to delete your own messages.' });
+          return;
+        }
+      }
 
       await deleteMessage(messageId);
       if (campaignId) {

@@ -99,7 +99,15 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isAtBottomRef = useRef(true);
+  // ── Delete message permission helper ────────────────────────────────
+  const canDeleteMessage = (msg: Message) => {
+    if (!user) return false;
+    // 1. Author can always delete their own message
+    if (msg.senderId === user.id) return true;
+    // 2. Cohort Admin / Co-Admin can delete anyone's message
+    if (campaign.adminId === user.id || campaign.userRole === 'admin' || campaign.userRole === 'co-admin') return true;
+    return false;
+  };
 
   // ── Delete message handler ─────────────────────────────────────────
   const handleDeleteMessage = async (messageId: string) => {
@@ -786,7 +794,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                         </div>
 
                         {/* Hover action bar: Delete Message */}
-                        {hoveredMsgId === msg.id && (msg.senderId === user?.id || campaign.adminId === user?.id || campaign.userRole === 'admin' || campaign.userRole === 'co-admin') && (
+                        {hoveredMsgId === msg.id && canDeleteMessage(msg) && (
                           <div
                             className="absolute right-3 -top-3 z-10 flex items-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-md px-1 py-0.5 animate-in fade-in zoom-in-95 duration-100"
                             onClick={e => e.stopPropagation()}
@@ -795,7 +803,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                               type="button"
                               onClick={() => handleDeleteMessage(msg.id)}
                               className="p-1 rounded hover:bg-rose-500/15 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
-                              title="Delete message"
+                              title={msg.senderId === user?.id ? "Delete message" : "Delete message (Admin)"}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
