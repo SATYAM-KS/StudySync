@@ -64,7 +64,6 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       fetchMembers();
       setName(campaign.name);
       setDescription(campaign.description);
-      setSchedule(campaign.schedule || DEFAULT_WEEKLY_SCHEDULE);
       setMaxMembers(campaign.maxMembers);
     }
   }, [isOpen, campaign.id]);
