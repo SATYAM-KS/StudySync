@@ -895,6 +895,42 @@ async function sendPasswordResetEmail(email, code, userName) {
   </body>
   </html>
   `;
+  const emailjsServiceId = process.env.EMAILJS_SERVICE_ID;
+  const emailjsTemplateId = process.env.EMAILJS_TEMPLATE_ID;
+  const emailjsPublicKey = process.env.EMAILJS_PUBLIC_KEY || process.env.EMAILJS_USER_ID;
+  const emailjsPrivateKey = process.env.EMAILJS_PRIVATE_KEY;
+  if (emailjsServiceId && emailjsTemplateId && (emailjsPublicKey || emailjsPrivateKey)) {
+    try {
+      const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_id: emailjsServiceId,
+          template_id: emailjsTemplateId,
+          user_id: emailjsPublicKey,
+          ...emailjsPrivateKey && { accessToken: emailjsPrivateKey },
+          template_params: {
+            to_email: cleanEmail,
+            email: cleanEmail,
+            to_name: displayName,
+            name: displayName,
+            otp_code: code,
+            code,
+            passcode: code
+          }
+        })
+      });
+      if (res.ok) {
+        console.log(`[Email] EmailJS dispatched OTP to ${cleanEmail}`);
+        return { success: true };
+      } else {
+        const errText = await res.text().catch(() => "");
+        console.warn("[Email] EmailJS API error response:", errText);
+      }
+    } catch (ejsErr) {
+      console.warn("[Email] EmailJS API exception:", ejsErr);
+    }
+  }
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey) {
     try {
