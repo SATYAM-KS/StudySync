@@ -151,7 +151,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
 
           {/* Create Cohort Action */}
           <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
-            <span className="text-xs font-mono font-bold text-zinc-400 glass-pill px-3 py-1.5 rounded-xl">
+            <span className="px-4 py-3 rounded-2xl glass-pill text-xs font-mono font-bold text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs">
               {filteredCampaigns.length} {filteredCampaigns.length === 1 ? 'Cohort' : 'Cohorts'}
             </span>
 
