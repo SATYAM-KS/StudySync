@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Campaign, CampaignMembership } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
+import { CustomSelect } from './ui/CustomSelect.tsx';
+import { NumberStepper } from './ui/NumberStepper.tsx';
 import { 
   X, 
   Shield, 
@@ -357,14 +359,16 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                   <div className="flex items-center space-x-3">
                     {/* Role Selector */}
                     {!isCreator && (
-                      <select
+                      <CustomSelect
                         value={m.role}
-                        onChange={(e) => handleRoleChange(m.id, e.target.value)}
-                        className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:border-zinc-900 dark:focus:border-white cursor-pointer"
-                      >
-                        <option value="member">Member</option>
-                        <option value="co-admin">Co-Admin</option>
-                      </select>
+                        onChange={(val) => handleRoleChange(m.id, val)}
+                        options={[
+                          { value: 'member', label: 'Member' },
+                          { value: 'co-admin', label: 'Co-Admin' }
+                        ]}
+                        size="sm"
+                        className="w-32"
+                      />
                     )}
 
                     {/* Kick Button */}
@@ -421,13 +425,12 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 </span>
                 <span className="text-zinc-950 dark:text-white font-bold">{maxMembers} members</span>
               </label>
-              <input
-                type="number"
-                min="2"
-                max="100"
+              <NumberStepper
                 value={maxMembers}
-                onChange={(e) => setMaxMembers(parseInt(e.target.value) || 10)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-950 dark:text-white"
+                onChange={setMaxMembers}
+                min={2}
+                max={100}
+                unit="members"
               />
             </div>
 

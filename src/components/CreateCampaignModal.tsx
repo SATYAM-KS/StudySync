@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { Campaign } from '../types/index.ts';
 import { X, Plus, Calendar, Users, Bookmark, RotateCcw, Sparkles } from 'lucide-react';
 import { DatePicker } from './ui/DatePicker.tsx';
+import { CustomSelect } from './ui/CustomSelect.tsx';
+import { NumberStepper } from './ui/NumberStepper.tsx';
 
 interface CreateCampaignModalProps {
   isOpen: boolean;
@@ -238,15 +240,11 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
               <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                 Field / Category
               </label>
-              <select
+              <CustomSelect
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white cursor-pointer"
-              >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white">{cat}</option>
-                ))}
-              </select>
+                onChange={setCategory}
+                options={CATEGORIES}
+              />
             </div>
           </div>
 
@@ -291,13 +289,12 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
                 </span>
                 <span className="text-zinc-950 dark:text-white font-bold">{maxMembers} members</span>
               </label>
-              <input
-                type="number"
+              <NumberStepper
+                value={maxMembers}
+                onChange={setMaxMembers}
                 min={2}
                 max={100}
-                value={maxMembers}
-                onChange={(e) => setMaxMembers(parseInt(e.target.value) || 25)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white"
+                unit="members"
               />
             </div>
           </div>

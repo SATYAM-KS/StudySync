@@ -67,6 +67,45 @@
     outline: none;
     box-shadow: none;
   }
+
+  /* Universal Number Input Spinners Removal (Monochrome UI) */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+  }
+
+  input[type=number] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+  }
+
+  /* Universal Monochrome Form Select and Options */
+  select {
+    color-scheme: dark;
+  }
+
+  .dark select option {
+    background-color: #121215 !important;
+    color: #ffffff !important;
+  }
+
+  select option {
+    background-color: #ffffff !important;
+    color: #09090b !important;
+  }
+
+  /* Monochrome Autocomplete Background Overrides */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: inherit !important;
+    -webkit-box-shadow: 0 0 0px 1000px rgba(24, 24, 27, 0.9) inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 /* Glassmorphism System */
