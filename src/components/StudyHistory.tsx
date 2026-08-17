@@ -74,7 +74,11 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
   const [historyData, setHistoryData] = useState<HistoryResponse>(() => {
     try {
       const cached = localStorage.getItem(cacheKey);
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const actual = parsed?.data && Array.isArray(parsed.data.blocks) ? parsed.data : (Array.isArray(parsed?.blocks) ? parsed : null);
+        if (actual) return actual;
+      }
     } catch {}
     return {
       blocks: [],
@@ -135,10 +139,12 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       });
       if (res.ok) {
         const data = await res.json();
-        setHistoryData(data);
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
-        } catch {}
+        if (data && Array.isArray(data.blocks)) {
+          setHistoryData(data);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
+          } catch {}
+        }
       }
     } catch (e) {
       console.error('Failed to load study history:', e);
@@ -154,20 +160,21 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     if (newBlock.userId && user && newBlock.userId !== user.id) return;
 
     setHistoryData(prev => {
-      if (prev.blocks.some(b => b.id === newBlock.id)) {
+      const safePrevBlocks = Array.isArray(prev?.blocks) ? prev.blocks : [];
+      if (safePrevBlocks.some(b => b.id === newBlock.id)) {
         return prev;
       }
 
-      const updatedBlocks = [newBlock, ...prev.blocks];
+      const updatedBlocks = [newBlock, ...safePrevBlocks];
       const isPassed = newBlock.status === 'active';
       const duration = isPassed ? (newBlock.durationMinutes || 5) : 0;
 
       const updatedData: HistoryResponse = {
         blocks: updatedBlocks,
-        todayMinutes: prev.todayMinutes + duration,
-        thisWeekMinutes: prev.thisWeekMinutes + duration,
-        thisMonthMinutes: prev.thisMonthMinutes + duration,
-        totalMinutes: prev.totalMinutes + duration
+        todayMinutes: (prev?.todayMinutes || 0) + duration,
+        thisWeekMinutes: (prev?.thisWeekMinutes || 0) + duration,
+        thisMonthMinutes: (prev?.thisMonthMinutes || 0) + duration,
+        totalMinutes: (prev?.totalMinutes || 0) + duration
       };
 
       try {
@@ -296,7 +303,10 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       weekKeys.add(k);
     }
 
-    return historyData.blocks.filter(block => {
+    const safeBlocks = Array.isArray(historyData?.blocks) ? historyData.blocks : [];
+
+    return safeBlocks.filter(block => {
+      if (!block || !block.timestamp) return false;
       const blockKey = get2AMDateKey(block.timestamp);
       if (timeframe === 'today') {
         return blockKey === todayKey;
@@ -306,7 +316,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       }
       return blockKey.startsWith(currentMonthPrefix);
     });
-  }, [historyData.blocks, timeframe]);
+  }, [historyData?.blocks, timeframe]);
 
   // Group individual 5-min inspection blocks into Continuous Study Sittings / Focus Sessions
   const groupedSessions: FocusSittingSession[] = useMemo(() => {
