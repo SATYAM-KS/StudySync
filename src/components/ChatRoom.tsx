@@ -400,12 +400,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
 
   return (
     <div
-      className="flex flex-col h-full glass-panel rounded-3xl overflow-hidden shadow-sm"
+      className="flex flex-col h-full overflow-hidden"
       onClick={() => reactionPickerMsgId && setReactionPickerMsgId(null)}
     >
       {/* ── Channel Header ── */}
       <div className="flex flex-col border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav shrink-0">
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+        <div className="flex items-center justify-between gap-3 px-5 py-3">
           {/* Left: Icon + Title */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs shrink-0">
@@ -427,7 +427,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             <button
               type="button"
               onClick={toggleSearch}
-              className={`p-2 rounded-xl transition cursor-pointer active:scale-95 ${
+              className={`h-9 w-9 flex items-center justify-center rounded-xl transition cursor-pointer active:scale-95 ${
                 isSearchOpen
                   ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
                   : 'glass-pill text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
@@ -438,7 +438,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             </button>
 
             {/* View Tabs (Chat / Media / Docs) */}
-            <div className="flex items-center gap-1 glass-pill p-1 rounded-xl">
+            <div className="h-9 flex items-center gap-1 glass-pill p-1 rounded-xl">
               {(['chat', 'media', 'docs'] as const).map(view => {
                 const labels: Record<typeof view, { label: string; icon: React.ReactNode }> = {
                   chat: { label: 'Chat', icon: <MessageSquare className="w-3.5 h-3.5" /> },
@@ -451,7 +451,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                     key={view}
                     type="button"
                     onClick={() => setChatView(view)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer active:scale-95 ${
+                    className={`h-7 flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition cursor-pointer active:scale-95 ${
                       active
                         ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
                         : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
