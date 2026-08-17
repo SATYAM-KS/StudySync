@@ -1042,7 +1042,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                                 )}
 
                                 {/* Snapshot button */}
-                                {block.snapshotUrl ? (
+                                {block.snapshotUrl && (
                                   <button
                                     type="button"
                                     onClick={() => setSelectedSnapshotUrl(block.snapshotUrl || null)}
@@ -1051,8 +1051,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                                     <Eye className="w-3 h-3" />
                                     <span>Snapshot</span>
                                   </button>
-                                ) : (
-                                  <span className="text-[11px] text-zinc-400 font-mono">—</span>
                                 )}
                               </div>
 
