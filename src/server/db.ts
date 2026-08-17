@@ -538,6 +538,10 @@ export async function createCampaign(campaign: Campaign, creator: User): Promise
       daily_end_time: campaign.dailyEndTime || '23:00',
       target_daily_hours: campaign.targetDailyHours || 4,
       schedule: campaign.schedule || [],
+      max_members: Number(campaign.maxMembers) || 25,
+      is_public: campaign.isPublic !== undefined ? Boolean(campaign.isPublic) : true,
+      tags: Array.isArray(campaign.tags) ? campaign.tags : [],
+      banner_color: campaign.bannerColor || '#3b82f6',
       created_at: campaign.createdAt || new Date().toISOString()
     });
 

@@ -462,6 +462,10 @@ async function createCampaign(campaign, creator) {
       daily_end_time: campaign.dailyEndTime || "23:00",
       target_daily_hours: campaign.targetDailyHours || 4,
       schedule: campaign.schedule || [],
+      max_members: Number(campaign.maxMembers) || 25,
+      is_public: campaign.isPublic !== void 0 ? Boolean(campaign.isPublic) : true,
+      tags: Array.isArray(campaign.tags) ? campaign.tags : [],
+      banner_color: campaign.bannerColor || "#3b82f6",
       created_at: campaign.createdAt || (/* @__PURE__ */ new Date()).toISOString()
     });
     await supabase.from("memberships").insert({

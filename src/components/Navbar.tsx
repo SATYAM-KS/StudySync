@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
+import { useStudy } from '../context/StudyContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
 import { BrandLogo } from './BrandLogo.tsx';
 import { 
@@ -34,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const { activeStudySessions } = useSocket();
+  const { isStudying, stopStudying } = useStudy();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const activeInThisCamp = selectedCampaignId 
