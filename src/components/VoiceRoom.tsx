@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.tsx";
 import { useCall } from "../context/CallContext.tsx";
+import { useSocket } from "../context/SocketContext.tsx";
 import { UserAvatar } from "./UserAvatar.tsx";
 import { Campaign, CallParticipant } from "../types/index.ts";
 
@@ -122,7 +123,8 @@ function RemoteTile({ participant }: { participant: RemoteParticipant }) {
 }
 
 export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
-  const { token: authToken } = useAuth();
+  const { user, token: authToken } = useAuth();
+  const { socket } = useSocket();
   const { setLiveKitConnected } = useCall();
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string>("wss://santam-kfcwvgq2.livekit.cloud");
@@ -132,22 +134,159 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [channelParticipants, setChannelParticipants] = useState<CallParticipant[]>([]);
 
+  // Polling fallback
   useEffect(() => {
-    const poll = async () => { try { const res = await fetch(`/api/calls/${campaign.id}`); if (res.ok) { const d = await res.json(); if (d?.participants) setChannelParticipants(d.participants); } } catch {} };
-    poll(); const id = setInterval(poll, 5000); return () => clearInterval(id);
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/calls/${campaign.id}`);
+        if (res.ok) {
+          const d = await res.json();
+          if (d?.participants) {
+            setChannelParticipants(d.participants);
+          }
+        }
+      } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => clearInterval(id);
   }, [campaign.id]);
+
+  // Real-time socket events for 0ms instant sync
+  useEffect(() => {
+    if (!socket) return;
+
+    const onSessionUpdated = (session: any) => {
+      if (session && Array.isArray(session.participants)) {
+        setChannelParticipants(session.participants);
+      }
+    };
+
+    const onParticipantLeft = ({ userId, campaignId: cId }: { userId: string; campaignId?: string }) => {
+      if (!cId || cId === campaign.id) {
+        setChannelParticipants(prev => prev.filter(p => p.userId !== userId));
+      }
+    };
+
+    const onParticipantJoined = (data: any) => {
+      if (data?.session?.participants) {
+        setChannelParticipants(data.session.participants);
+      } else if (data?.participant) {
+        setChannelParticipants(prev => {
+          const exists = prev.some(p => p.userId === data.participant.userId);
+          return exists ? prev : [...prev, data.participant];
+        });
+      }
+    };
+
+    socket.on('call:session_updated', onSessionUpdated);
+    socket.on('call:participant_left', onParticipantLeft);
+    socket.on('call:participant_joined', onParticipantJoined);
+
+    return () => {
+      socket.off('call:session_updated', onSessionUpdated);
+      socket.off('call:participant_left', onParticipantLeft);
+      socket.off('call:participant_joined', onParticipantJoined);
+    };
+  }, [socket, campaign.id]);
+
+  // Active in-call heartbeat
+  useEffect(() => {
+    if (!isConnected || !authToken) return;
+    const hbId = setInterval(() => {
+      fetch(`/api/calls/${campaign.id}/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ isMuted, isScreenSharing })
+      }).catch(() => {});
+    }, 5000);
+    return () => clearInterval(hbId);
+  }, [isConnected, authToken, campaign.id, isMuted, isScreenSharing]);
+
+  const disconnect = useCallback(() => {
+    setIsConnected(false);
+    setLivekitToken(null);
+    setIsScreenSharing(false);
+    setIsMuted(false);
+    setLiveKitConnected(null);
+
+    // 0ms INSTANT local removal
+    if (user) {
+      setChannelParticipants(prev => prev.filter(p => p.userId !== user.id));
+    }
+
+    // 0ms socket broadcast to all cohort members
+    if (socket) {
+      socket.emit('call:leave', campaign.id);
+    }
+
+    // Instant REST endpoint leave
+    if (authToken) {
+      fetch(`/api/calls/${campaign.id}/leave`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` }
+      }).catch(() => {});
+    }
+  }, [user, socket, campaign.id, authToken, setLiveKitConnected]);
+
+  // Cleanup on unmount / navigation
+  useEffect(() => {
+    return () => {
+      if (isConnected) {
+        disconnect();
+      }
+    };
+  }, [isConnected, disconnect]);
 
   const connectToRoom = useCallback(async () => {
     if (!authToken) return;
     setIsConnecting(true);
     try {
-      const res = await fetch("/api/livekit/token", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ campaignId: campaign.id }) });
+      const res = await fetch("/api/livekit/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ campaignId: campaign.id })
+      });
       const data = await res.json();
-      if (data.token) { setLivekitToken(data.token); setLivekitUrl(data.url || livekitUrl); setIsConnected(true); setLiveKitConnected(campaign.id); }
-    } catch (err) { console.error("LiveKit connect error:", err); } finally { setIsConnecting(false); }
-  }, [authToken, campaign.id]);
+      if (data.token) {
+        setLivekitToken(data.token);
+        setLivekitUrl(data.url || livekitUrl);
+        setIsConnected(true);
+        setLiveKitConnected(campaign.id);
 
-  const disconnect = () => { setIsConnected(false); setLivekitToken(null); setIsScreenSharing(false); setIsMuted(false); setLiveKitConnected(null); };
+        // Optimistically add self
+        if (user) {
+          const selfParticipant: CallParticipant = {
+            userId: user.id,
+            userName: user.name,
+            userAvatarUrl: user.avatarUrl,
+            isMuted,
+            isScreenSharing,
+            joinedAt: new Date().toISOString()
+          };
+          setChannelParticipants(prev => {
+            const exists = prev.some(p => p.userId === user.id);
+            return exists ? prev : [...prev, selfParticipant];
+          });
+        }
+
+        // Notify server and socket
+        fetch(`/api/calls/${campaign.id}/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ isMuted, isScreenSharing })
+        }).catch(() => {});
+
+        if (socket) {
+          socket.emit('call:join', { campaignId: campaign.id, isMuted, isScreenSharing });
+        }
+      }
+    } catch (err) {
+      console.error("LiveKit connect error:", err);
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [authToken, campaign.id, livekitUrl, user, isMuted, isScreenSharing, socket, setLiveKitConnected]);
 
   return (
     <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm text-zinc-900 dark:text-zinc-100 transition-colors">

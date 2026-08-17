@@ -1065,6 +1065,10 @@ app.post('/api/calls/:campaignId/join', authMiddleware, async (req: AuthRequest,
       joinedAt: new Date().toISOString(),
       lastSeen: new Date().toISOString()
     });
+    if (io) {
+      io.to(`campaign:${req.params.campaignId}`).emit('call:session_updated', session);
+      io.emit('call:participant_joined', { userId: req.user!.id, campaignId: req.params.campaignId, session });
+    }
     res.json(session);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to join call' });
@@ -1093,6 +1097,10 @@ app.post('/api/calls/:campaignId/heartbeat', authMiddleware, async (req: AuthReq
 app.post('/api/calls/:campaignId/leave', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const session = await removeCallParticipant(req.params.campaignId, req.user!.id);
+    if (io) {
+      io.to(`campaign:${req.params.campaignId}`).emit('call:session_updated', session || { participants: [] });
+      io.emit('call:participant_left', { userId: req.user!.id, campaignId: req.params.campaignId });
+    }
     res.json(session || { participants: [] });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to leave call' });
