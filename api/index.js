@@ -1433,6 +1433,7 @@ function setupSocketServer(httpServer) {
       } else if (recipientId) {
         io2.to(`user:${user.userId}`).to(`user:${recipientId}`).emit("message:deleted", { id: messageId, messageId, recipientId });
       }
+      io2.emit("message:deleted", { id: messageId, messageId, campaignId, recipientId });
     });
     socket.on("typing:start", ({ campaignId, recipientId }) => {
       const user = connectedUsers.get(socket.id);

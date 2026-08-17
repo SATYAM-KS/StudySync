@@ -201,6 +201,7 @@ export function setupSocketServer(httpServer: HttpServer) {
       } else if (recipientId) {
         io.to(`user:${user.userId}`).to(`user:${recipientId}`).emit('message:deleted', { id: messageId, messageId, recipientId });
       }
+      io.emit('message:deleted', { id: messageId, messageId, campaignId, recipientId });
     });
 
     // 5. Typing Indicators

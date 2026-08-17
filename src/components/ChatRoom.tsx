@@ -144,11 +144,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
         .then((data: Message[]) => {
           if (Array.isArray(data)) {
             setMessages(prev => {
-              if (data.length === 0 && prev.length > 0) return prev;
-              const map = new Map<string, Message>();
-              for (const m of prev) map.set(m.id, m);
-              for (const m of data) map.set(m.id, m);
-              return Array.from(map.values()).sort((a, b) => {
+              // Preserve only in-flight temp messages that haven't been confirmed yet
+              const pending = prev.filter(m => m.id.startsWith('msg_temp_') && !data.some(d => d.id === m.id));
+              return [...data, ...pending].sort((a, b) => {
                 const ta = new Date(a.createdAt || a.timestamp || 0).getTime();
                 const tb = new Date(b.createdAt || b.timestamp || 0).getTime();
                 return ta - tb;
