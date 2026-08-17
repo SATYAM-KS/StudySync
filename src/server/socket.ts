@@ -20,7 +20,7 @@ const restStudySessions = new Map<string, { session: LiveStudySession; lastSeen:
 let ioInstance: Server | null = null;
 
 export function getOnlineUserIds(): string[] {
-  const cutoff = Date.now() - 12000;
+  const cutoff = Date.now() - 45000;
   for (const [id, data] of restHeartbeats.entries()) {
     if (data.lastSeen < cutoff) restHeartbeats.delete(id);
   }
@@ -30,7 +30,7 @@ export function getOnlineUserIds(): string[] {
 }
 
 export function getActiveStudySessions(): LiveStudySession[] {
-  const cutoff = Date.now() - 12000;
+  const cutoff = Date.now() - 45000;
   for (const [id, data] of restStudySessions.entries()) {
     if (data.lastSeen < cutoff) restStudySessions.delete(id);
   }

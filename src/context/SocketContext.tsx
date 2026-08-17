@@ -118,7 +118,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       if (presRes.ok) {
         const presData = await presRes.json();
         if (Array.isArray(presData.onlineUserIds)) {
-          setOnlineUserIds(presData.onlineUserIds);
+          const mergedOnline = Array.from(new Set([...presData.onlineUserIds, user.id]));
+          setOnlineUserIds(mergedOnline);
         }
         if (Array.isArray(presData.activeStudySessions)) {
           let sessions: LiveStudySession[] = presData.activeStudySessions;
@@ -144,6 +145,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                   }
                 ];
               }
+            } else if (bodyData?.isStudying === false) {
+              sessions = sessions.filter(s => s.userId !== user.id);
             }
           } catch {}
           setActiveStudySessions(sessions);
@@ -156,7 +159,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (!token || !user) return;
 
     syncPresenceAndSessions();
-    const interval = setInterval(syncPresenceAndSessions, isConnected ? 20000 : 8000);
+    const interval = setInterval(syncPresenceAndSessions, isConnected ? 12000 : 8000);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
