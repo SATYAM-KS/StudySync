@@ -138,6 +138,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   // Any study before 2:00 AM counts toward the previous study day.
   // At 2:00 AM, the new study day starts and the check-in modal pops up.
   const getTodayKey = (date: Date = new Date()) => {
+    // 2:00 AM reset: subtract 2 hours so that 2:00 AM starts the new study day
     const adjusted = new Date(date.getTime() - 2 * 60 * 60 * 1000);
     const year = adjusted.getFullYear();
     const month = String(adjusted.getMonth() + 1).padStart(2, '0');
@@ -145,50 +146,67 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     return `${year}-${month}-${day}`;
   };
 
-  const [collegeRoutine, setCollegeRoutine] = useState<'college' | 'no_college' | null>(() => {
+  const getSavedRoutine = (key: string) => {
     try {
-      const todayKey = getTodayKey();
-      const saved = localStorage.getItem(`study_college_routine_${todayKey}`);
+      const userKey = user?.id ? `study_college_routine_${user.id}_${key}` : null;
+      const genericKey = `study_college_routine_${key}`;
+      const saved = (userKey && localStorage.getItem(userKey)) || localStorage.getItem(genericKey);
       if (saved === 'college' || saved === 'no_college') return saved;
       return null;
     } catch {
       return null;
     }
+  };
+
+  const [collegeRoutine, setCollegeRoutine] = useState<'college' | 'no_college' | null>(() => {
+    const todayKey = getTodayKey();
+    return getSavedRoutine(todayKey);
   });
 
-  const [showRoutineModal, setShowRoutineModal] = useState<boolean>(false);
+  const [showRoutineModal, setShowRoutineModal] = useState<boolean>(() => {
+    const todayKey = getTodayKey();
+    return !getSavedRoutine(todayKey);
+  });
 
-  // Check on user login / date change if routine is not set for today
-  useEffect(() => {
+  // Verify and trigger 2:00 AM check-in
+  const checkDailyRoutineStatus = () => {
     if (!user) return;
     const todayKey = getTodayKey();
-    const saved = localStorage.getItem(`study_college_routine_${todayKey}`);
-    if (saved === 'college' || saved === 'no_college') {
+    const saved = getSavedRoutine(todayKey);
+    if (saved) {
       setCollegeRoutine(saved);
-      setShowRoutineModal(false);
     } else {
       setCollegeRoutine(null);
       setShowRoutineModal(true);
     }
-  }, [user?.id]);
+  };
 
-  // Interval to check for 2:00 AM study day crossing
+  // Check on login, date change, window focus, visibility change, and active 5-second interval
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!user) return;
-      const todayKey = getTodayKey();
-      const saved = localStorage.getItem(`study_college_routine_${todayKey}`);
-      if (!saved) {
-        setCollegeRoutine(null);
-        setShowRoutineModal(true);
-      }
-    }, 15000); // check every 15s
-    return () => clearInterval(interval);
+    checkDailyRoutineStatus();
+
+    const interval = setInterval(checkDailyRoutineStatus, 5000);
+    const handleFocus = () => checkDailyRoutineStatus();
+    const handleVisibility = () => {
+      if (!document.hidden) checkDailyRoutineStatus();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [user?.id]);
 
   const setDailyCollegeRoutine = (routine: 'college' | 'no_college') => {
     const todayKey = getTodayKey();
     try {
+      if (user?.id) {
+        localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, routine);
+      }
       localStorage.setItem(`study_college_routine_${todayKey}`, routine);
     } catch {}
     setCollegeRoutine(routine);
