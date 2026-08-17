@@ -3,7 +3,6 @@ import { ThemeProvider } from './context/ThemeContext.tsx';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { SocketProvider, useSocket } from './context/SocketContext.tsx';
 import { StudyProvider, useStudy } from './context/StudyContext.tsx';
-import { CallProvider, useCall } from './context/CallContext.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { AuthScreen } from './components/AuthScreen.tsx';
 import { CampaignsList } from './components/CampaignsList.tsx';
@@ -35,7 +34,6 @@ const MainApp: React.FC = () => {
     setShowRoutineModal,
     setDailyCollegeRoutine
   } = useStudy();
-  const { isInCall, activeCampaignName: callCampaignName, leaveCall } = useCall();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(() => {
@@ -268,9 +266,7 @@ export default function App() {
       <AuthProvider>
         <SocketProvider>
           <StudyProvider>
-            <CallProvider>
-              <MainApp />
-            </CallProvider>
+            <MainApp />
           </StudyProvider>
         </SocketProvider>
       </AuthProvider>

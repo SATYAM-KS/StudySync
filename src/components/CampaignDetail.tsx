@@ -2,20 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Campaign } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
-import { useCall } from '../context/CallContext.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
 import { FocusLounge } from './FocusLounge.tsx';
 import { Leaderboard } from './Leaderboard.tsx';
 import { StudyHistory } from './StudyHistory.tsx';
-import { ChatRoom } from './ChatRoom.tsx';
-import { VoiceRoom } from './VoiceRoom.tsx';
 import { AdminSettingsModal } from './AdminSettingsModal.tsx';
 import { 
   ArrowLeft, 
   Trophy, 
   History,
-  MessageSquare, 
-  Headphones, 
   Settings, 
   Users, 
   Clock, 
@@ -33,7 +28,7 @@ interface CampaignDetailProps {
   onCampaignDeleted: () => void;
 }
 
-type TabType = 'focus' | 'leaderboard' | 'history' | 'chat' | 'voice';
+type TabType = 'focus' | 'leaderboard' | 'history';
 
 export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   campaignId,
@@ -42,12 +37,15 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
 }) => {
   const { user, token } = useAuth();
   const { joinCampaignRoom, leaveCampaignRoom, activeStudySessions } = useSocket();
-  const { isInCall, activeCampaignId } = useCall();
   const { collegeRoutine, todayTargetHours, setShowRoutineModal } = useStudy();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
-    return (sessionStorage.getItem('study_tab_' + campaignId) as TabType) || 'focus';
+    const saved = sessionStorage.getItem('study_tab_' + campaignId);
+    if (saved === 'focus' || saved === 'leaderboard' || saved === 'history') {
+      return saved as TabType;
+    }
+    return 'focus';
   });
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,9 +72,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     sessionStorage.setItem('study_tab_' + campaignId, tab);
-    if (tab === 'chat') {
-      window.dispatchEvent(new CustomEvent('chat:scroll_to_bottom'));
-    }
   };
 
   const fetchCampaign = async () => {
@@ -90,7 +85,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
         setCampaign(data);
       }
     } catch (e) {
-      console.error('Failed to load campaign:', e);
+      console.error('Failed to fetch campaign:', e);
     } finally {
       setIsLoading(false);
     }
@@ -149,53 +144,41 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
         <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
           <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-xs font-semibold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 transition cursor-pointer"
+            className="flex items-center space-x-2 text-xs font-bold text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white glass-pill px-3.5 py-1.5 rounded-xl transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>All Campaigns</span>
+            <span>All Cohorts</span>
           </button>
         </div>
 
-        {/* Access Locked Card */}
+        {/* Lock screen content */}
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 max-w-lg w-full text-center space-y-5 shadow-sm">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto text-zinc-900 dark:text-white">
-              {campaign.userStatus === 'pending' ? (
-                <Hourglass className="w-7 h-7 text-amber-500 animate-pulse" />
-              ) : (
-                <Lock className="w-7 h-7 text-zinc-700 dark:text-zinc-300" />
-              )}
+          <div className="max-w-md w-full glass-card p-8 rounded-3xl text-center space-y-5 border border-zinc-200 dark:border-zinc-800 shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-black flex items-center justify-center mx-auto shadow-md">
+              <Lock className="w-6 h-6" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+              <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-[10px] font-mono font-bold uppercase tracking-wider">
                 {campaign.category}
               </span>
-              <h2 className="text-2xl font-black text-zinc-950 dark:text-white">
+              <h2 className="text-xl font-extrabold text-zinc-950 dark:text-white tracking-tight">
                 {campaign.name}
               </h2>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
-                {campaign.userStatus === 'pending'
-                  ? 'Your membership request is currently awaiting review by the campaign host. You cannot open the study lounge, live voice room, or cohort chat until you are accepted.'
-                  : 'This study campaign requires approval from the cohort admin. Request to join below to participate in study sessions with this group.'}
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                {campaign.description || 'This is a private accountability study cohort. Membership approval is required to access the Focus Studio, Leaderboard, and Study History.'}
               </p>
             </div>
 
-            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
-              <button
-                onClick={onBack}
-                className="flex-1 py-3 px-5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-              >
-                Back to All Cohorts
-              </button>
+            <div className="pt-2">
               {campaign.userStatus !== 'pending' ? (
                 <button
                   onClick={handleRequestJoin}
                   disabled={isRequestingJoin}
-                  className="flex-1 py-3 px-5 rounded-xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold text-xs shadow-sm hover:opacity-90 transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="w-full py-3 px-5 rounded-2xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black text-xs font-black shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 cursor-pointer disabled:opacity-50"
                 >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>{isRequestingJoin ? 'Requesting...' : 'Request to Join'}</span>
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isRequestingJoin ? 'Submitting Request...' : 'Request Access to Join'}</span>
                 </button>
               ) : (
                 <div className="flex-1 py-3 px-5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold flex items-center justify-center gap-1.5">
@@ -212,7 +195,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
 
   const isAdminOrCoAdmin = campaign.adminId === user?.id || campaign.userRole === 'admin' || campaign.userRole === 'co-admin';
   const activeInThisCamp = activeStudySessions.filter(s => s.campaignId === campaign.id);
-  const isCallActive = isInCall && activeCampaignId === campaign.id;
 
   return (
     <div className="h-full flex flex-col text-zinc-900 dark:text-zinc-100 overflow-hidden">
@@ -231,11 +213,9 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
         {/* Center / Right: Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08]">
           {([ 
-            { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: isCallActive ? null : (activeInThisCamp.length > 0 ? '●' : null) },
+            { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: activeInThisCamp.length > 0 ? '●' : null },
             { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
             { id: 'history',     icon: History,       label: 'Study History',     badge: null },
-            { id: 'chat',        icon: MessageSquare, label: 'Lounge Chat',       badge: null },
-            { id: 'voice',       icon: Headphones,    label: 'Voice Channel',     badge: isCallActive ? 'Live' : null },
           ] as const).map(({ id, icon: Icon, label, badge }) => (
             <button
               key={id}
@@ -249,7 +229,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               <Icon className="w-3.5 h-3.5 shrink-0" />
               <span>{label}</span>
               {badge === '●' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />}
-              {badge === 'Live' && <span className="text-[9px] px-1.5 py-0.2 rounded bg-zinc-900 text-white dark:bg-white dark:text-black font-extrabold font-mono">Live</span>}
             </button>
           ))}
         </div>
@@ -406,26 +385,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                 campaignCreatedAt={campaign.createdAt || campaign.startDate}
               />
             </div>
-
-            <div
-              className="h-full flex flex-col p-3 sm:p-4"
-              style={{
-                display: activeTab === 'chat' ? 'flex' : 'none'
-              }}
-            >
-              <ChatRoom campaign={campaign} />
-            </div>
-
-            {/* VoiceRoom is ALWAYS mounted — hidden with CSS so LiveKit stays connected across tabs */}
-            <div
-              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
-              style={{
-                overscrollBehavior: 'contain',
-                display: activeTab === 'voice' ? 'block' : 'none'
-              }}
-            >
-              <VoiceRoom campaign={campaign} />
-            </div>
           </div>
         </div>
       </div>
@@ -442,20 +401,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
           }}
           onCampaignDeleted={onCampaignDeleted}
         />
-      )}
-
-      {/* Persistent floating call bar — visible on non-voice tabs when in a live call */}
-      {isCallActive && activeTab !== 'voice' && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-2xl border border-zinc-800 dark:border-zinc-200 text-xs font-bold animate-in slide-in-from-bottom-4 duration-300">
-          <span className="w-2 h-2 rounded-full bg-white dark:bg-zinc-900 animate-pulse shrink-0" />
-          <span>Voice & Screen — Live</span>
-          <button
-            onClick={() => handleTabChange('voice')}
-            className="px-3 py-1 rounded-xl bg-white/20 dark:bg-zinc-900/20 hover:bg-white/30 dark:hover:bg-zinc-900/30 text-white dark:text-zinc-950 transition cursor-pointer border border-white/10 dark:border-zinc-900/10"
-          >
-            Open
-          </button>
-        </div>
       )}
     </div>
   );

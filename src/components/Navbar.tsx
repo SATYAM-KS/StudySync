@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
 import { BrandLogo } from './BrandLogo.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
-import { useCall } from '../context/CallContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { 
   Clock, 
@@ -29,7 +28,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const { isStudying, sessionElapsedSeconds, activeCampaignName, stopStudying } = useStudy();
-  const { isInCall } = useCall();
   const { onlineUserIds, activeStudySessions } = useSocket();
 
   const [showUserMenu, setShowUserMenu] = useState(false);

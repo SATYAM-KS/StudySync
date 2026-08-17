@@ -2,8 +2,6 @@
 import express from "express";
 import http from "http";
 import path2 from "path";
-import fs2 from "fs";
-import multer from "multer";
 import bcrypt from "bcryptjs";
 
 // src/server/db.ts
@@ -55,8 +53,6 @@ async function initDb() {
         if (!Array.isArray(memoryDb.campaigns)) memoryDb.campaigns = [];
         if (!Array.isArray(memoryDb.memberships)) memoryDb.memberships = [];
         if (!Array.isArray(memoryDb.studyBlocks)) memoryDb.studyBlocks = [];
-        if (!Array.isArray(memoryDb.messages)) memoryDb.messages = [];
-        if (!memoryDb.activeCalls || typeof memoryDb.activeCalls !== "object") memoryDb.activeCalls = {};
         return memoryDb;
       }
     } catch (e) {
@@ -67,9 +63,7 @@ async function initDb() {
     users: [],
     campaigns: [],
     memberships: [],
-    studyBlocks: [],
-    messages: [],
-    activeCalls: {}
+    studyBlocks: []
   };
   saveDb();
   return memoryDb;
@@ -172,25 +166,6 @@ function mapStudyBlockFromDb(row) {
     status: row.status || "active",
     subjectNote: row.subject_note || "Focus Study",
     snapshotUrl: row.snapshot_url || void 0
-  };
-}
-function mapMessageFromDb(row) {
-  const ts = row.created_at || row.timestamp || (/* @__PURE__ */ new Date()).toISOString();
-  return {
-    id: row.id,
-    campaignId: row.campaign_id,
-    senderId: row.sender_id,
-    senderName: row.sender_name,
-    senderAvatarUrl: row.sender_avatar_url || "",
-    content: row.content,
-    timestamp: ts,
-    createdAt: ts,
-    type: row.type || "general",
-    recipientId: row.recipient_id || void 0,
-    attachmentUrl: row.attachment_url || void 0,
-    attachmentName: row.attachment_name || void 0,
-    attachmentType: row.attachment_type || void 0,
-    reactions: Array.isArray(row.reactions) ? row.reactions : []
   };
 }
 var cacheStore = /* @__PURE__ */ new Map();
@@ -813,269 +788,6 @@ async function getCampaignLeaderboard(campaignId) {
   const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
   return setToCache(cacheKey, sorted, 4e3);
 }
-async function getCampaignMessages(campaignId) {
-  const cacheKey = `msgs_${campaignId}`;
-  const cached = getFromCache(cacheKey);
-  if (cached) return cached;
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from("messages").select("id, campaign_id, sender_id, sender_name, sender_avatar_url, content, timestamp, type, recipient_id, attachment_url, attachment_name, attachment_type, reactions").eq("campaign_id", campaignId).order("timestamp", { ascending: true }).limit(100);
-      if (!error && data) {
-        const mapped2 = data.map(mapMessageFromDb);
-        return setToCache(cacheKey, mapped2, 3e3);
-      }
-      if (error) {
-        console.warn("[Database] Supabase getCampaignMessages error:", error.message);
-      }
-    } catch (e) {
-      console.warn("[Database] getCampaignMessages exception:", e);
-    }
-  }
-  const db = await initDb();
-  const mapped = db.messages.filter((m) => m.campaignId === campaignId);
-  return setToCache(cacheKey, mapped, 3e3);
-}
-async function getDirectMessages(userId1, userId2) {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from("messages").select("id, campaign_id, sender_id, sender_name, sender_avatar_url, content, timestamp, type, recipient_id, attachment_url, attachment_name, attachment_type, reactions").or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`).order("timestamp", { ascending: true }).limit(100);
-      if (!error && data) return data.map(mapMessageFromDb);
-    } catch {
-    }
-  }
-  const db = await initDb();
-  return db.messages.filter(
-    (m) => m.senderId === userId1 && m.recipientId === userId2 || m.senderId === userId2 && m.recipientId === userId1
-  );
-}
-async function createMessage(message) {
-  invalidateCache("msgs");
-  const isDm = Boolean(message.recipientId);
-  const msgType = message.type || (isDm ? "dm" : "campaign");
-  const ts = message.timestamp || message.createdAt || (/* @__PURE__ */ new Date()).toISOString();
-  if (supabase) {
-    try {
-      const payload = {
-        id: message.id,
-        campaign_id: message.campaignId || (isDm ? null : "general"),
-        sender_id: message.senderId,
-        sender_name: message.senderName,
-        sender_avatar_url: message.senderAvatarUrl || "",
-        content: message.content,
-        timestamp: ts,
-        type: msgType,
-        recipient_id: message.recipientId || null,
-        attachment_url: message.attachmentUrl || null,
-        attachment_name: message.attachmentName || null,
-        attachment_type: message.attachmentType || null
-      };
-      const { error } = await supabase.from("messages").insert(payload);
-      if (error) {
-        console.error("[Database] Supabase createMessage insert error:", error.message);
-        await supabase.from("messages").insert({
-          id: message.id,
-          campaign_id: message.campaignId || "general",
-          sender_id: message.senderId,
-          sender_name: message.senderName,
-          content: message.content,
-          timestamp: ts
-        });
-      }
-    } catch (e) {
-      console.error("[Database] Supabase createMessage exception:", e);
-    }
-  }
-  const db = await initDb();
-  const fullMsg = { ...message, timestamp: ts, createdAt: ts, type: msgType };
-  db.messages.push(fullMsg);
-  saveDb();
-  return fullMsg;
-}
-async function toggleMessageReaction2(messageId, emoji, userId, userName) {
-  invalidateCache("msgs");
-  const db = await initDb();
-  const msg = db.messages.find((m) => m.id === messageId);
-  if (!msg) return null;
-  if (!msg.reactions) msg.reactions = [];
-  const existingIdx = msg.reactions.findIndex((r) => r.emoji === emoji && r.userId === userId);
-  if (existingIdx >= 0) {
-    msg.reactions.splice(existingIdx, 1);
-  } else {
-    msg.reactions.push({ emoji, userId, userName });
-  }
-  saveDb();
-  return msg;
-}
-async function getMessageById(messageId) {
-  const db = await initDb();
-  const local = db.messages.find((m) => m.id === messageId);
-  if (local) return local;
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from("messages").select("*").eq("id", messageId).single();
-      if (!error && data) {
-        return {
-          id: data.id,
-          campaignId: data.campaign_id,
-          senderId: data.sender_id,
-          senderName: data.sender_name,
-          senderAvatarUrl: data.sender_avatar_url,
-          content: data.content,
-          fileUrl: data.file_url,
-          fileName: data.file_name,
-          fileType: data.file_type,
-          fileSize: data.file_size,
-          timestamp: data.timestamp,
-          isSystem: data.is_system,
-          reactions: data.reactions
-        };
-      }
-    } catch {
-    }
-  }
-  return null;
-}
-async function deleteMessage(messageId) {
-  invalidateCache("msgs");
-  if (supabase) {
-    try {
-      await supabase.from("messages").delete().eq("id", messageId);
-    } catch (e) {
-      console.warn("[Database] Supabase deleteMessage error:", e);
-    }
-  }
-  const db = await initDb();
-  const idx = db.messages.findIndex((m) => m.id === messageId);
-  if (idx !== -1) {
-    db.messages.splice(idx, 1);
-    saveDb();
-    return true;
-  }
-  return true;
-}
-async function cleanupExpiredMessages(daysToKeep = 30) {
-  const cutoffDate = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1e3).toISOString();
-  let deletedCount = 0;
-  let deletedFiles = 0;
-  try {
-    if (supabase) {
-      const { data: expiredMessages, error: fetchErr } = await supabase.from("messages").select("id, attachment_url").lt("timestamp", cutoffDate);
-      if (!fetchErr && Array.isArray(expiredMessages) && expiredMessages.length > 0) {
-        const fileNamesToDelete = [];
-        for (const msg of expiredMessages) {
-          if (msg.attachment_url && typeof msg.attachment_url === "string") {
-            if (msg.attachment_url.includes("/study-uploads/")) {
-              const parts = msg.attachment_url.split("/study-uploads/");
-              if (parts[1]) {
-                const cleanedName = parts[1].split("?")[0];
-                if (cleanedName) fileNamesToDelete.push(cleanedName);
-              }
-            }
-          }
-        }
-        if (fileNamesToDelete.length > 0) {
-          try {
-            await supabase.storage.from("study-uploads").remove(fileNamesToDelete);
-            deletedFiles = fileNamesToDelete.length;
-          } catch (storageErr) {
-            console.warn("[Cleanup] Supabase Storage purge error:", storageErr);
-          }
-        }
-        const { error: deleteErr } = await supabase.from("messages").delete().lt("timestamp", cutoffDate);
-        if (!deleteErr) {
-          deletedCount = expiredMessages.length;
-          invalidateCache("msgs");
-        }
-      }
-    }
-    const db = await initDb();
-    const initialLen = db.messages.length;
-    db.messages = db.messages.filter((m) => {
-      const ts = m.timestamp || m.createdAt;
-      return !ts || new Date(ts).getTime() >= new Date(cutoffDate).getTime();
-    });
-    deletedCount = Math.max(deletedCount, initialLen - db.messages.length);
-    saveDb();
-    console.log(`[Auto-Cleanup] Successfully purged ${deletedCount} messages and ${deletedFiles} attachments older than ${daysToKeep} days.`);
-  } catch (err) {
-    console.error("[Auto-Cleanup] Error cleaning expired messages:", err);
-  }
-  return { deletedCount, deletedFiles };
-}
-async function getCallSession(campaignId) {
-  if (supabase) {
-    const { data, error } = await supabase.from("active_calls").select("*").eq("campaign_id", campaignId).single();
-    if (!error && data && data.session_data) {
-      return data.session_data;
-    }
-  }
-  const db = await initDb();
-  return db.activeCalls[campaignId] || null;
-}
-async function saveCallSession(campaignId, session) {
-  if (supabase) {
-    if (session) {
-      await supabase.from("active_calls").upsert({
-        campaign_id: campaignId,
-        session_data: session,
-        updated_at: (/* @__PURE__ */ new Date()).toISOString()
-      });
-    } else {
-      await supabase.from("active_calls").delete().eq("campaign_id", campaignId);
-    }
-  }
-  const db = await initDb();
-  if (session) {
-    db.activeCalls[campaignId] = session;
-  } else {
-    delete db.activeCalls[campaignId];
-  }
-  saveDb();
-}
-async function addCallParticipant(campaignId, participant) {
-  let session = await getCallSession(campaignId);
-  if (!session) {
-    session = {
-      campaignId,
-      campaignName: "Study Lounge",
-      startedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      participants: []
-    };
-  }
-  const existingIdx = session.participants.findIndex((p) => p.userId === participant.userId);
-  if (existingIdx >= 0) {
-    session.participants[existingIdx] = { ...session.participants[existingIdx], ...participant };
-  } else {
-    session.participants.push(participant);
-  }
-  await saveCallSession(campaignId, session);
-  return session;
-}
-async function removeCallParticipant(campaignId, userIdOrSocketId) {
-  const session = await getCallSession(campaignId);
-  if (!session) return null;
-  session.participants = session.participants.filter(
-    (p) => p.socketId !== userIdOrSocketId && p.userId !== userIdOrSocketId
-  );
-  if (session.participants.length === 0) {
-    await saveCallSession(campaignId, null);
-    return null;
-  }
-  await saveCallSession(campaignId, session);
-  return session;
-}
-async function updateParticipantState(campaignId, userIdOrSocketId, updates) {
-  const session = await getCallSession(campaignId);
-  if (!session) return null;
-  const p = session.participants.find(
-    (part) => part.socketId === userIdOrSocketId || part.userId === userIdOrSocketId
-  );
-  if (p) {
-    Object.assign(p, updates);
-    await saveCallSession(campaignId, session);
-  }
-  return session;
-}
 
 // src/server/auth.ts
 import jwt from "jsonwebtoken";
@@ -1354,7 +1066,7 @@ function setupSocketServer(httpServer) {
         userAvatarUrl: userData.userAvatarUrl
       });
       socket.join(`user:${userData.userId}`);
-      broadcastOnlineUsers2();
+      broadcastOnlineUsers();
       socket.emit("study:active_sessions", getActiveStudySessions());
     });
     socket.on("campaign:join_room", (campaignId) => {
@@ -1371,229 +1083,51 @@ function setupSocketServer(httpServer) {
         user.activeCampaignId = void 0;
       }
     });
-    socket.on("message:send", async (messageData, callback) => {
+    socket.on("study:start_session", ({ campaignId, campaignName, subjectNote }) => {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
-      const newMsg = {
-        id: messageData.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        senderId: user.userId,
-        senderName: user.userName,
-        senderAvatarUrl: user.userAvatarUrl,
-        campaignId: messageData.campaignId || null,
-        recipientId: messageData.recipientId || null,
-        content: messageData.content || "",
-        attachmentUrl: messageData.attachmentUrl || null,
-        attachmentName: messageData.attachmentName || null,
-        attachmentType: messageData.attachmentType || null,
-        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-        reactions: []
-      };
-      const saved = await createMessage(newMsg);
-      if (saved.campaignId) {
-        io2.to(`campaign:${saved.campaignId}`).emit("message:new", saved);
-      } else if (saved.recipientId) {
-        io2.to(`user:${saved.senderId}`).to(`user:${saved.recipientId}`).emit("message:new", saved);
-      }
-      if (callback) callback({ success: true, message: saved });
-    });
-    socket.on("message:react", async ({ messageId, emoji, campaignId, recipientId }) => {
-      const user = connectedUsers.get(socket.id);
-      if (!user) return;
-      const updated = await toggleMessageReaction2(messageId, emoji, user.userId, user.userName);
-      if (updated) {
-        if (campaignId) {
-          io2.to(`campaign:${campaignId}`).emit("message:updated", updated);
-        } else if (recipientId) {
-          io2.to(`user:${user.userId}`).to(`user:${recipientId}`).emit("message:updated", updated);
-        }
-      }
-    });
-    socket.on("message:delete", async ({ messageId, campaignId, recipientId }) => {
-      const user = connectedUsers.get(socket.id);
-      if (!user) return;
-      const msg = await getMessageById(messageId);
-      if (msg) {
-        const isAuthor = msg.senderId === user.userId;
-        let isAdmin = false;
-        const targetCampaignId = msg.campaignId || campaignId;
-        if (targetCampaignId) {
-          const campaign = await getCampaignById(targetCampaignId, user.userId);
-          if (campaign) {
-            isAdmin = campaign.adminId === user.userId || campaign.userRole === "admin" || campaign.userRole === "co-admin";
-          }
-        }
-        if (!isAuthor && !isAdmin) {
-          socket.emit("error", { message: "You are only authorized to delete your own messages." });
-          return;
-        }
-      }
-      await deleteMessage(messageId);
-      if (campaignId) {
-        io2.to(`campaign:${campaignId}`).emit("message:deleted", { id: messageId, messageId, campaignId });
-      } else if (recipientId) {
-        io2.to(`user:${user.userId}`).to(`user:${recipientId}`).emit("message:deleted", { id: messageId, messageId, recipientId });
-      }
-      io2.emit("message:deleted", { id: messageId, messageId, campaignId, recipientId });
-    });
-    socket.on("typing:start", ({ campaignId, recipientId }) => {
-      const user = connectedUsers.get(socket.id);
-      if (!user) return;
-      if (campaignId) {
-        socket.to(`campaign:${campaignId}`).emit("typing:status", {
-          campaignId,
-          userId: user.userId,
-          userName: user.userName,
-          isTyping: true
-        });
-      } else if (recipientId) {
-        io2.to(`user:${recipientId}`).emit("typing:status", {
-          recipientId,
-          userId: user.userId,
-          userName: user.userName,
-          isTyping: true
-        });
-      }
-    });
-    socket.on("typing:stop", ({ campaignId, recipientId }) => {
-      const user = connectedUsers.get(socket.id);
-      if (!user) return;
-      if (campaignId) {
-        socket.to(`campaign:${campaignId}`).emit("typing:status", {
-          campaignId,
-          userId: user.userId,
-          userName: user.userName,
-          isTyping: false
-        });
-      } else if (recipientId) {
-        io2.to(`user:${recipientId}`).emit("typing:status", {
-          recipientId,
-          userId: user.userId,
-          userName: user.userName,
-          isTyping: false
-        });
-      }
-    });
-    socket.on("study:start_session", (sessionData) => {
-      const user = connectedUsers.get(socket.id);
-      if (!user) return;
-      const session = {
+      const liveSession = {
         userId: user.userId,
         userName: user.userName,
         userAvatarUrl: user.userAvatarUrl,
-        campaignId: sessionData.campaignId,
-        campaignName: sessionData.campaignName,
-        subjectNote: sessionData.subjectNote,
+        campaignId,
+        campaignName,
+        subjectNote,
         startedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        activeMinutes: 0,
-        isScreenSharedLocally: false
+        activeMinutes: 0
       };
-      activeStudySessions.set(user.userId, session);
-      io2.emit("study:session_started", session);
+      activeStudySessions.set(user.userId, liveSession);
+      restStudySessions.delete(user.userId);
       broadcastStudySessions();
     });
     socket.on("study:stop_session", () => {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
-      if (activeStudySessions.has(user.userId)) {
-        activeStudySessions.delete(user.userId);
-        io2.emit("study:session_ended", { userId: user.userId });
-        broadcastStudySessions();
-      }
+      activeStudySessions.delete(user.userId);
+      restStudySessions.delete(user.userId);
+      broadcastStudySessions();
     });
-    socket.on("call:join", async ({ campaignId, isMuted = false, isVideoOn = false, isScreenSharing = false }) => {
+    socket.on("study:heartbeat", ({ activeMinutes }) => {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
-      user.inCallCampaignId = campaignId;
-      socket.join(`call:${campaignId}`);
-      const participant = {
-        userId: user.userId,
-        userName: user.userName,
-        userAvatarUrl: user.userAvatarUrl,
-        socketId: socket.id,
-        isMuted,
-        isVideoOn,
-        isScreenSharing,
-        joinedAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      const session = await addCallParticipant(campaignId, participant);
-      const existingParticipants = session.participants.filter((p) => p.socketId !== socket.id);
-      io2.to(`campaign:${campaignId}`).emit("call:session_updated", session);
-      socket.emit("call:existing_peers", {
-        existingParticipants
-      });
-      socket.to(`call:${campaignId}`).emit("call:peer_joined", {
-        participant,
-        existingParticipants
-      });
-    });
-    socket.on("call:signal", ({ toSocketId, signal, type }) => {
-      io2.to(toSocketId).emit("call:signal", {
-        fromSocketId: socket.id,
-        signal,
-        type
-      });
-    });
-    socket.on("call:video_frame", ({ campaignId, frameData }) => {
-      socket.to(`call:${campaignId}`).to(`campaign:${campaignId}`).emit("call:video_frame", {
-        fromSocketId: socket.id,
-        frameData
-      });
-    });
-    socket.on("call:audio_chunk", ({ campaignId, audioData }) => {
-      socket.to(`call:${campaignId}`).to(`campaign:${campaignId}`).emit("call:audio_chunk", {
-        fromSocketId: socket.id,
-        audioData
-      });
-    });
-    socket.on("call:speaking", ({ campaignId, isSpeaking }) => {
-      socket.to(`call:${campaignId}`).emit("call:participant_speaking", {
-        socketId: socket.id,
-        isSpeaking
-      });
-    });
-    socket.on("call:state_change", async ({ campaignId, isMuted, isScreenSharing }) => {
-      const session = await updateParticipantState(campaignId, socket.id, {
-        ...isMuted !== void 0 && { isMuted },
-        ...isScreenSharing !== void 0 && { isScreenSharing }
-      });
+      const session = activeStudySessions.get(user.userId);
       if (session) {
-        io2.to(`campaign:${campaignId}`).to(`call:${campaignId}`).emit("call:session_updated", session);
+        session.activeMinutes = activeMinutes;
       }
-    });
-    socket.on("call:leave", async (campaignId) => {
-      handleCallLeave(socket, campaignId);
     });
     socket.on("disconnect", async () => {
       const user = connectedUsers.get(socket.id);
       if (user) {
-        if (user.inCallCampaignId) {
-          handleCallLeave(socket, user.inCallCampaignId);
-        }
         const existingSession = activeStudySessions.get(user.userId);
         if (existingSession) {
           activeStudySessions.delete(user.userId);
           restStudySessions.set(user.userId, { session: existingSession, lastSeen: Date.now() });
         }
         connectedUsers.delete(socket.id);
-        broadcastOnlineUsers2();
+        broadcastOnlineUsers();
       }
     });
   });
-  async function handleCallLeave(socket, campaignId) {
-    socket.leave(`call:${campaignId}`);
-    const user = connectedUsers.get(socket.id);
-    if (user) {
-      user.inCallCampaignId = void 0;
-    }
-    const session = await removeCallParticipant(campaignId, socket.id);
-    socket.to(`call:${campaignId}`).emit("call:peer_left", { socketId: socket.id });
-    io2.to(`campaign:${campaignId}`).emit("call:session_updated", session);
-  }
-  function broadcastOnlineUsers2() {
-    if (ioInstance) {
-      ioInstance.emit("presence:online_users", getOnlineUserIds());
-    }
-  }
   return io2;
 }
 
@@ -1754,7 +1288,6 @@ Respond ONLY with valid JSON in this exact structure:
 }
 
 // server.ts
-import { AccessToken } from "livekit-server-sdk";
 var isVercel2 = Boolean(process.env.VERCEL);
 var isProduction = process.env.NODE_ENV === "production";
 var DEFAULT_PORT = parseInt(process.env.PORT || "3000", 10);
@@ -1772,19 +1305,6 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-var uploadsDir = isVercel2 ? "/tmp/uploads" : path2.join(process.cwd(), "uploads");
-if (!fs2.existsSync(uploadsDir)) {
-  try {
-    fs2.mkdirSync(uploadsDir, { recursive: true });
-  } catch {
-  }
-}
-app.use("/uploads", express.static(uploadsDir));
-var upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 }
-  // 15MB
-});
 var io = setupSocketServer(server);
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
@@ -2408,153 +1928,6 @@ app.get("/api/study/history", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch study history" });
   }
 });
-app.get("/api/messages/campaign/:campaignId", authMiddleware, async (req, res) => {
-  try {
-    const messages = await getCampaignMessages(req.params.campaignId);
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch messages" });
-  }
-});
-app.get("/api/messages/direct/:otherUserId", authMiddleware, async (req, res) => {
-  try {
-    const messages = await getDirectMessages(req.user.id, req.params.otherUserId);
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch direct messages" });
-  }
-});
-app.post("/api/messages", authMiddleware, async (req, res) => {
-  try {
-    const { campaignId, recipientId, content, attachmentUrl, attachmentName, attachmentType } = req.body;
-    if (!content && !attachmentUrl) {
-      res.status(400).json({ error: "Message must have content or an attachment" });
-      return;
-    }
-    const now = (/* @__PURE__ */ new Date()).toISOString();
-    const newMsg = {
-      id: req.body.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      senderId: req.user.id,
-      senderName: req.user.name,
-      senderAvatarUrl: req.user.avatarUrl,
-      campaignId: campaignId || null,
-      recipientId: recipientId || null,
-      content: content || "",
-      attachmentUrl: attachmentUrl || null,
-      attachmentName: attachmentName || null,
-      attachmentType: attachmentType || null,
-      createdAt: now,
-      timestamp: now,
-      reactions: []
-    };
-    const saved = await createMessage(newMsg);
-    if (io) {
-      if (saved.campaignId) {
-        io.to(`campaign:${saved.campaignId}`).emit("message:new", saved);
-      } else if (saved.recipientId) {
-        io.to(`user:${saved.senderId}`).to(`user:${saved.recipientId}`).emit("message:new", saved);
-      }
-    }
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error("Failed to send message:", err);
-    res.status(500).json({ error: "Failed to send message" });
-  }
-});
-app.delete("/api/messages/:id", authMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const campaignId = req.query.campaignId;
-    const userId = req.user.id;
-    const msg = await getMessageById(id);
-    if (msg) {
-      const isAuthor = msg.senderId === userId;
-      let isAdmin = false;
-      const targetCampaignId = msg.campaignId || campaignId;
-      if (targetCampaignId) {
-        const campaign = await getCampaignById(targetCampaignId, userId);
-        if (campaign) {
-          isAdmin = campaign.adminId === userId || campaign.userRole === "admin" || campaign.userRole === "co-admin";
-        }
-      }
-      if (!isAuthor && !isAdmin) {
-        res.status(403).json({ error: "You are only authorized to delete your own messages." });
-        return;
-      }
-    }
-    await deleteMessage(id);
-    if (io) {
-      if (campaignId) {
-        io.to(`campaign:${campaignId}`).emit("message:deleted", { id, messageId: id, campaignId });
-      }
-      io.emit("message:deleted", { id, messageId: id, campaignId });
-    }
-    res.json({ success: true, id });
-  } catch (err) {
-    console.error("Failed to delete message:", err);
-    res.status(500).json({ error: "Failed to delete message" });
-  }
-});
-app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    res.status(400).json({ error: "No file uploaded" });
-    return;
-  }
-  const isImage = req.file.mimetype.startsWith("image/");
-  const ext = path2.extname(req.file.originalname) || (isImage ? ".jpg" : ".bin");
-  const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-  let fileUrl = `/uploads/${req.file.filename || uniqueName}`;
-  try {
-    let fileBuffer = null;
-    if (req.file.buffer) {
-      fileBuffer = req.file.buffer;
-    } else if (req.file.path && fs2.existsSync(req.file.path)) {
-      fileBuffer = fs2.readFileSync(req.file.path);
-    }
-    if (supabase && fileBuffer) {
-      try {
-        const bucketName = "study-uploads";
-        const { error: uploadError } = await supabase.storage.from(bucketName).upload(uniqueName, fileBuffer, {
-          contentType: req.file.mimetype,
-          upsert: true
-        });
-        if (!uploadError) {
-          const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(uniqueName);
-          if (publicUrlData?.publicUrl) {
-            fileUrl = publicUrlData.publicUrl;
-          }
-        }
-      } catch (storageErr) {
-        console.warn("[Storage] Supabase storage upload warning:", storageErr);
-      }
-    }
-    if (fileBuffer && (!fileUrl.startsWith("http://") && !fileUrl.startsWith("https://"))) {
-      if (fileBuffer.length <= 8 * 1024 * 1024) {
-        const b64 = fileBuffer.toString("base64");
-        fileUrl = `data:${req.file.mimetype || (isImage ? "image/jpeg" : "application/octet-stream")};base64,${b64}`;
-      }
-    }
-  } catch (err) {
-    console.error("Upload processing error:", err);
-  }
-  res.json({
-    url: fileUrl,
-    filename: req.file.originalname,
-    originalName: req.file.originalname,
-    name: req.file.originalname,
-    type: isImage ? "image" : "file",
-    size: req.file.size
-  });
-});
-app.post("/api/messages/:messageId/react", authMiddleware, async (req, res) => {
-  try {
-    const { emoji } = req.body;
-    const updated = await toggleMessageReaction(req.params.messageId, emoji, req.user.id, req.user.name);
-    res.json(updated || { success: false });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to toggle reaction" });
-  }
-});
 app.post("/api/presence/heartbeat", authMiddleware, (req, res) => {
   const userId = req.user.id;
   touchUserPresence(userId, req.user.name, req.user.avatarUrl);
@@ -2591,119 +1964,6 @@ app.get("/api/presence", (_req, res) => {
     activeStudySessions: getActiveStudySessions()
   });
 });
-app.post("/api/livekit/token", authMiddleware, async (req, res) => {
-  try {
-    const { campaignId } = req.body;
-    if (!campaignId) return res.status(400).json({ error: "campaignId required" });
-    const apiKey = process.env.LIVEKIT_API_KEY || "API7ZiCFQEGGpYa";
-    const apiSecret = process.env.LIVEKIT_API_SECRET || "mpqMnhk8LejhzDD9OqExRVaWip7GrdqZP6dtEjmbV7S";
-    const livekitUrl = process.env.LIVEKIT_URL || "wss://santam-kfcwvgq2.livekit.cloud";
-    const at = new AccessToken(apiKey, apiSecret, {
-      identity: req.user.id,
-      name: req.user.name,
-      ttl: "4h"
-    });
-    at.addGrant({
-      roomJoin: true,
-      room: `study-${campaignId}`,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData: true
-    });
-    const token = await at.toJwt();
-    res.json({ token, url: livekitUrl });
-  } catch (err) {
-    console.error("LiveKit token error:", err);
-    res.status(500).json({ error: "Failed to generate token", detail: String(err) });
-  }
-});
-app.get("/api/calls/:campaignId", async (req, res) => {
-  try {
-    const session = await getCallSession(req.params.campaignId);
-    if (!session) return res.json({ participants: [] });
-    const now = Date.now();
-    const alive = session.participants.filter((p) => {
-      if (!p.lastSeen) return true;
-      return now - new Date(p.lastSeen).getTime() < 2e4;
-    });
-    if (alive.length !== session.participants.length) {
-      session.participants = alive;
-      if (alive.length === 0) {
-        await saveCallSession(req.params.campaignId, null);
-      } else {
-        await saveCallSession(req.params.campaignId, session);
-      }
-    }
-    res.json({ ...session, participants: alive });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch call session" });
-  }
-});
-app.post("/api/calls/:campaignId/join", authMiddleware, async (req, res) => {
-  try {
-    const { isMuted, isDeafened, isScreenSharing } = req.body;
-    const session = await addCallParticipant(req.params.campaignId, {
-      userId: req.user.id,
-      userName: req.user.name,
-      userAvatarUrl: req.user.avatarUrl,
-      isMuted: isMuted ?? false,
-      isDeafened: isDeafened ?? false,
-      isScreenSharing: isScreenSharing ?? false,
-      joinedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      lastSeen: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    if (io) {
-      io.to(`campaign:${req.params.campaignId}`).emit("call:session_updated", session);
-      io.emit("call:participant_joined", { userId: req.user.id, campaignId: req.params.campaignId, session });
-    }
-    res.json(session);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to join call" });
-  }
-});
-app.post("/api/calls/:campaignId/heartbeat", authMiddleware, async (req, res) => {
-  try {
-    const { isMuted, isScreenSharing } = req.body || {};
-    const session = await addCallParticipant(req.params.campaignId, {
-      userId: req.user.id,
-      userName: req.user.name,
-      userAvatarUrl: req.user.avatarUrl,
-      isMuted: isMuted ?? false,
-      isScreenSharing: isScreenSharing ?? false,
-      joinedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      lastSeen: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    res.json({ ok: true, participantCount: session.participants.length });
-  } catch (err) {
-    res.status(500).json({ error: "Heartbeat failed" });
-  }
-});
-app.post("/api/calls/:campaignId/leave", authMiddleware, async (req, res) => {
-  try {
-    const session = await removeCallParticipant(req.params.campaignId, req.user.id);
-    if (io) {
-      io.to(`campaign:${req.params.campaignId}`).emit("call:session_updated", session || { participants: [] });
-      io.emit("call:participant_left", { userId: req.user.id, campaignId: req.params.campaignId });
-    }
-    res.json(session || { participants: [] });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to leave call" });
-  }
-});
-app.post("/api/maintenance/cleanup", optionalAuthMiddleware, async (_req, res) => {
-  try {
-    const result = await cleanupExpiredMessages(30);
-    res.json({ success: true, ...result });
-  } catch (err) {
-    res.status(500).json({ error: "Cleanup failed", details: err.message });
-  }
-});
-setTimeout(() => {
-  cleanupExpiredMessages(30).catch((err) => console.warn("[Auto-Cleanup] Initial run warning:", err));
-}, 5e3);
-setInterval(() => {
-  cleanupExpiredMessages(30).catch((err) => console.warn("[Auto-Cleanup] Interval run warning:", err));
-}, 24 * 60 * 60 * 1e3);
 async function startServer() {
   await initDb();
   if (process.env.NODE_ENV !== "production") {
