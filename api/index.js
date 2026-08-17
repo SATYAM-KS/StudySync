@@ -677,8 +677,22 @@ async function getStudyBlocksForUser(userId, campaignId) {
   const mapped = db.studyBlocks.filter((b) => b.userId === userId && (!campaignId || b.campaignId === campaignId));
   return setToCache(cacheKey, mapped, 5e3);
 }
-async function getCampaignLeaderboard(campaignId) {
-  const cacheKey = `leaderboard_${campaignId}`;
+function get2AMAlignedDateKey(timestamp = /* @__PURE__ */ new Date(), tzOffsetMinutes) {
+  const d = new Date(timestamp);
+  const offset = typeof tzOffsetMinutes === "number" && !isNaN(tzOffsetMinutes) ? tzOffsetMinutes : -330;
+  const localTimeMs = d.getTime() - offset * 60 * 1e3;
+  const adjustedLocalMs = localTimeMs - 2 * 3600 * 1e3;
+  const adjustedDate = new Date(adjustedLocalMs);
+  const year = adjustedDate.getUTCFullYear();
+  const month = String(adjustedDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(adjustedDate.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+async function getCampaignLeaderboard(campaignId, tzOffset) {
+  const tz = typeof tzOffset === "number" && !isNaN(tzOffset) ? tzOffset : -330;
+  const now = /* @__PURE__ */ new Date();
+  const todayKey = get2AMAlignedDateKey(now, tz);
+  const cacheKey = `leaderboard_${campaignId}_${todayKey}_${tz}`;
   const cached = getFromCache(cacheKey);
   if (cached) return cached;
   let approvedMembers = [];
@@ -717,11 +731,14 @@ async function getCampaignLeaderboard(campaignId) {
       hackerrankUrl: u.hackerrankUrl || ""
     }));
   }
-  const now = /* @__PURE__ */ new Date();
-  const adjustedNow = new Date(now.getTime() - 2 * 36e5);
-  const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
-  const weekStart = todayStart - 6 * 864e5;
-  const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
+  const weekKeysSet = /* @__PURE__ */ new Set();
+  const nowLocalMs = now.getTime() - tz * 60 * 1e3 - 2 * 3600 * 1e3;
+  for (let d = 0; d < 7; d++) {
+    const dDate = new Date(nowLocalMs - d * 864e5);
+    const k = `${dDate.getUTCFullYear()}-${String(dDate.getUTCMonth() + 1).padStart(2, "0")}-${String(dDate.getUTCDate()).padStart(2, "0")}`;
+    weekKeysSet.add(k);
+  }
+  const currentMonthPrefix = todayKey.substring(0, 7);
   const entries = approvedMembers.map((member) => {
     const userBlocks = campaignBlocks.filter((b) => b.userId === member.userId);
     const userProfile = allUsers.find((u) => u.id === member.userId);
@@ -732,18 +749,16 @@ async function getCampaignLeaderboard(campaignId) {
     let lastActive = void 0;
     const activeDaysSet = /* @__PURE__ */ new Set();
     userBlocks.forEach((b) => {
-      const bTime = new Date(b.timestamp).getTime();
-      const bDate = new Date(bTime - 2 * 36e5);
-      const bDateStr = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, "0")}-${String(bDate.getDate()).padStart(2, "0")}`;
+      const bDateStr = get2AMAlignedDateKey(b.timestamp, tz);
       activeDaysSet.add(bDateStr);
       totalMinutes += b.durationMinutes;
-      if (bTime >= todayStart) {
+      if (bDateStr === todayKey) {
         todayMinutes += b.durationMinutes;
       }
-      if (bTime >= weekStart) {
+      if (weekKeysSet.has(bDateStr)) {
         thisWeekMinutes += b.durationMinutes;
       }
-      if (bTime >= monthStart) {
+      if (bDateStr.startsWith(currentMonthPrefix)) {
         thisMonthMinutes += b.durationMinutes;
       }
       if (!lastActive || new Date(b.timestamp) > new Date(lastActive)) {
@@ -752,8 +767,8 @@ async function getCampaignLeaderboard(campaignId) {
     });
     let currentStreak = 0;
     for (let d = 0; d < 365; d++) {
-      const checkDate = new Date(adjustedNow.getTime() - d * 864e5);
-      const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
+      const checkDate = new Date(nowLocalMs - d * 864e5);
+      const dateStr = `${checkDate.getUTCFullYear()}-${String(checkDate.getUTCMonth() + 1).padStart(2, "0")}-${String(checkDate.getUTCDate()).padStart(2, "0")}`;
       if (activeDaysSet.has(dateStr)) {
         currentStreak++;
       } else if (d === 0 && !activeDaysSet.has(dateStr)) {
@@ -1811,7 +1826,10 @@ app.delete("/api/campaigns/:id/members/:memberId", authMiddleware, async (req, r
 });
 app.get("/api/campaigns/:id/leaderboard", async (req, res) => {
   try {
-    const leaderboard = await getCampaignLeaderboard(req.params.id);
+    const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset, 10) : void 0;
+    const tzHeader = req.headers["x-timezone-offset"] ? parseInt(req.headers["x-timezone-offset"], 10) : void 0;
+    const tzOffset = !isNaN(tzOffsetQuery) ? tzOffsetQuery : !isNaN(tzHeader) ? tzHeader : -330;
+    const leaderboard = await getCampaignLeaderboard(req.params.id, tzOffset);
     res.json(leaderboard);
   } catch (err) {
     res.status(500).json({ error: "Failed to compute leaderboard" });
@@ -1958,30 +1976,53 @@ app.get("/api/study/stats", authMiddleware, async (req, res) => {
   try {
     const userBlocks = await getStudyBlocksForUser(req.user.id);
     const activeBlocks = userBlocks.filter((b) => b.status === "active");
+    const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset, 10) : void 0;
+    const tzHeader = req.headers["x-timezone-offset"] ? parseInt(req.headers["x-timezone-offset"], 10) : void 0;
+    const tzOffset = !isNaN(tzOffsetQuery) ? tzOffsetQuery : !isNaN(tzHeader) ? tzHeader : -330;
     const now = /* @__PURE__ */ new Date();
-    const adjustedNow = new Date(now.getTime() - 2 * 36e5);
-    const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
-    const weekStart = todayStart - 6 * 864e5;
+    const todayKey = get2AMAlignedDateKey(now, tzOffset);
+    const weekKeysSet = /* @__PURE__ */ new Set();
+    const nowLocalMs = now.getTime() - tzOffset * 60 * 1e3 - 2 * 3600 * 1e3;
+    for (let d = 0; d < 7; d++) {
+      const dDate = new Date(nowLocalMs - d * 864e5);
+      const k = `${dDate.getUTCFullYear()}-${String(dDate.getUTCMonth() + 1).padStart(2, "0")}-${String(dDate.getUTCDate()).padStart(2, "0")}`;
+      weekKeysSet.add(k);
+    }
+    const currentMonthPrefix = todayKey.substring(0, 7);
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
+    let thisMonthMinutes = 0;
     let totalMinutes = 0;
     const dailyMinutesMap = {};
+    const activeDaysSet = /* @__PURE__ */ new Set();
     activeBlocks.forEach((b) => {
-      const bTime = new Date(b.timestamp).getTime();
-      const adjustedBTime = new Date(bTime - 2 * 36e5);
-      const dateStr = `${adjustedBTime.getFullYear()}-${String(adjustedBTime.getMonth() + 1).padStart(2, "0")}-${String(adjustedBTime.getDate()).padStart(2, "0")}`;
+      const dateStr = get2AMAlignedDateKey(b.timestamp, tzOffset);
       dailyMinutesMap[dateStr] = (dailyMinutesMap[dateStr] || 0) + b.durationMinutes;
+      activeDaysSet.add(dateStr);
       totalMinutes += b.durationMinutes;
-      if (bTime >= todayStart) todayMinutes += b.durationMinutes;
-      if (bTime >= weekStart) thisWeekMinutes += b.durationMinutes;
+      if (dateStr === todayKey) todayMinutes += b.durationMinutes;
+      if (weekKeysSet.has(dateStr)) thisWeekMinutes += b.durationMinutes;
+      if (dateStr.startsWith(currentMonthPrefix)) thisMonthMinutes += b.durationMinutes;
     });
+    let currentStreak = 0;
+    for (let d = 0; d < 365; d++) {
+      const checkDate = new Date(nowLocalMs - d * 864e5);
+      const dateStr = `${checkDate.getUTCFullYear()}-${String(checkDate.getUTCMonth() + 1).padStart(2, "0")}-${String(checkDate.getUTCDate()).padStart(2, "0")}`;
+      if (activeDaysSet.has(dateStr)) {
+        currentStreak++;
+      } else if (d === 0 && !activeDaysSet.has(dateStr)) {
+        continue;
+      } else {
+        break;
+      }
+    }
     const recentDays = [];
     for (let d = 6; d >= 0; d--) {
-      const date = new Date(adjustedNow.getTime() - d * 864e5);
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const date = new Date(nowLocalMs - d * 864e5);
+      const dateStr = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
       recentDays.push({
         date: dateStr,
-        dayName: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()],
+        dayName: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getUTCDay()],
         minutes: dailyMinutesMap[dateStr] || 0,
         hours: Number(((dailyMinutesMap[dateStr] || 0) / 60).toFixed(1))
       });
@@ -1991,8 +2032,13 @@ app.get("/api/study/stats", authMiddleware, async (req, res) => {
       todayHours: Number((todayMinutes / 60).toFixed(1)),
       thisWeekMinutes,
       thisWeekHours: Number((thisWeekMinutes / 60).toFixed(1)),
+      thisMonthMinutes,
+      thisMonthHours: Number((thisMonthMinutes / 60).toFixed(1)),
       totalMinutes,
       totalHours: Number((totalMinutes / 60).toFixed(1)),
+      totalFocusMinutes: totalMinutes,
+      streakDays: currentStreak,
+      activeStreakDays: currentStreak,
       recentDays,
       totalBlocksCount: userBlocks.length,
       activeBlocksCount: activeBlocks.length
@@ -2006,22 +2052,30 @@ app.get("/api/study/history", authMiddleware, async (req, res) => {
     const campaignId = req.query.campaignId;
     const userBlocks = await getStudyBlocksForUser(req.user.id, campaignId);
     const sortedBlocks = userBlocks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset, 10) : void 0;
+    const tzHeader = req.headers["x-timezone-offset"] ? parseInt(req.headers["x-timezone-offset"], 10) : void 0;
+    const tzOffset = !isNaN(tzOffsetQuery) ? tzOffsetQuery : !isNaN(tzHeader) ? tzHeader : -330;
     const now = /* @__PURE__ */ new Date();
-    const adjustedNow = new Date(now.getTime() - 2 * 36e5);
-    const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
-    const weekStart = todayStart - 6 * 864e5;
-    const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
+    const todayKey = get2AMAlignedDateKey(now, tzOffset);
+    const weekKeysSet = /* @__PURE__ */ new Set();
+    const nowLocalMs = now.getTime() - tzOffset * 60 * 1e3 - 2 * 3600 * 1e3;
+    for (let d = 0; d < 7; d++) {
+      const dDate = new Date(nowLocalMs - d * 864e5);
+      const k = `${dDate.getUTCFullYear()}-${String(dDate.getUTCMonth() + 1).padStart(2, "0")}-${String(dDate.getUTCDate()).padStart(2, "0")}`;
+      weekKeysSet.add(k);
+    }
+    const currentMonthPrefix = todayKey.substring(0, 7);
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
     let thisMonthMinutes = 0;
     let totalMinutes = 0;
     sortedBlocks.forEach((b) => {
       if (b.status === "active") {
-        const bTime = new Date(b.timestamp).getTime();
+        const bDateStr = get2AMAlignedDateKey(b.timestamp, tzOffset);
         totalMinutes += b.durationMinutes;
-        if (bTime >= todayStart) todayMinutes += b.durationMinutes;
-        if (bTime >= weekStart) thisWeekMinutes += b.durationMinutes;
-        if (bTime >= monthStart) thisMonthMinutes += b.durationMinutes;
+        if (bDateStr === todayKey) todayMinutes += b.durationMinutes;
+        if (weekKeysSet.has(bDateStr)) thisWeekMinutes += b.durationMinutes;
+        if (bDateStr.startsWith(currentMonthPrefix)) thisMonthMinutes += b.durationMinutes;
       }
     });
     res.json({

@@ -36,12 +36,30 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
   isLoading
 }) => {
   const { user } = useAuth();
-  const { stats, isStudying, activeCampaignId } = useStudy();
+  const { stats, isStudying, activeCampaignId, refreshStats } = useStudy();
   const { activeStudySessions } = useSocket();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [pendingModalCampaign, setPendingModalCampaign] = useState<Campaign | null>(null);
+
+  useEffect(() => {
+    refreshStats();
+
+    const handleDayReset = () => {
+      refreshStats();
+    };
+    const handleFocus = () => {
+      refreshStats();
+    };
+
+    window.addEventListener('study:day_reset', handleDayReset);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('study:day_reset', handleDayReset);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
 
@@ -106,7 +124,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-mono font-black text-zinc-950 dark:text-white">
-                    {stats?.streakDays || 0}d
+                    {stats?.streakDays ?? stats?.activeStreakDays ?? 0}d
                   </div>
                   <div className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Current Streak</div>
                 </div>
@@ -119,7 +137,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-mono font-black text-zinc-950 dark:text-white">
-                    {stats?.totalFocusMinutes ? (stats.totalFocusMinutes / 60).toFixed(1) : '0.0'}h
+                    {Number(stats?.totalHours || (stats?.totalFocusMinutes ? stats.totalFocusMinutes / 60 : 0) || (stats?.totalMinutes ? stats.totalMinutes / 60 : 0) || 0).toFixed(1)}h
                   </div>
                   <div className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Total Focus</div>
                 </div>

@@ -24,7 +24,8 @@ import {
   deleteMembership,
   logStudyBlock,
   getStudyBlocksForUser,
-  getCampaignLeaderboard
+  getCampaignLeaderboard,
+  get2AMAlignedDateKey
 } from './src/server/db.ts';
 import { generateToken, generateResetToken, verifyResetToken, checkPasswordStrength, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
 import { sendPasswordResetEmail } from './src/server/email.ts';
@@ -556,7 +557,11 @@ app.delete('/api/campaigns/:id/members/:memberId', authMiddleware, async (req: A
 // Campaign Leaderboard
 app.get('/api/campaigns/:id/leaderboard', async (req, res) => {
   try {
-    const leaderboard = await getCampaignLeaderboard(req.params.id);
+    const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset as string, 10) : undefined;
+    const tzHeader = req.headers['x-timezone-offset'] ? parseInt(req.headers['x-timezone-offset'] as string, 10) : undefined;
+    const tzOffset = !isNaN(tzOffsetQuery as number) ? tzOffsetQuery : (!isNaN(tzHeader as number) ? tzHeader : -330);
+
+    const leaderboard = await getCampaignLeaderboard(req.params.id, tzOffset);
     res.json(leaderboard);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to compute leaderboard' });
@@ -728,36 +733,64 @@ app.get('/api/study/stats', authMiddleware, async (req: AuthRequest, res) => {
     const userBlocks = await getStudyBlocksForUser(req.user!.id);
     const activeBlocks = userBlocks.filter(b => b.status === 'active');
 
+    const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset as string, 10) : undefined;
+    const tzHeader = req.headers['x-timezone-offset'] ? parseInt(req.headers['x-timezone-offset'] as string, 10) : undefined;
+    const tzOffset = !isNaN(tzOffsetQuery as number) ? tzOffsetQuery : (!isNaN(tzHeader as number) ? tzHeader : -330);
+
     const now = new Date();
-    // 2:00 AM Study Day Boundary
-    const adjustedNow = new Date(now.getTime() - 2 * 3600000);
-    const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
-    const weekStart = todayStart - 6 * 86400000;
+    const todayKey = get2AMAlignedDateKey(now, tzOffset);
+
+    // 7-day keys set (past 7 study days)
+    const weekKeysSet = new Set<string>();
+    const nowLocalMs = now.getTime() - tzOffset * 60 * 1000 - 2 * 3600 * 1000;
+    for (let d = 0; d < 7; d++) {
+      const dDate = new Date(nowLocalMs - d * 86400000);
+      const k = `${dDate.getUTCFullYear()}-${String(dDate.getUTCMonth() + 1).padStart(2, '0')}-${String(dDate.getUTCDate()).padStart(2, '0')}`;
+      weekKeysSet.add(k);
+    }
+
+    const currentMonthPrefix = todayKey.substring(0, 7);
 
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
+    let thisMonthMinutes = 0;
     let totalMinutes = 0;
     const dailyMinutesMap: Record<string, number> = {};
+    const activeDaysSet = new Set<string>();
 
     activeBlocks.forEach(b => {
-      const bTime = new Date(b.timestamp).getTime();
-      const adjustedBTime = new Date(bTime - 2 * 3600000);
-      const dateStr = `${adjustedBTime.getFullYear()}-${String(adjustedBTime.getMonth() + 1).padStart(2, '0')}-${String(adjustedBTime.getDate()).padStart(2, '0')}`;
+      const dateStr = get2AMAlignedDateKey(b.timestamp, tzOffset);
       dailyMinutesMap[dateStr] = (dailyMinutesMap[dateStr] || 0) + b.durationMinutes;
+      activeDaysSet.add(dateStr);
 
       totalMinutes += b.durationMinutes;
-      if (bTime >= todayStart) todayMinutes += b.durationMinutes;
-      if (bTime >= weekStart) thisWeekMinutes += b.durationMinutes;
+      if (dateStr === todayKey) todayMinutes += b.durationMinutes;
+      if (weekKeysSet.has(dateStr)) thisWeekMinutes += b.durationMinutes;
+      if (dateStr.startsWith(currentMonthPrefix)) thisMonthMinutes += b.durationMinutes;
     });
+
+    let currentStreak = 0;
+    for (let d = 0; d < 365; d++) {
+      const checkDate = new Date(nowLocalMs - d * 86400000);
+      const dateStr = `${checkDate.getUTCFullYear()}-${String(checkDate.getUTCMonth() + 1).padStart(2, '0')}-${String(checkDate.getUTCDate()).padStart(2, '0')}`;
+      if (activeDaysSet.has(dateStr)) {
+        currentStreak++;
+      } else if (d === 0 && !activeDaysSet.has(dateStr)) {
+        // If haven't studied yet today, maintain streak if yesterday was active
+        continue;
+      } else {
+        break;
+      }
+    }
 
     // Recent 7 days breakdown (2 AM boundary aligned)
     const recentDays = [];
     for (let d = 6; d >= 0; d--) {
-      const date = new Date(adjustedNow.getTime() - d * 86400000);
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const date = new Date(nowLocalMs - d * 86400000);
+      const dateStr = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
       recentDays.push({
         date: dateStr,
-        dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
+        dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getUTCDay()],
         minutes: dailyMinutesMap[dateStr] || 0,
         hours: Number(((dailyMinutesMap[dateStr] || 0) / 60).toFixed(1))
       });
@@ -768,8 +801,13 @@ app.get('/api/study/stats', authMiddleware, async (req: AuthRequest, res) => {
       todayHours: Number((todayMinutes / 60).toFixed(1)),
       thisWeekMinutes,
       thisWeekHours: Number((thisWeekMinutes / 60).toFixed(1)),
+      thisMonthMinutes,
+      thisMonthHours: Number((thisMonthMinutes / 60).toFixed(1)),
       totalMinutes,
       totalHours: Number((totalMinutes / 60).toFixed(1)),
+      totalFocusMinutes: totalMinutes,
+      streakDays: currentStreak,
+      activeStreakDays: currentStreak,
       recentDays,
       totalBlocksCount: userBlocks.length,
       activeBlocksCount: activeBlocks.length
@@ -787,11 +825,23 @@ app.get('/api/study/history', authMiddleware, async (req: AuthRequest, res) => {
     // Sort latest first
     const sortedBlocks = userBlocks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     
+    const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset as string, 10) : undefined;
+    const tzHeader = req.headers['x-timezone-offset'] ? parseInt(req.headers['x-timezone-offset'] as string, 10) : undefined;
+    const tzOffset = !isNaN(tzOffsetQuery as number) ? tzOffsetQuery : (!isNaN(tzHeader as number) ? tzHeader : -330);
+
     const now = new Date();
-    const adjustedNow = new Date(now.getTime() - 2 * 3600000);
-    const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
-    const weekStart = todayStart - 6 * 86400000;
-    const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
+    const todayKey = get2AMAlignedDateKey(now, tzOffset);
+
+    // 7-day keys set (past 7 study days)
+    const weekKeysSet = new Set<string>();
+    const nowLocalMs = now.getTime() - tzOffset * 60 * 1000 - 2 * 3600 * 1000;
+    for (let d = 0; d < 7; d++) {
+      const dDate = new Date(nowLocalMs - d * 86400000);
+      const k = `${dDate.getUTCFullYear()}-${String(dDate.getUTCMonth() + 1).padStart(2, '0')}-${String(dDate.getUTCDate()).padStart(2, '0')}`;
+      weekKeysSet.add(k);
+    }
+
+    const currentMonthPrefix = todayKey.substring(0, 7);
 
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
@@ -800,12 +850,12 @@ app.get('/api/study/history', authMiddleware, async (req: AuthRequest, res) => {
 
     sortedBlocks.forEach(b => {
       if (b.status === 'active') {
-        const bTime = new Date(b.timestamp).getTime();
+        const bDateStr = get2AMAlignedDateKey(b.timestamp, tzOffset);
         totalMinutes += b.durationMinutes;
 
-        if (bTime >= todayStart) todayMinutes += b.durationMinutes;
-        if (bTime >= weekStart) thisWeekMinutes += b.durationMinutes;
-        if (bTime >= monthStart) thisMonthMinutes += b.durationMinutes;
+        if (bDateStr === todayKey) todayMinutes += b.durationMinutes;
+        if (weekKeysSet.has(bDateStr)) thisWeekMinutes += b.durationMinutes;
+        if (bDateStr.startsWith(currentMonthPrefix)) thisMonthMinutes += b.durationMinutes;
       }
     });
 

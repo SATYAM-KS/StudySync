@@ -784,8 +784,30 @@ export async function getStudyBlocksForUser(userId: string, campaignId?: string)
   return setToCache(cacheKey, mapped, 5000);
 }
 
-export async function getCampaignLeaderboard(campaignId: string): Promise<LeaderboardEntry[]> {
-  const cacheKey = `leaderboard_${campaignId}`;
+// ==========================================
+// 2:00 AM Study Day Boundary Helper
+// ==========================================
+export function get2AMAlignedDateKey(timestamp: Date | string | number = new Date(), tzOffsetMinutes?: number): string {
+  const d = new Date(timestamp);
+  // Default to -330 (IST, UTC+5:30) if not provided or valid
+  const offset = typeof tzOffsetMinutes === 'number' && !isNaN(tzOffsetMinutes) ? tzOffsetMinutes : -330;
+  // Convert UTC time to User's Local Time
+  const localTimeMs = d.getTime() - offset * 60 * 1000;
+  // Shift back by 2 hours so [00:00 to 01:59:59] belongs to previous date
+  const adjustedLocalMs = localTimeMs - 2 * 3600 * 1000;
+  const adjustedDate = new Date(adjustedLocalMs);
+  
+  const year = adjustedDate.getUTCFullYear();
+  const month = String(adjustedDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(adjustedDate.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export async function getCampaignLeaderboard(campaignId: string, tzOffset?: number): Promise<LeaderboardEntry[]> {
+  const tz = typeof tzOffset === 'number' && !isNaN(tzOffset) ? tzOffset : -330;
+  const now = new Date();
+  const todayKey = get2AMAlignedDateKey(now, tz);
+  const cacheKey = `leaderboard_${campaignId}_${todayKey}_${tz}`;
   const cached = getFromCache<LeaderboardEntry[]>(cacheKey);
   if (cached) return cached;
 
@@ -827,12 +849,17 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
     }));
   }
 
-  const now = new Date();
-  // 2:00 AM Study Day Boundary: Subtract 2 hours so [00:00 to 01:59 AM] belongs to the previous study day
-  const adjustedNow = new Date(now.getTime() - 2 * 3600000);
-  const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
-  const weekStart = todayStart - 6 * 86400000;
-  const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
+  // 7-day keys set (past 7 study days)
+  const weekKeysSet = new Set<string>();
+  const nowLocalMs = now.getTime() - tz * 60 * 1000 - 2 * 3600 * 1000;
+  for (let d = 0; d < 7; d++) {
+    const dDate = new Date(nowLocalMs - d * 86400000);
+    const k = `${dDate.getUTCFullYear()}-${String(dDate.getUTCMonth() + 1).padStart(2, '0')}-${String(dDate.getUTCDate()).padStart(2, '0')}`;
+    weekKeysSet.add(k);
+  }
+
+  // Month prefix: YYYY-MM based on todayKey
+  const currentMonthPrefix = todayKey.substring(0, 7);
 
   const entries: LeaderboardEntry[] = approvedMembers.map(member => {
     const userBlocks = campaignBlocks.filter(b => b.userId === member.userId);
@@ -847,20 +874,18 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
     const activeDaysSet = new Set<string>();
 
     userBlocks.forEach(b => {
-      const bTime = new Date(b.timestamp).getTime();
-      const bDate = new Date(bTime - 2 * 3600000);
-      const bDateStr = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, '0')}-${String(bDate.getDate()).padStart(2, '0')}`;
+      const bDateStr = get2AMAlignedDateKey(b.timestamp, tz);
       activeDaysSet.add(bDateStr);
 
       totalMinutes += b.durationMinutes;
 
-      if (bTime >= todayStart) {
+      if (bDateStr === todayKey) {
         todayMinutes += b.durationMinutes;
       }
-      if (bTime >= weekStart) {
+      if (weekKeysSet.has(bDateStr)) {
         thisWeekMinutes += b.durationMinutes;
       }
-      if (bTime >= monthStart) {
+      if (bDateStr.startsWith(currentMonthPrefix)) {
         thisMonthMinutes += b.durationMinutes;
       }
 
@@ -871,11 +896,12 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
 
     let currentStreak = 0;
     for (let d = 0; d < 365; d++) {
-      const checkDate = new Date(adjustedNow.getTime() - d * 86400000);
-      const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+      const checkDate = new Date(nowLocalMs - d * 86400000);
+      const dateStr = `${checkDate.getUTCFullYear()}-${String(checkDate.getUTCMonth() + 1).padStart(2, '0')}-${String(checkDate.getUTCDate()).padStart(2, '0')}`;
       if (activeDaysSet.has(dateStr)) {
         currentStreak++;
       } else if (d === 0 && !activeDaysSet.has(dateStr)) {
+        // If haven't studied yet today, check if yesterday was active to preserve streak
         continue;
       } else {
         break;

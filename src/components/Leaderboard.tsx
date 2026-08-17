@@ -46,10 +46,22 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   const { todayTargetHours: userDailyTarget } = useStudy();
   const cacheKey = `study_leaderboard_cache_${campaignId}`;
 
+  const getTodayDateKey = () => {
+    const adjusted = new Date(Date.now() - 2 * 3600 * 1000);
+    return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
+  };
+
   const [entries, setEntries] = useState<LeaderboardEntry[]>(() => {
     try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) return JSON.parse(cached);
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.dateKey === getTodayDateKey() && Array.isArray(parsed.data)) {
+          return parsed.data;
+        } else if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
     } catch {}
     return [];
   });
@@ -64,12 +76,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
 
   const fetchLeaderboard = async () => {
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/leaderboard`);
+      const tzOffset = new Date().getTimezoneOffset();
+      const res = await fetch(`/api/campaigns/${campaignId}/leaderboard?tzOffset=${tzOffset}`, {
+        headers: { 'x-timezone-offset': String(tzOffset) }
+      });
       if (res.ok) {
         const data = await res.json();
         setEntries(data);
         try {
-          localStorage.setItem(cacheKey, JSON.stringify(data));
+          localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
         } catch {}
       }
     } catch (e) {
@@ -82,7 +97,16 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   useEffect(() => {
     fetchLeaderboard();
 
-    if (!socket) return;
+    const handleDayReset = () => {
+      fetchLeaderboard();
+    };
+    window.addEventListener('study:day_reset', handleDayReset);
+
+    if (!socket) {
+      return () => {
+        window.removeEventListener('study:day_reset', handleDayReset);
+      };
+    }
     const handleBlockLogged = (data?: any) => {
       const block = data?.block;
       if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
@@ -122,6 +146,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     socket.on('campaign:member_left', handleMemberUpdate);
 
     return () => {
+      window.removeEventListener('study:day_reset', handleDayReset);
       socket.off('study:block_logged', handleBlockLogged);
       socket.off('campaign:member_joined', handleMemberUpdate);
       socket.off('campaign:membership_updated', handleMemberUpdate);

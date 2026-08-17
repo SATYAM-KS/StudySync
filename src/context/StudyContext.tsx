@@ -24,13 +24,18 @@ export interface LastAIAnalysis {
   timestamp: string;
 }
 
-interface StudyStats {
+export interface StudyStats {
   todayMinutes: number;
   todayHours: number;
   thisWeekMinutes: number;
   thisWeekHours: number;
+  thisMonthMinutes?: number;
+  thisMonthHours?: number;
   totalMinutes: number;
   totalHours: number;
+  totalFocusMinutes: number;
+  streakDays: number;
+  activeStreakDays: number;
   recentDays: Array<{ date: string; dayName: string; minutes: number; hours: number }>;
   totalBlocksCount: number;
   activeBlocksCount: number;
@@ -168,10 +173,21 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     return !getSavedRoutine(todayKey);
   });
 
-  // Verify and trigger 2:00 AM check-in
+  const lastKnownTodayKeyRef = useRef<string>(getTodayKey());
+
+  // Verify and trigger 2:00 AM check-in & automated day reset
   const checkDailyRoutineStatus = () => {
     if (!user) return;
     const todayKey = getTodayKey();
+    
+    // Detect 2:00 AM boundary flip
+    if (todayKey !== lastKnownTodayKeyRef.current) {
+      console.log(`[StudyDayReset] 2:00 AM study cycle transition: ${lastKnownTodayKeyRef.current} -> ${todayKey}`);
+      lastKnownTodayKeyRef.current = todayKey;
+      refreshStats();
+      window.dispatchEvent(new CustomEvent('study:day_reset', { detail: { todayKey } }));
+    }
+
     const saved = getSavedRoutine(todayKey);
     if (saved) {
       setCollegeRoutine(saved);
@@ -257,8 +273,12 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const currentToken = tokenRef.current || token || localStorage.getItem('study_token');
     if (!currentToken) return;
     try {
-      const res = await fetch('/api/study/stats', {
-        headers: { Authorization: `Bearer ${currentToken}` }
+      const tzOffset = new Date().getTimezoneOffset();
+      const res = await fetch(`/api/study/stats?tzOffset=${tzOffset}`, {
+        headers: { 
+          Authorization: `Bearer ${currentToken}`,
+          'x-timezone-offset': String(tzOffset)
+        }
       });
       if (res.ok) {
         const data = await res.json();

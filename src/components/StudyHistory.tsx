@@ -118,17 +118,26 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     setExpandedSessionIds(new Set());
   };
 
+  const getTodayDateKey = () => {
+    const adjusted = new Date(Date.now() - 2 * 3600 * 1000);
+    return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
+  };
+
   const fetchHistory = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/study/history?campaignId=${campaignId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const tzOffset = new Date().getTimezoneOffset();
+      const res = await fetch(`/api/study/history?campaignId=${campaignId}&tzOffset=${tzOffset}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'x-timezone-offset': String(tzOffset)
+        }
       });
       if (res.ok) {
         const data = await res.json();
         setHistoryData(data);
         try {
-          localStorage.setItem(cacheKey, JSON.stringify(data));
+          localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
         } catch {}
       }
     } catch (e) {
@@ -162,7 +171,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       };
 
       try {
-        localStorage.setItem(cacheKey, JSON.stringify(updatedData));
+        localStorage.setItem(cacheKey, JSON.stringify({ data: updatedData, dateKey: getTodayDateKey() }));
       } catch {}
 
       return updatedData;
@@ -175,8 +184,17 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
   useEffect(() => {
     fetchHistory();
+
+    const handleDayReset = () => {
+      fetchHistory();
+    };
+    window.addEventListener('study:day_reset', handleDayReset);
+
     const interval = setInterval(fetchHistory, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('study:day_reset', handleDayReset);
+    };
   }, [campaignId, token]);
 
   // Real-time local events
@@ -257,23 +275,36 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     }
   };
 
+  // Helper for 2 AM aligned date key (YYYY-MM-DD)
+  const get2AMDateKey = (timestamp: string | number | Date = new Date()) => {
+    const d = new Date(timestamp);
+    const adjusted = new Date(d.getTime() - 2 * 3600000);
+    return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
+  };
+
   // Filter blocks by selected timeframe (aligned to 2:00 AM boundary)
   const filteredBlocks = useMemo(() => {
-    return historyData.blocks.filter(block => {
-      const now = new Date();
-      const adjustedNow = new Date(now.getTime() - 2 * 3600000);
-      const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
-      const weekStart = todayStart - 6 * 86400000;
-      const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
+    const todayKey = get2AMDateKey();
+    const currentMonthPrefix = todayKey.substring(0, 7);
 
-      const blockTime = new Date(block.timestamp).getTime();
+    // Week keys (past 7 days including today)
+    const weekKeys = new Set<string>();
+    const nowAdjusted = new Date(Date.now() - 2 * 3600000);
+    for (let d = 0; d < 7; d++) {
+      const pastD = new Date(nowAdjusted.getTime() - d * 86400000);
+      const k = `${pastD.getFullYear()}-${String(pastD.getMonth() + 1).padStart(2, '0')}-${String(pastD.getDate()).padStart(2, '0')}`;
+      weekKeys.add(k);
+    }
+
+    return historyData.blocks.filter(block => {
+      const blockKey = get2AMDateKey(block.timestamp);
       if (timeframe === 'today') {
-        return blockTime >= todayStart;
+        return blockKey === todayKey;
       }
       if (timeframe === 'week') {
-        return blockTime >= weekStart;
+        return weekKeys.has(blockKey);
       }
-      return blockTime >= monthStart;
+      return blockKey.startsWith(currentMonthPrefix);
     });
   }, [historyData.blocks, timeframe]);
 
@@ -483,9 +514,9 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
   }, [filteredBlocks]);
 
   const getMinutesForTimeframe = (tf: Timeframe) => {
-    if (tf === 'today') return historyData.todayMinutes;
-    if (tf === 'week') return historyData.thisWeekMinutes;
-    return historyData.thisMonthMinutes;
+    return filteredBlocks
+      .filter(b => b.status === 'active')
+      .reduce((sum, b) => sum + (b.durationMinutes || 5), 0);
   };
 
   const currentMinutes = getMinutesForTimeframe(timeframe);
