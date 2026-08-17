@@ -203,7 +203,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
       <div className="w-72 shrink-0 flex flex-col border-r border-zinc-200/80 dark:border-white/[0.08] glass-panel overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
         
         {/* Top sidebar action bar: All Cohorts & Admin */}
-        <div className="p-3.5 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0 glass-nav">
+        <div className="h-14 px-3.5 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0 glass-nav">
           <button
             onClick={onBack}
             className="flex items-center space-x-1.5 text-xs font-bold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 px-3 py-1.5 rounded-xl transition cursor-pointer active:scale-95 border border-zinc-200/80 dark:border-white/[0.08]"
@@ -323,7 +323,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Sub-nav Header: Centered Cohort Tabs */}
-        <div className="shrink-0 flex items-center justify-center px-4 sm:px-6 py-2.5 border-b border-zinc-200/80 dark:border-white/[0.08] glass-nav">
+        <div className="h-14 px-4 sm:px-6 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-center shrink-0 glass-nav">
           <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] shadow-xs">
             {([ 
               { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: activeInThisCamp.length > 0 ? '●' : null },
