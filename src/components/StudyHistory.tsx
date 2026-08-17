@@ -592,15 +592,16 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       </div>
 
       {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart (Inspired by Greenfield / Energy Robotics) ═══ */}
+      {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart (Ultra-Luxury Redesign) ═══ */}
       <div className="posh-card rounded-3xl p-6 sm:p-7 shadow-sm space-y-6">
         
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2">
               <h4 className="font-extrabold text-base text-zinc-950 dark:text-white">
                 7-Day Study Distribution
               </h4>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 2 AM Reset Aligned
               </span>
             </div>
@@ -610,71 +611,122 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium">
+          <div className="flex items-center gap-4 text-xs text-zinc-400 font-medium">
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-zinc-950 dark:bg-white" />
-              <span>Today</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-white dark:bg-white shadow-xs" />
+              <span className="text-zinc-700 dark:text-zinc-300 font-semibold">Today</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+              <span className="w-2.5 h-2.5 rounded-full bg-zinc-400 dark:bg-zinc-600" />
               <span>Previous Days</span>
+            </span>
+            <span className="hidden sm:flex items-center gap-1.5 text-zinc-500">
+              <span className="w-3 h-0.5 border-t border-dashed border-emerald-500/60" />
+              <span>{todayTargetHours}h Target</span>
             </span>
           </div>
         </div>
 
-        {/* 7 Vertical Bar Pillars */}
-        <div className="grid grid-cols-7 gap-2 sm:gap-4 pt-4 pb-2 items-end h-48 sm:h-56">
-          {sevenDayBreakdown.days.map((day, idx) => {
-            const heightPct = Math.max(8, Math.min(100, Math.round((day.hours / sevenDayBreakdown.maxHours) * 100)));
-            const isHovered = activeHoverDayIdx === idx;
-
+        {/* Chart Canvas with Subtle Dashed Target Guideline */}
+        <div className="relative pt-4 pb-2">
+          
+          {/* Target Guideline Line */}
+          {(() => {
+            const chartMax = Math.max(todayTargetHours || 4, ...sevenDayBreakdown.days.map(d => d.hours), 4);
+            const targetPct = Math.min(92, Math.max(10, Math.round(((todayTargetHours || 4) / chartMax) * 100)));
             return (
               <div 
-                key={day.dayKey}
-                onMouseEnter={() => setActiveHoverDayIdx(idx)}
-                onMouseLeave={() => setActiveHoverDayIdx(null)}
-                className="flex flex-col items-center h-full justify-end group cursor-pointer relative"
+                className="absolute left-0 right-0 z-0 flex items-center pointer-events-none transition-all duration-300"
+                style={{ bottom: `calc(52px + ${targetPct * 1.5}px)` }}
               >
-                {/* Floating Tooltip Capsule on Hover */}
-                {isHovered && (
-                  <div className="absolute -top-12 z-20 bg-zinc-950 text-white dark:bg-white dark:text-black px-2.5 py-1 rounded-xl text-[11px] font-mono font-bold whitespace-nowrap shadow-xl animate-in fade-in zoom-in-95 duration-150 pointer-events-none">
-                    {day.fullDateStr}: {day.hours}h ({day.passCount} passes)
-                  </div>
-                )}
-
-                {/* Number hours label */}
-                <span className={`text-[10px] sm:text-xs font-mono font-bold mb-1.5 transition ${
-                  day.isToday ? 'text-zinc-950 dark:text-white' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200'
-                }`}>
-                  {day.hours > 0 ? `${day.hours}h` : '0h'}
+                <div className="w-full border-t border-dashed border-zinc-300/80 dark:border-white/15" />
+                <span className="shrink-0 text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 px-2 py-0.5 ml-2 rounded bg-zinc-100 dark:bg-zinc-800/80">
+                  {todayTargetHours}h Goal
                 </span>
-
-                {/* Pillar Track & Bar */}
-                <div className="w-full max-w-[36px] bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl h-full flex items-end p-1 overflow-hidden transition group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800">
-                  <div 
-                    className={`w-full rounded-xl transition-all duration-500 ${
-                      day.isToday
-                        ? 'bg-zinc-950 dark:bg-white shadow-md'
-                        : 'bg-zinc-300 dark:bg-zinc-700 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-600'
-                    }`}
-                    style={{ height: `${heightPct}%` }}
-                  />
-                </div>
-
-                {/* Day name label (M, T, W, TH, F, SA, S) */}
-                <div className="mt-2.5 text-center">
-                  <span className={`text-xs sm:text-sm font-bold block ${
-                    day.isToday ? 'text-zinc-950 dark:text-white' : 'text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
-                  }`}>
-                    {day.dayShort}
-                  </span>
-                  <span className="text-[9px] text-zinc-400 font-mono hidden sm:block">
-                    {day.fullDateStr.split(' ')[1]}
-                  </span>
-                </div>
               </div>
             );
-          })}
+          })()}
+
+          {/* 7 Vertical Bar Pillars Grid */}
+          <div className="grid grid-cols-7 gap-2 sm:gap-6 items-end h-52 sm:h-60 relative z-10">
+            {sevenDayBreakdown.days.map((day, idx) => {
+              const chartMax = Math.max(todayTargetHours || 4, ...sevenDayBreakdown.days.map(d => d.hours), 4);
+              const heightPct = day.hours > 0 ? Math.min(100, Math.max(12, Math.round((day.hours / chartMax) * 100))) : 0;
+              const isHovered = activeHoverDayIdx === idx;
+
+              return (
+                <div 
+                  key={day.dayKey}
+                  onMouseEnter={() => setActiveHoverDayIdx(idx)}
+                  onMouseLeave={() => setActiveHoverDayIdx(null)}
+                  className="flex flex-col items-center h-full justify-end group cursor-pointer relative"
+                >
+                  {/* Floating Tooltip Capsule on Hover */}
+                  {isHovered && (
+                    <div className="absolute -top-14 z-30 bg-zinc-950 text-white dark:bg-white dark:text-black px-3 py-1.5 rounded-xl text-xs font-mono font-bold whitespace-nowrap shadow-2xl animate-in fade-in zoom-in-95 duration-150 pointer-events-none border border-white/10 dark:border-black/10 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      <span>{day.fullDateStr}: {day.hours}h ({day.passCount} passes)</span>
+                    </div>
+                  )}
+
+                  {/* Hours Label on Top of Pillar */}
+                  <span className={`text-[11px] sm:text-xs font-mono font-bold mb-2 transition-all duration-200 ${
+                    day.isToday 
+                      ? 'text-zinc-950 dark:text-white scale-105' 
+                      : day.hours > 0 
+                      ? 'text-zinc-500 group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-white' 
+                      : 'text-zinc-400/60 dark:text-zinc-600'
+                  }`}>
+                    {day.hours > 0 ? `${day.hours}h` : '0h'}
+                  </span>
+
+                  {/* Pillar Column Track & Filled Bar */}
+                  <div className="w-full max-w-[28px] sm:max-w-[42px] h-36 sm:h-44 flex items-end justify-center relative rounded-2xl bg-zinc-100/50 dark:bg-white/[0.02] p-1 group-hover:bg-zinc-200/50 dark:group-hover:bg-white/[0.05] transition-colors border border-transparent group-hover:border-zinc-200 dark:group-hover:border-white/10">
+                    
+                    {day.hours > 0 ? (
+                      /* Filled Bar with Smooth Vertical Gradient & Top Crest */
+                      <div 
+                        className={`w-full rounded-t-2xl rounded-b-lg transition-all duration-500 relative flex flex-col justify-between overflow-hidden shadow-sm ${
+                          day.isToday
+                            ? 'bg-gradient-to-t from-zinc-300 via-zinc-100 to-white dark:from-zinc-700 dark:via-zinc-300 dark:to-white shadow-[0_-2px_16px_rgba(255,255,255,0.4)]'
+                            : 'bg-gradient-to-t from-zinc-300/60 via-zinc-400/80 to-zinc-500 dark:from-zinc-800/80 dark:via-zinc-600/90 dark:to-zinc-400 group-hover:brightness-110'
+                        }`}
+                        style={{ height: `${heightPct}%` }}
+                      >
+                        {/* Glossy Top Edge Highlight Line */}
+                        <div className="w-full h-1 bg-white/80 dark:bg-white shrink-0 rounded-t-2xl" />
+                        {/* Subtle Inner Gradient Flare */}
+                        <div className="w-full flex-1 bg-gradient-to-b from-white/20 to-transparent" />
+                      </div>
+                    ) : (
+                      /* Minimalist Elegant Baseline Dot for 0h */
+                      <div className="w-4 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700/80 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-500 transition-colors" />
+                    )}
+
+                  </div>
+
+                  {/* Day Footer Label (M, T, W, TH, F, SA, S + Date Number) */}
+                  <div className="mt-3 text-center flex flex-col items-center gap-0.5">
+                    <span className={`text-xs sm:text-sm font-black transition ${
+                      day.isToday ? 'text-zinc-950 dark:text-white' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200'
+                    }`}>
+                      {day.dayShort}
+                    </span>
+                    
+                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md transition ${
+                      day.isToday 
+                        ? 'bg-zinc-950 text-white dark:bg-white dark:text-black font-bold shadow-xs' 
+                        : 'text-zinc-400 dark:text-zinc-500'
+                    }`}>
+                      {day.fullDateStr.split(' ')[1]}
+                    </span>
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
+
         </div>
 
       </div>
