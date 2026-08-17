@@ -1771,19 +1771,21 @@ app.post("/api/campaigns", authMiddleware, async (req, res) => {
       bannerColor,
       tags
     } = req.body;
-    if (!name || !startDate || !endDate) {
-      res.status(400).json({ error: "Name, start date, and end date are required" });
+    if (!name || !name.trim()) {
+      res.status(400).json({ error: "Cohort name is required" });
       return;
     }
+    const effectiveStartDate = startDate && String(startDate).trim() || (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const effectiveEndDate = endDate && String(endDate).trim() || new Date(Date.now() + 365 * 864e5).toISOString().split("T")[0];
     const newCampaign = {
       id: `cmp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      name,
+      name: name.trim(),
       description: description || "",
       category: category || "General Studies",
       adminId: req.user.id,
       adminName: req.user.name,
-      startDate,
-      endDate,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
       dailyStartTime: dailyStartTime || "06:00",
       dailyEndTime: dailyEndTime || "22:00",
       targetDailyHours: Number(targetDailyHours) || 4,

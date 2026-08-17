@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { Campaign } from '../types/index.ts';
-import { X, Plus, Users, Bookmark, RotateCcw, Sparkles } from 'lucide-react';
+import { X, Plus, Users, Bookmark, RotateCcw, Sparkles, Calendar } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect.tsx';
 import { NumberStepper } from './ui/NumberStepper.tsx';
 
@@ -25,6 +25,9 @@ const CATEGORIES = [
 
 const DRAFT_KEY = 'study_campaign_draft_v3';
 
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
+const getDefaultEndDateString = () => new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0];
+
 export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen, onClose, onCampaignCreated }) => {
   const { token } = useAuth();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -32,6 +35,8 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
+  const [startDate, setStartDate] = useState(getTodayDateString);
+  const [endDate, setEndDate] = useState(getDefaultEndDateString);
   const [maxMembers, setMaxMembers] = useState(25);
   const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,6 +52,8 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           if (draft.name) setName(draft.name);
           if (draft.description) setDescription(draft.description);
           if (draft.category) setCategory(draft.category);
+          if (draft.startDate) setStartDate(draft.startDate);
+          if (draft.endDate) setEndDate(draft.endDate);
           if (draft.maxMembers) setMaxMembers(draft.maxMembers);
           if (draft.isPublic !== undefined) setIsPublic(draft.isPublic);
           setHasDraft(true);
@@ -63,6 +70,8 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
         name,
         description,
         category,
+        startDate,
+        endDate,
         maxMembers,
         isPublic,
         savedAt: new Date().toISOString()
@@ -86,6 +95,8 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
     setName('');
     setDescription('');
     setCategory(CATEGORIES[0]);
+    setStartDate(getTodayDateString());
+    setEndDate(getDefaultEndDateString());
     setMaxMembers(25);
     setHasDraft(false);
   };
@@ -110,6 +121,8 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           name: name.trim(),
           description: description.trim(),
           category,
+          startDate: startDate || getTodayDateString(),
+          endDate: endDate || getDefaultEndDateString(),
           targetDailyHours: 4,
           maxMembers: Number(maxMembers),
           isPublic,
@@ -219,6 +232,38 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
               required
               className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white"
             />
+          </div>
+
+          {/* Start Date & End Date */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                <span>Start Date *</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                <span>End Date *</span>
+              </label>
+              <input
+                type="date"
+                required
+                min={startDate}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white cursor-pointer"
+              />
+            </div>
           </div>
 
           {/* Category & Capacity */}
