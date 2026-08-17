@@ -37,13 +37,13 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Header */}
-        <div className="relative z-10 flex flex-col items-center text-center space-y-2 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shadow-inner mb-1">
-            <BrandLogo size="xs" className="w-7 h-7 text-white" />
+        <div className="relative z-10 flex flex-col items-center text-center space-y-2 mb-5">
+          <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center shadow-inner mb-0.5">
+            <BrandLogo size="xs" className="w-6 h-6 text-white" />
           </div>
           <div>
             <div className="flex items-center justify-center gap-2">
-              <h2 className="text-lg font-bold text-white tracking-tight">
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
                 Daily Focus Check-in
               </h2>
               <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
@@ -51,23 +51,13 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              {todayFormatted} · Calibrate your daily study target (Resets 2:00 AM)
+              {todayFormatted} · Select today's target
             </p>
           </div>
         </div>
 
-        {/* Question Title */}
-        <div className="relative z-10 mb-4 text-center">
-          <h3 className="text-sm sm:text-base font-extrabold text-white">
-            Did you attend college / classes today?
-          </h3>
-          <p className="text-xs text-zinc-400 mt-1">
-            Study anytime in the day & late night. Sessions before 2:00 AM count toward today.
-          </p>
-        </div>
-
         {/* Options Grid */}
-        <div className="relative z-10 space-y-3 mb-6">
+        <div className="relative z-10 space-y-3 mb-5">
           {/* Option 1: College Day (4h Target) */}
           <button
             type="button"
