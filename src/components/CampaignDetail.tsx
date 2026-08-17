@@ -278,19 +278,15 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
 
             {/* Stats */}
             <div className="space-y-3">
-              {/* Today's Dynamic Target Card */}
-              <div 
-                onClick={() => setShowRoutineModal(true)}
-                className="p-4 rounded-2xl posh-card border hover:border-zinc-300 dark:hover:border-white/20 transition cursor-pointer group shadow-sm"
-                title="Click to calibrate today's study target"
-              >
+              {/* Today's Target Card (Locked for the day) */}
+              <div className="p-4 rounded-2xl posh-card border shadow-sm">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-extrabold flex items-center gap-1.5">
                     <Target className="w-3.5 h-3.5 text-emerald-500" />
                     Today's Target
                   </span>
-                  <span className="text-[10px] text-zinc-400 group-hover:text-zinc-950 dark:group-hover:text-white transition font-bold underline underline-offset-2">
-                    Change
+                  <span className="text-[10px] text-zinc-400 font-mono font-medium">
+                    Locked till 2 AM
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
