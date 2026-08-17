@@ -229,7 +229,7 @@ export async function getUsers(): Promise<User[]> {
   if (cached) return cached;
 
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('id, name, email, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at');
+    const { data, error } = await supabase.from('users').select('id, name, email, avatar_url, bio, study_goal, created_at');
     if (!error && data) {
       const mapped = data.map(r => {
         const u = mapUserFromDb(r);
@@ -250,7 +250,7 @@ export async function getUserById(id: string): Promise<(User & { passwordHash: s
   if (cached) return cached;
 
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at').eq('id', id).single();
+    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, avatar_url, bio, study_goal, created_at').eq('id', id).single();
     if (!error && data) {
       const mapped = mapUserFromDb(data);
       return setToCache(cacheKey, mapped, 5000);
@@ -269,7 +269,7 @@ export async function getUserByEmail(email: string): Promise<(User & { passwordH
   if (cached) return cached;
 
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at').ilike('email', cleanEmail).single();
+    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, avatar_url, bio, study_goal, created_at').ilike('email', cleanEmail).single();
     if (!error && data) {
       const mapped = mapUserFromDb(data);
       return setToCache(cacheKey, mapped, 5000);
@@ -797,17 +797,20 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
       supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
       supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId).eq('status', 'approved'),
       supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(500),
-      supabase.from('users').select('id, leetcode_url, hackerrank_url').limit(200)
+      supabase.from('users').select('id, bio').limit(200)
     ]);
     if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
     if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
     if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
     if (usersRes.data) {
-      allUsers = usersRes.data.map(u => ({
-        id: u.id,
-        leetcodeUrl: u.leetcode_url || '',
-        hackerrankUrl: u.hackerrank_url || ''
-      }));
+      allUsers = usersRes.data.map(u => {
+        const extracted = extractCodingLinks(u.bio || '');
+        return {
+          id: u.id,
+          leetcodeUrl: extracted.leetcodeUrl,
+          hackerrankUrl: extracted.hackerrankUrl
+        };
+      });
     }
   } else {
     const db = await initDb();
