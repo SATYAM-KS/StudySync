@@ -27,6 +27,7 @@ interface StudyHistoryProps {
   campaignId: string;
   campaignName: string;
   targetDailyHours: number;
+  campaignCreatedAt?: string;
 }
 
 type Timeframe = 'today' | 'week' | 'month';
@@ -61,7 +62,8 @@ export interface FocusSittingSession {
 export const StudyHistory: React.FC<StudyHistoryProps> = ({
   campaignId,
   campaignName,
-  targetDailyHours
+  targetDailyHours,
+  campaignCreatedAt
 }) => {
   const { token, user } = useAuth();
   const { socket } = useSocket();
@@ -368,10 +370,22 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     return sessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [filteredBlocks, campaignName]);
 
-  // Compute 7-Day Activity Breakdown (Last 7 days, ending today, 2 AM boundary aligned)
+  // Compute Activity Breakdown: starting from campaign creation date (up to last 7 days, 2 AM boundary aligned)
   const sevenDayBreakdown = useMemo(() => {
     const now = new Date();
     const adjustedNow = new Date(now.getTime() - 2 * 3600000);
+    const todayMidnight = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate()).getTime();
+
+    let daysCount = 7;
+    if (campaignCreatedAt) {
+      const createdDate = new Date(campaignCreatedAt);
+      const adjustedCreated = new Date(createdDate.getTime() - 2 * 3600000);
+      const createdMidnight = new Date(adjustedCreated.getFullYear(), adjustedCreated.getMonth(), adjustedCreated.getDate()).getTime();
+      const diffDays = Math.floor((todayMidnight - createdMidnight) / 86400000) + 1;
+      if (diffDays >= 1 && diffDays < 7) {
+        daysCount = diffDays;
+      }
+    }
 
     const days: Array<{
       dayKey: string;
@@ -382,9 +396,11 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       isToday: boolean;
       passCount: number;
       failCount: number;
+      targetHours: number;
+      routineLabel: string;
     }> = [];
 
-    for (let d = 6; d >= 0; d--) {
+    for (let d = daysCount - 1; d >= 0; d--) {
       const targetDate = new Date(adjustedNow.getTime() - d * 86400000);
       const year = targetDate.getFullYear();
       const month = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -393,6 +409,34 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
       const dayNames = ['S', 'M', 'T', 'W', 'TH', 'F', 'SA'];
       const dayShort = dayNames[targetDate.getDay()];
+
+      // Per-day target and routine resolution:
+      // If user registered 'college' for this day -> 4h. If 'no_college' -> 7h.
+      let dayTargetHours = 7;
+      let routineLabel = 'No College (7h)';
+
+      const savedRoutine = localStorage.getItem(`study_college_routine_${dateKey}`);
+      if (savedRoutine === 'college') {
+        dayTargetHours = 4;
+        routineLabel = 'College Day (4h)';
+      } else if (savedRoutine === 'no_college') {
+        dayTargetHours = 7;
+        routineLabel = 'No College (7h)';
+      } else if (d === 0) {
+        // Today
+        dayTargetHours = collegeRoutine === 'college' ? 4 : 7;
+        routineLabel = collegeRoutine === 'college' ? 'College Day (4h)' : 'No College (7h)';
+      } else {
+        // Past unrecorded day
+        const dayOfWeek = targetDate.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          dayTargetHours = 7;
+          routineLabel = 'Weekend (7h)';
+        } else {
+          dayTargetHours = 4;
+          routineLabel = 'College Day (4h)';
+        }
+      }
 
       let minutes = 0;
       let passCount = 0;
@@ -421,13 +465,14 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         hours: Number((minutes / 60).toFixed(1)),
         isToday: d === 0,
         passCount,
-        failCount
+        failCount,
+        targetHours: dayTargetHours,
+        routineLabel
       });
     }
 
-    const maxHours = Math.max(5, ...days.map(d => d.hours));
-    return { days, maxHours };
-  }, [historyData.blocks]);
+    return { days, daysCount };
+  }, [historyData.blocks, campaignCreatedAt, collegeRoutine, todayTargetHours]);
 
   // Overall pass rate calculation
   const overallStats = useMemo(() => {
@@ -591,22 +636,21 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         </div>
       </div>
 
-      {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart (Inspired by Greenfield / Energy Robotics) ═══ */}
-      {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart ═══ */}
+      {/* ═══ 3. Interactive Study Distribution Bar Chart (Calibrated Per-Day: 4h College / 7h Non-College) ═══ */}
       <div className="posh-card rounded-3xl p-6 sm:p-7 shadow-sm space-y-6">
         
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2">
               <h4 className="font-extrabold text-base text-zinc-950 dark:text-white">
-                7-Day Study Distribution
+                {sevenDayBreakdown.daysCount === 7 ? '7-Day' : `${sevenDayBreakdown.daysCount}-Day`} Study Distribution
               </h4>
               <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 2 AM Reset Aligned
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Daily verified hours logged over the last 7 study cycles (Top of chart = {todayTargetHours}h Target)
+              Daily verified hours vs calibrated day target (4h College / 7h No College)
             </p>
           </div>
 
@@ -626,11 +670,16 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         {/* Chart Canvas */}
         <div className="relative pt-2 pb-2">
           
-          {/* 7 Vertical Bar Pillars Grid */}
-          <div className="grid grid-cols-7 gap-2 sm:gap-6 items-end h-52 sm:h-60 relative z-10">
+          {/* Vertical Bar Pillars Grid */}
+          <div 
+            className="grid gap-2 sm:gap-6 items-end h-52 sm:h-60 relative z-10"
+            style={{
+              gridTemplateColumns: `repeat(${sevenDayBreakdown.days.length}, minmax(0, 1fr))`
+            }}
+          >
             {sevenDayBreakdown.days.map((day, idx) => {
-              const chartTargetMax = Math.max(todayTargetHours || 4, ...sevenDayBreakdown.days.map(d => d.hours));
-              const heightPct = day.hours > 0 ? Math.min(100, Math.max(10, Math.round((day.hours / chartTargetMax) * 100))) : 0;
+              // Bar height is strictly relative to THAT day's target (4h or 7h)
+              const heightPct = day.hours > 0 ? Math.min(100, Math.max(10, Math.round((day.hours / day.targetHours) * 100))) : 0;
               const isHovered = activeHoverDayIdx === idx;
 
               return (
@@ -644,7 +693,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                   {isHovered && (
                     <div className="absolute -top-14 z-30 bg-zinc-950 text-white dark:bg-zinc-900 dark:text-white px-3 py-1.5 rounded-xl text-xs font-mono font-bold whitespace-nowrap shadow-2xl animate-in fade-in zoom-in-95 duration-150 pointer-events-none border border-emerald-500/30 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]"></span>
-                      <span>{day.fullDateStr}: {day.hours}h ({day.passCount} passes)</span>
+                      <span>{day.fullDateStr}: {day.hours}h / {day.targetHours}h Goal ({day.routineLabel}) · {day.passCount} passes</span>
                     </div>
                   )}
 
@@ -660,7 +709,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                   </span>
 
                   {/* Pillar Column Track & Filled Emerald Bar */}
-                  <div className="w-full max-w-[28px] sm:max-w-[42px] h-36 sm:h-44 flex items-end justify-center relative rounded-2xl bg-zinc-100/50 dark:bg-white/[0.02] p-1 group-hover:bg-zinc-200/50 dark:group-hover:bg-white/[0.05] transition-colors border border-transparent group-hover:border-emerald-500/20">
+                  <div className="w-full max-w-[32px] sm:max-w-[46px] h-36 sm:h-44 flex items-end justify-center relative rounded-2xl bg-zinc-100/50 dark:bg-white/[0.02] p-1 group-hover:bg-zinc-200/50 dark:group-hover:bg-white/[0.05] transition-colors border border-transparent group-hover:border-emerald-500/20">
                     
                     {day.hours > 0 ? (
                       /* Filled Bar with Smooth Vertical Emerald Gradient & Luminous Crest */
@@ -686,8 +735,8 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
                   </div>
 
-                  {/* Day Footer Label (M, T, W, TH, F, SA, S + Date Number) */}
-                  <div className="mt-3 text-center flex flex-col items-center gap-0.5">
+                  {/* Day Footer Label (M, T, W, TH, F, SA, S + Date Number + Target Badge) */}
+                  <div className="mt-3 text-center flex flex-col items-center gap-1">
                     <span className={`text-xs sm:text-sm font-black transition ${
                       day.isToday ? 'text-emerald-500 dark:text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200'
                     }`}>
@@ -700,6 +749,11 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                         : 'text-zinc-400 dark:text-zinc-500'
                     }`}>
                       {day.fullDateStr.split(' ')[1]}
+                    </span>
+
+                    {/* Target Pill Indicator (4h / 7h) */}
+                    <span className="text-[9px] font-mono text-zinc-400/70 dark:text-zinc-500 font-bold">
+                      {day.targetHours}h
                     </span>
                   </div>
 

@@ -378,6 +378,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                 campaignId={campaign.id} 
                 campaignName={campaign.name}
                 targetDailyHours={campaign.targetDailyHours} 
+                campaignCreatedAt={campaign.createdAt || campaign.startDate}
               />
             </div>
 
