@@ -512,7 +512,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search messages…"
-                className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none"
+                className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 border-0 border-none outline-none focus:outline-none focus:ring-0 shadow-none ring-0 appearance-none p-0"
+                style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
               />
               {searchQuery && (
                 <button type="button" onClick={() => setSearchQuery('')} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-pointer">

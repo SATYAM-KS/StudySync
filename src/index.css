@@ -62,10 +62,12 @@
     height: 0 !important;
   }
 
-  textarea.bg-transparent, input.bg-transparent {
-    border: none;
-    outline: none;
-    box-shadow: none;
+  textarea.bg-transparent, input.bg-transparent, input[type="text"].bg-transparent, input[type="search"].bg-transparent {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
   }
 
   /* Universal Number Input Spinners Removal (Monochrome UI) */
