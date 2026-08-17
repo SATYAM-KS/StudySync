@@ -148,7 +148,7 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
       } catch {}
     };
     poll();
-    const id = setInterval(poll, 3000);
+    const id = setInterval(poll, 20000);
     return () => clearInterval(id);
   }, [campaign.id]);
 

@@ -160,7 +160,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     };
 
     fetchMsgs();
-    const interval = setInterval(fetchMsgs, isConnected ? 10000 : 3000);
+    const interval = setInterval(fetchMsgs, isConnected ? 45000 : 15000);
     return () => clearInterval(interval);
   }, [campaign.id, token, isConnected]);
 

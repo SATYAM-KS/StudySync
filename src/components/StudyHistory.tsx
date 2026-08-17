@@ -175,7 +175,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
   useEffect(() => {
     fetchHistory();
-    const interval = setInterval(fetchHistory, 5000);
+    const interval = setInterval(fetchHistory, 60000);
     return () => clearInterval(interval);
   }, [campaignId, token]);
 
