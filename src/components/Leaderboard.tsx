@@ -138,10 +138,18 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   const topThree = sortedEntries.slice(0, 3);
 
   const renderCodingBadges = (entry: LeaderboardEntry, variant: 'podium' | 'table') => {
-    const leetcodeUrl = normalizeLeetcodeUrl(entry.leetcodeUsername);
-    const hackerrankUrl = normalizeHackerrankUrl(entry.hackerrankUsername);
+    const leetcodeRaw = entry.leetcodeUrl || (entry as any).leetcodeUsername;
+    const hackerrankRaw = entry.hackerrankUrl || (entry as any).hackerrankUsername;
 
-    if (!leetcodeUrl && !hackerrankUrl) return null;
+    const leetcodeUrl = normalizeLeetcodeUrl(leetcodeRaw);
+    const hackerrankUrl = normalizeHackerrankUrl(hackerrankRaw);
+
+    if (!leetcodeUrl && !hackerrankUrl) {
+      if (variant === 'table') {
+        return <span className="text-[11px] text-zinc-400/50 font-mono">—</span>;
+      }
+      return null;
+    }
 
     if (variant === 'podium') {
       return (
@@ -183,10 +191,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             href={leetcodeUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition cursor-pointer text-[10px] font-mono font-bold"
             title="View LeetCode Profile"
           >
-            <Code2 className="w-3.5 h-3.5" />
+            <Code2 className="w-3 h-3 text-amber-500" />
+            <span>LeetCode</span>
+            <ExternalLink className="w-2 h-2 opacity-50" />
           </a>
         )}
         {hackerrankUrl && (
@@ -194,10 +204,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             href={hackerrankUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition cursor-pointer text-[10px] font-mono font-bold"
             title="View HackerRank Profile"
           >
-            <Terminal className="w-3.5 h-3.5" />
+            <Terminal className="w-3 h-3 text-emerald-500" />
+            <span>HackerRank</span>
+            <ExternalLink className="w-2 h-2 opacity-50" />
           </a>
         )}
       </div>
