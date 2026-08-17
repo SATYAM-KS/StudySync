@@ -36,6 +36,7 @@ import {
   removeCallParticipant
 } from './src/server/db.ts';
 import { generateToken, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
+import { sendPasswordResetEmail } from './src/server/email.ts';
 import { 
   setupSocketServer, 
   touchUserPresence, 
@@ -180,15 +181,17 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       return;
     }
 
-    // Generate 6-digit security code
+    // Generate 6-digit secure security code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
     passwordResetCodes.set(cleanEmail, { code, expiresAt });
 
+    // Send real OTP email to user's inbox
+    await sendPasswordResetEmail(cleanEmail, code, user.name);
+
     res.json({ 
       success: true, 
-      message: `Reset code generated for ${cleanEmail}`,
-      code,
+      message: `A 6-digit verification code has been sent to ${cleanEmail}. Please check your inbox and spam folder.`,
       email: cleanEmail
     });
   } catch (err: any) {

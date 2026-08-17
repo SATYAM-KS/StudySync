@@ -51,7 +51,6 @@ export const AuthScreen: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [receivedCode, setReceivedCode] = useState<string | null>(null);
 
   // Loading & feedback
   const [isLoading, setIsLoading] = useState(false);
@@ -133,12 +132,9 @@ export const AuthScreen: React.FC = () => {
     try {
       const res = await forgotPassword(forgotEmail.trim());
       if (res.success) {
-        setReceivedCode(res.code || null);
-        if (res.code) {
-          setResetCode(res.code);
-        }
+        setResetCode('');
         setForgotStep(2);
-        setSuccessMessage(res.message || 'Verification code sent to your email.');
+        setSuccessMessage(res.message || 'A 6-digit verification code has been sent to your email.');
       } else {
         setErrorMessage(res.error || 'Could not find an account with this email.');
       }
@@ -581,17 +577,16 @@ export const AuthScreen: React.FC = () => {
                 /* Step 2: Enter Code & New Password */
                 <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
                   
-                  {/* Notice & Code Badge */}
-                  {receivedCode && (
-                    <div className="p-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-zinc-600 dark:text-zinc-400 font-medium">Verification Code for {forgotEmail}:</span>
-                        <span className="font-mono font-bold text-sm text-zinc-950 dark:text-white bg-white dark:bg-zinc-950 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-700">
-                          {receivedCode}
-                        </span>
-                      </div>
+                  {/* Email Delivery Notice */}
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-xs flex items-start space-x-2.5 text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
+                    <div>
+                      <p className="font-bold">Verification code dispatched</p>
+                      <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                        A secure 6-digit verification code has been sent to <strong className="text-zinc-950 dark:text-white">{forgotEmail}</strong>. Please check your inbox and spam folder.
+                      </p>
                     </div>
-                  )}
+                  </div>
 
                   {/* 6-Digit Code */}
                   <div className="space-y-1.5">
