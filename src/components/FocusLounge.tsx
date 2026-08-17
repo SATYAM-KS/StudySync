@@ -81,30 +81,6 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
   return (
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100 select-none pb-8">
       
-      {/* ═══ Top Today's Schedule & Goal Bar ═══ */}
-      <div className="posh-card rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)] shrink-0" />
-          <div className="flex items-center gap-2 text-xs flex-wrap">
-            <span className="font-extrabold text-zinc-950 dark:text-white">
-              Today's Goal: {todayTargetHours}h
-            </span>
-            <span className="text-zinc-400 dark:text-zinc-500">·</span>
-            <span className="text-zinc-500 dark:text-zinc-400">
-              {collegeRoutine === 'college' ? 'College Day Mode (4h flexible target)' : 'No College / Deep Work Mode (7h target)'} · Study anytime today
-            </span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowRoutineModal(true)}
-          className="text-xs font-bold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white transition cursor-pointer flex items-center gap-1 shrink-0 glass-pill px-3 py-1 rounded-xl"
-        >
-          <span>Change Routine</span>
-          <ArrowUpRight className="w-3 h-3 opacity-60" />
-        </button>
-      </div>
-
       {/* ═══ Main Focus Control Grid ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
