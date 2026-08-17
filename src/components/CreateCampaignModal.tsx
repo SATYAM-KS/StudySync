@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { Campaign } from '../types/index.ts';
-import { X, Plus, Calendar, Users, Bookmark, RotateCcw, Sparkles } from 'lucide-react';
-import { DatePicker } from './ui/DatePicker.tsx';
+import { X, Plus, Users, Bookmark, RotateCcw, Sparkles } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect.tsx';
 import { NumberStepper } from './ui/NumberStepper.tsx';
 
@@ -24,20 +23,15 @@ const CATEGORIES = [
   'General High Focus'
 ];
 
-const DRAFT_KEY = 'study_campaign_draft_v2';
+const DRAFT_KEY = 'study_campaign_draft_v3';
 
 export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen, onClose, onCampaignCreated }) => {
   const { token } = useAuth();
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const today = new Date().toISOString().split('T')[0];
-  const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(nextMonth);
   const [maxMembers, setMaxMembers] = useState(25);
   const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,8 +47,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           if (draft.name) setName(draft.name);
           if (draft.description) setDescription(draft.description);
           if (draft.category) setCategory(draft.category);
-          if (draft.startDate) setStartDate(draft.startDate);
-          if (draft.endDate) setEndDate(draft.endDate);
           if (draft.maxMembers) setMaxMembers(draft.maxMembers);
           if (draft.isPublic !== undefined) setIsPublic(draft.isPublic);
           setHasDraft(true);
@@ -71,8 +63,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
         name,
         description,
         category,
-        startDate,
-        endDate,
         maxMembers,
         isPublic,
         savedAt: new Date().toISOString()
@@ -96,8 +86,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
     setName('');
     setDescription('');
     setCategory(CATEGORIES[0]);
-    setStartDate(today);
-    setEndDate(nextMonth);
     setMaxMembers(25);
     setHasDraft(false);
   };
@@ -122,8 +110,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           name: name.trim(),
           description: description.trim(),
           category,
-          startDate,
-          endDate,
           targetDailyHours: 4,
           maxMembers: Number(maxMembers),
           isPublic,
@@ -181,7 +167,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
                 )}
               </div>
               <p className="text-xs text-zinc-400">
-                Peer accountability & flexible study hours
+                Peer accountability & flexible daily goals
               </p>
             </div>
           </div>
@@ -220,22 +206,23 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
             </div>
           )}
 
-          {/* Campaign Name & Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                Cohort Name *
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Algorithms & System Design"
-                required
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white"
-              />
-            </div>
+          {/* Campaign Name */}
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+              Cohort Name *
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Algorithms & System Design"
+              required
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+            />
+          </div>
 
+          {/* Category & Capacity */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                 Field / Category
@@ -245,40 +232,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
                 onChange={setCategory}
                 options={CATEGORIES}
               />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-              Description & Focus Topics
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="Outline what members will focus on, daily expectations, and study materials..."
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white resize-none"
-            />
-          </div>
-
-          {/* Dates & Capacity */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-                Start & End Date
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <DatePicker
-                  value={startDate}
-                  onChange={(d) => setStartDate(d)}
-                />
-                <DatePicker
-                  value={endDate}
-                  onChange={(d) => setEndDate(d)}
-                />
-              </div>
             </div>
 
             <div>
@@ -299,13 +252,27 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
             </div>
           </div>
 
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+              Description & Focus Topics
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Outline what members will focus on, daily expectations, and study materials..."
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white resize-none"
+            />
+          </div>
+
           {/* Daily Dynamic Routine Info Card */}
           <div className="p-4 rounded-2xl glass-card border border-white/10 flex items-start gap-3 text-xs text-zinc-400">
             <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-zinc-200">Dynamic Daily Study Hours</p>
+              <p className="font-bold text-zinc-200">Flexible Daily Study Hours</p>
               <p className="text-[11px] text-zinc-400 mt-0.5">
-                Members calibrate their daily goal each day: <strong>4h on college days</strong> and <strong>7h on off-days/holidays</strong>, completed whenever convenient.
+                No rigid schedules or fixed time windows. Members calibrate their goals each day: <strong>4h on college days</strong> and <strong>7h on off-days/holidays</strong>, studied at any time.
               </p>
             </div>
           </div>

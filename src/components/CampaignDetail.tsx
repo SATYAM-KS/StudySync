@@ -320,18 +320,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                 </div>
               </div>
 
-              {/* End Date */}
-              {campaign.endDate && (
-                <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300 px-1">
-                  <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
-                    <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold">End Date</p>
-                    <p className="font-bold text-zinc-900 dark:text-white">{campaign.endDate}</p>
-                  </div>
-                </div>
-              )}
+
             </div>
 
             {/* Active session indicator */}
