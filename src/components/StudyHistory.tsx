@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { StudyBlock } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
+import { useStudy } from '../context/StudyContext.tsx';
 import { 
   History, 
   Clock, 
@@ -16,7 +17,10 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
-  Maximize2
+  TrendingUp,
+  Award,
+  Zap,
+  ArrowUpRight
 } from 'lucide-react';
 
 interface StudyHistoryProps {
@@ -61,6 +65,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 }) => {
   const { token, user } = useAuth();
   const { socket } = useSocket();
+  const { collegeRoutine, todayTargetHours, setShowRoutineModal } = useStudy();
   const cacheKey = `study_history_cache_${campaignId}_${user?.id || 'anon'}`;
 
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
@@ -88,6 +93,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
   const [selectedSnapshotUrl, setSelectedSnapshotUrl] = useState<string | null>(null);
   const [expandedSessionIds, setExpandedSessionIds] = useState<Set<string>>(new Set());
+  const [activeHoverDayIdx, setActiveHoverDayIdx] = useState<number | null>(null);
 
   const toggleSessionExpand = (sessionId: string) => {
     setExpandedSessionIds(prev => {
@@ -211,9 +217,9 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
   };
 
   const getTimeframeTargetHours = (tf: Timeframe) => {
-    const baseDaily = targetDailyHours || 4;
+    const baseDaily = todayTargetHours || targetDailyHours || 4;
     if (tf === 'today') return baseDaily;
-    if (tf === 'week') return baseDaily * 7;
+    if (tf === 'week') return 34; // 5 days @ 4h + 2 days @ 7h
     return baseDaily * getDaysInCurrentMonth();
   };
 
@@ -273,7 +279,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
   const groupedSessions: FocusSittingSession[] = useMemo(() => {
     if (filteredBlocks.length === 0) return [];
 
-    // Sort chronological (earliest first) to group sequential blocks
     const sorted = [...filteredBlocks].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     const sessions: FocusSittingSession[] = [];
@@ -287,7 +292,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
       const startMs = new Date(earliestBlock.timestamp).getTime();
       const latestBlockMs = new Date(latestBlock.timestamp).getTime();
-      // End time is latest block start + its duration (default 5 mins)
       const endMs = latestBlockMs + (latestBlock.durationMinutes || 5) * 60 * 1000;
 
       const startTimeStr = earliestBlock.timestamp;
@@ -298,7 +302,8 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       const timeWindowLabel = `${startTimeFormatted} – ${endTimeFormatted}`;
       const dateLabel = formatDateLabel(startTimeStr);
 
-      const totalMinutes = group.reduce((sum, b) => sum + (b.durationMinutes || 5), 0);
+      const activeBlocks = group.filter(b => b.status === 'active');
+      const totalMinutes = activeBlocks.reduce((sum, b) => sum + (b.durationMinutes || 5), 0);
       const totalHours = Number((totalMinutes / 60).toFixed(1));
 
       let formattedDuration = '';
@@ -329,7 +334,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         formattedDuration,
         subjectNote: earliestBlock.subjectNote || 'General Study',
         campaignName: earliestBlock.campaignName || campaignName,
-        // Keep inner blocks sorted latest first for detailed inspection
         blocks: [...group].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
         passedCount,
         flaggedCount,
@@ -348,7 +352,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       const currTime = new Date(block.timestamp).getTime();
       const gapMinutes = (currTime - prevTime) / (60 * 1000);
 
-      // If blocks occurred within a 12-minute window and share same subject, group as same seating
       const isSameTopic = (block.subjectNote || 'General Study') === (prevBlock.subjectNote || 'General Study');
       if (gapMinutes <= 12 && isSameTopic) {
         currentGroup.push(block);
@@ -362,9 +365,77 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       finalizeGroup(currentGroup);
     }
 
-    // Sort sessions latest sitting first (most recent on top)
     return sessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [filteredBlocks, campaignName]);
+
+  // Compute 7-Day Activity Breakdown (Last 7 days, ending today, 2 AM boundary aligned)
+  const sevenDayBreakdown = useMemo(() => {
+    const now = new Date();
+    const adjustedNow = new Date(now.getTime() - 2 * 3600000);
+
+    const days: Array<{
+      dayKey: string;
+      dayShort: string;
+      fullDateStr: string;
+      minutes: number;
+      hours: number;
+      isToday: boolean;
+      passCount: number;
+      failCount: number;
+    }> = [];
+
+    for (let d = 6; d >= 0; d--) {
+      const targetDate = new Date(adjustedNow.getTime() - d * 86400000);
+      const year = targetDate.getFullYear();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`;
+
+      const dayNames = ['S', 'M', 'T', 'W', 'TH', 'F', 'SA'];
+      const dayShort = dayNames[targetDate.getDay()];
+
+      let minutes = 0;
+      let passCount = 0;
+      let failCount = 0;
+
+      historyData.blocks.forEach(b => {
+        const bTime = new Date(b.timestamp).getTime();
+        const adjustedBTime = new Date(bTime - 2 * 3600000);
+        const bDateKey = `${adjustedBTime.getFullYear()}-${String(adjustedBTime.getMonth() + 1).padStart(2, '0')}-${String(adjustedBTime.getDate()).padStart(2, '0')}`;
+        
+        if (bDateKey === dateKey) {
+          if (b.status === 'active') {
+            minutes += b.durationMinutes || 5;
+            passCount++;
+          } else {
+            failCount++;
+          }
+        }
+      });
+
+      days.push({
+        dayKey: dateKey,
+        dayShort,
+        fullDateStr: targetDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        minutes,
+        hours: Number((minutes / 60).toFixed(1)),
+        isToday: d === 0,
+        passCount,
+        failCount
+      });
+    }
+
+    const maxHours = Math.max(5, ...days.map(d => d.hours));
+    return { days, maxHours };
+  }, [historyData.blocks]);
+
+  // Overall pass rate calculation
+  const overallStats = useMemo(() => {
+    const total = filteredBlocks.length;
+    const passed = filteredBlocks.filter(b => b.status === 'active').length;
+    const rate = total > 0 ? Math.round((passed / total) * 100) : 100;
+    return { total, passed, rate };
+  }, [filteredBlocks]);
 
   const getMinutesForTimeframe = (tf: Timeframe) => {
     if (tf === 'today') return historyData.todayMinutes;
@@ -379,19 +450,109 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
   const totalBlocks = filteredBlocks.length;
 
   return (
-    <div className="space-y-6 text-zinc-900 dark:text-zinc-100 pb-8 select-none">
+    <div className="space-y-6 text-zinc-900 dark:text-zinc-100 pb-10 select-none">
       
-      {/* Top Header & Timeframe Tabs */}
+      {/* ═══ 1. Posh Hero Spotlight Banner (Inspired by Reference Dashboards) ═══ */}
+      <div className="posh-hero-glow rounded-3xl p-6 sm:p-7 shadow-xl relative overflow-hidden text-zinc-950 dark:text-white">
+        
+        {/* Subtle Ambient Radial Halos */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-cyan-500/10 dark:bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          
+          {/* Left: User Title & Progress Pacing */}
+          <div className="space-y-3 max-w-xl">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-[11px] font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs">
+                {campaignName}
+              </span>
+              <span className="text-xs font-semibold px-3 py-1 rounded-full glass-pill border border-zinc-200/80 dark:border-white/10 text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-emerald-500" />
+                Live AI Screen Proctor
+              </span>
+            </div>
+
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-950 dark:text-white">
+                Track Focus & Progress
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                Explore an ultra-precise breakdown of your focused study sittings, verified intervals, and AI inspection records.
+              </p>
+            </div>
+
+            {/* Quick Status Pills */}
+            <div className="flex items-center gap-3 pt-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowRoutineModal(true)}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 transition cursor-pointer shadow-xs active:scale-95 text-xs"
+              >
+                <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="font-bold text-zinc-900 dark:text-white">{todayTargetHours}h Goal</span>
+                <span className="text-[10px] text-zinc-400">({collegeRoutine === 'college' ? 'College' : 'No College'})</span>
+                <ArrowUpRight className="w-3 h-3 opacity-60 ml-0.5" />
+              </button>
+
+              <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl glass-pill text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                <Flame className="w-3.5 h-3.5 text-amber-500" />
+                <span>Daily Streak Active</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Quick Performance Capsule */}
+          <div className="lg:w-72 shrink-0 bg-zinc-950/5 dark:bg-white/[0.04] border border-zinc-200/80 dark:border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 backdrop-blur-md">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                {timeframe === 'today' ? 'Today\'s Target' : timeframe === 'week' ? 'Weekly Goal' : 'Monthly Goal'}
+              </span>
+              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                {progressPct}% Completed
+              </span>
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-3xl font-black font-mono tracking-tight text-zinc-950 dark:text-white">
+                  {currentHours.toFixed(1)} <span className="text-sm font-normal text-zinc-400">/ {targetHours.toFixed(1)}h</span>
+                </span>
+                <span className="text-xs font-mono font-semibold text-zinc-400">
+                  {currentMinutes} mins
+                </span>
+              </div>
+
+              {/* Glowing Posh Progress Bar */}
+              <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden p-0.5">
+                <div 
+                  className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-700 shadow-sm"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="text-[11px] text-zinc-400 flex items-center justify-between pt-1 border-t border-zinc-200/60 dark:border-white/[0.06]">
+              <span>AI Pass Rate</span>
+              <span className="font-bold text-zinc-950 dark:text-white font-mono">{overallStats.rate}% ({overallStats.passed}/{overallStats.total})</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ═══ 2. Top Header & Timeframe Tabs ═══ */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl shadow-sm transition-colors">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs">
+          <div className="w-10 h-10 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs">
             <History className="w-4 h-4" />
           </div>
           <div>
             <h3 className="font-extrabold text-base text-zinc-950 dark:text-white tracking-tight">
-              Study Focus History
+              Focus Analytics & History
             </h3>
-            <p className="text-xs text-zinc-400">Continuous sitting logs & AI inspection records</p>
+            <p className="text-xs text-zinc-400">Continuous sitting logs & 7-day distribution chart</p>
           </div>
         </div>
 
@@ -430,30 +591,123 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* ═══ 3. Interactive 7-Day Study Distribution Bar Chart (Inspired by Greenfield / Energy Robotics) ═══ */}
+      <div className="posh-card rounded-3xl p-6 sm:p-7 shadow-sm space-y-6">
+        
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="font-extrabold text-base text-zinc-950 dark:text-white">
+                7-Day Study Distribution
+              </h4>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                2 AM Reset Aligned
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Daily verified hours logged over the last 7 study cycles
+            </p>
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-zinc-950 dark:bg-white" />
+              <span>Today</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+              <span>Previous Days</span>
+            </span>
+          </div>
+        </div>
+
+        {/* 7 Vertical Bar Pillars */}
+        <div className="grid grid-cols-7 gap-2 sm:gap-4 pt-4 pb-2 items-end h-48 sm:h-56">
+          {sevenDayBreakdown.days.map((day, idx) => {
+            const heightPct = Math.max(8, Math.min(100, Math.round((day.hours / sevenDayBreakdown.maxHours) * 100)));
+            const isHovered = activeHoverDayIdx === idx;
+
+            return (
+              <div 
+                key={day.dayKey}
+                onMouseEnter={() => setActiveHoverDayIdx(idx)}
+                onMouseLeave={() => setActiveHoverDayIdx(null)}
+                className="flex flex-col items-center h-full justify-end group cursor-pointer relative"
+              >
+                {/* Floating Tooltip Capsule on Hover */}
+                {isHovered && (
+                  <div className="absolute -top-12 z-20 bg-zinc-950 text-white dark:bg-white dark:text-black px-2.5 py-1 rounded-xl text-[11px] font-mono font-bold whitespace-nowrap shadow-xl animate-in fade-in zoom-in-95 duration-150 pointer-events-none">
+                    {day.fullDateStr}: {day.hours}h ({day.passCount} passes)
+                  </div>
+                )}
+
+                {/* Number hours label */}
+                <span className={`text-[10px] sm:text-xs font-mono font-bold mb-1.5 transition ${
+                  day.isToday ? 'text-zinc-950 dark:text-white' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200'
+                }`}>
+                  {day.hours > 0 ? `${day.hours}h` : '0h'}
+                </span>
+
+                {/* Pillar Track & Bar */}
+                <div className="w-full max-w-[36px] bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl h-full flex items-end p-1 overflow-hidden transition group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800">
+                  <div 
+                    className={`w-full rounded-xl transition-all duration-500 ${
+                      day.isToday
+                        ? 'bg-zinc-950 dark:bg-white shadow-md'
+                        : 'bg-zinc-300 dark:bg-zinc-700 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-600'
+                    }`}
+                    style={{ height: `${heightPct}%` }}
+                  />
+                </div>
+
+                {/* Day name label (M, T, W, TH, F, SA, S) */}
+                <div className="mt-2.5 text-center">
+                  <span className={`text-xs sm:text-sm font-bold block ${
+                    day.isToday ? 'text-zinc-950 dark:text-white' : 'text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
+                  }`}>
+                    {day.dayShort}
+                  </span>
+                  <span className="text-[9px] text-zinc-400 font-mono hidden sm:block">
+                    {day.fullDateStr.split(' ')[1]}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+      </div>
+
+      {/* ═══ 4. Summary Metric Cards ═══ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Focus Time */}
-        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
+        <div className="posh-card rounded-3xl p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Registered Focus</span>
-            <Clock className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Registered Focus</span>
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300">
+              <Clock className="w-3.5 h-3.5" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-zinc-950 dark:text-white font-mono">
-            {currentHours.toFixed(1)} hrs
+          <div className="text-2xl sm:text-3xl font-black text-zinc-950 dark:text-white font-mono">
+            {currentHours.toFixed(1)} <span className="text-xs font-normal text-zinc-400">hrs</span>
           </div>
-          <div className="text-[11px] text-zinc-400 font-mono">
-            {currentMinutes} mins in {timeframe === 'today' ? 'today\'s focus' : timeframe === 'week' ? 'this week' : 'this month'}
+          <div className="text-[11px] text-zinc-400 font-mono flex items-center gap-1">
+            <TrendingUp className="w-3 h-3 text-emerald-500" />
+            <span>{currentMinutes} mins in {timeframe === 'today' ? 'today\'s cycle' : timeframe === 'week' ? 'this week' : 'this month'}</span>
           </div>
         </div>
 
         {/* Focus Sittings Count */}
-        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
+        <div className="posh-card rounded-3xl p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Study Sittings</span>
-            <Layers className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Study Sittings</span>
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300">
+              <Layers className="w-3.5 h-3.5" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-zinc-950 dark:text-white font-mono">
+          <div className="text-2xl sm:text-3xl font-black text-zinc-950 dark:text-white font-mono">
             {groupedSessions.length}
           </div>
           <div className="text-[11px] text-zinc-400 font-mono">
@@ -462,31 +716,35 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         </div>
 
         {/* Goal Target Progress */}
-        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
+        <div className="posh-card rounded-3xl p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Goal Progress</span>
-            <Target className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Goal Progress</span>
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300">
+              <Target className="w-3.5 h-3.5" />
+            </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-black text-zinc-950 dark:text-white font-mono">{progressPct}%</span>
+            <span className="text-2xl sm:text-3xl font-black text-zinc-950 dark:text-white font-mono">{progressPct}%</span>
             <span className="text-xs text-zinc-400 font-mono">{currentHours.toFixed(1)} / {targetHours.toFixed(1)}h</span>
           </div>
-          <div className="w-full bg-zinc-200/80 dark:bg-zinc-800/80 h-1.5 rounded-full overflow-hidden glass-pill">
+          <div className="w-full bg-zinc-200/80 dark:bg-zinc-800/80 h-2 rounded-full overflow-hidden p-0.5">
             <div 
-              className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-500 shadow-xs"
+              className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
 
-        {/* Total Lifetime Focus */}
-        <div className="glass-card rounded-3xl p-5 shadow-sm space-y-1.5">
+        {/* Lifetime All Sessions */}
+        <div className="posh-card rounded-3xl p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">All-Time Focus</span>
-            <Flame className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Cohort Lifetime</span>
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300">
+              <Award className="w-3.5 h-3.5" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-zinc-950 dark:text-white font-mono">
-            {(historyData.totalMinutes / 60).toFixed(1)} hrs
+          <div className="text-2xl sm:text-3xl font-black text-zinc-950 dark:text-white font-mono">
+            {(historyData.totalMinutes / 60).toFixed(1)} <span className="text-xs font-normal text-zinc-400">hrs</span>
           </div>
           <div className="text-[11px] text-zinc-400 truncate">
             {campaignName}
@@ -495,17 +753,17 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
       </div>
 
-      {/* Focus Sittings Grouped Log Section */}
-      <div className="glass-panel rounded-3xl overflow-hidden shadow-sm">
+      {/* ═══ 5. Focus Sittings Grouped Log Section ═══ */}
+      <div className="posh-card rounded-3xl overflow-hidden shadow-sm">
         
         {/* Table / Section Header */}
         <div className="px-6 py-4 border-b border-zinc-200/60 dark:border-white/[0.08] flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h4 className="font-bold text-sm text-zinc-950 dark:text-white">
+            <h4 className="font-bold text-sm sm:text-base text-zinc-950 dark:text-white">
               {timeframe === 'today' ? "Today's Study Sittings & Focus Log" : timeframe === 'week' ? "This Week's Study Sittings" : "This Month's Study Sittings"}
             </h4>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Continuous focus sittings with expandable AI inspection passes/fails
+              Continuous focus sittings with expandable AI inspection passes & fails
             </p>
           </div>
 
@@ -575,7 +833,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                     
                     {/* Left: Time Range & Study Topic */}
                     <div className="flex items-start space-x-3.5 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5 border border-zinc-200 dark:border-zinc-700/60 shadow-xs">
+                      <div className="w-10 h-10 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5 border border-zinc-200 dark:border-zinc-700/60 shadow-xs">
                         <Clock className="w-4 h-4" />
                       </div>
                       
@@ -618,7 +876,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl">
                             <AlertCircle className="w-3.5 h-3.5" />
-                            <span>{session.passedCount} Pass · {session.flaggedCount} Fail</span>
+                            <span>{session.passedCount} Pass · {session.flaggedCount} Flagged</span>
                           </span>
                         )}
                       </div>
