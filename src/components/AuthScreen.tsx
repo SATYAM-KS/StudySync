@@ -134,7 +134,7 @@ export const AuthScreen: React.FC = () => {
       if (res.success) {
         setResetCode('');
         setForgotStep(2);
-        setSuccessMessage(res.message || 'A 6-digit verification code has been sent to your email.');
+        setSuccessMessage(null);
       } else {
         setErrorMessage(res.error || 'Could not find an account with this email.');
       }
@@ -241,15 +241,17 @@ export const AuthScreen: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-white/[0.08] pb-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl glass-pill flex items-center justify-center text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-white/[0.08] pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs">
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-zinc-950 dark:text-white">Reset Password</h2>
+                  <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
+                    {forgotStep === 1 ? 'Reset Password' : 'Set New Password'}
+                  </h2>
                   <p className="text-[11px] text-zinc-400">
-                    {forgotStep === 1 ? 'Step 1: Account Email' : 'Step 2: New Password'}
+                    {forgotStep === 1 ? 'Enter your email to receive code' : `Code sent to ${forgotEmail}`}
                   </p>
                 </div>
               </div>
@@ -260,7 +262,7 @@ export const AuthScreen: React.FC = () => {
                   setErrorMessage(null);
                   setSuccessMessage(null);
                 }}
-                className="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white flex items-center space-x-1 cursor-pointer"
+                className="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white flex items-center space-x-1 cursor-pointer transition"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Sign In</span>
@@ -523,10 +525,6 @@ export const AuthScreen: React.FC = () => {
               
               {forgotStep === 1 ? (
                 <form onSubmit={handleRequestResetCode} className="space-y-4">
-                  <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                    Enter the email address registered with your StudySync account. We will generate a secure 6-digit verification code to reset your password.
-                  </p>
-
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
                       Account Email
@@ -547,7 +545,7 @@ export const AuthScreen: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isLoading || !forgotEmail.trim()}
-                    className="w-full py-3 px-4 rounded-xl bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-extrabold text-sm shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 disabled:opacity-50 cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black font-bold text-xs shadow-sm flex items-center justify-center space-x-2 transition transform active:scale-98 disabled:opacity-50 cursor-pointer"
                   >
                     {isLoading ? (
                       <span className="inline-block w-4 h-4 border-2 border-white dark:border-black border-t-transparent dark:border-t-transparent rounded-full animate-spin"></span>
@@ -559,7 +557,7 @@ export const AuthScreen: React.FC = () => {
                     )}
                   </button>
 
-                  <div className="text-center pt-2">
+                  <div className="text-center pt-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -567,25 +565,30 @@ export const AuthScreen: React.FC = () => {
                         setErrorMessage(null);
                         setSuccessMessage(null);
                       }}
-                      className="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white font-medium transition cursor-pointer"
+                      className="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition cursor-pointer"
                     >
-                      Remember your password? <span className="text-zinc-900 dark:text-white font-bold underline">Back to Sign In</span>
+                      Remember your password? <span className="font-semibold underline">Sign In</span>
                     </button>
                   </div>
                 </form>
               ) : (
                 /* Step 2: Enter Code & New Password */
                 <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
-                  
-                  {/* Email Delivery Notice */}
-                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-xs flex items-start space-x-2.5 text-emerald-700 dark:text-emerald-300">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
-                    <div>
-                      <p className="font-bold">Verification code dispatched</p>
-                      <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
-                        A secure 6-digit verification code has been sent to <strong className="text-zinc-950 dark:text-white">{forgotEmail}</strong>. Please check your inbox and spam folder.
-                      </p>
+                  {/* Minimal Notice */}
+                  <div className="p-3 bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs flex items-center justify-between">
+                    <div className="flex items-center space-x-2 truncate">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                      <span className="text-zinc-600 dark:text-zinc-400 truncate">
+                        Code sent to <span className="text-zinc-900 dark:text-white font-medium">{forgotEmail}</span>
+                      </span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setForgotStep(1)}
+                      className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white underline shrink-0 cursor-pointer ml-2"
+                    >
+                      Change
+                    </button>
                   </div>
 
                   {/* 6-Digit Code */}
@@ -656,7 +659,7 @@ export const AuthScreen: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isLoading || !resetCode.trim() || !newPassword.trim()}
-                    className="w-full py-3 px-4 rounded-xl bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-extrabold text-sm shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 disabled:opacity-50 cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black font-bold text-xs shadow-sm flex items-center justify-center space-x-2 transition transform active:scale-98 disabled:opacity-50 cursor-pointer"
                   >
                     {isLoading ? (
                       <span className="inline-block w-4 h-4 border-2 border-white dark:border-black border-t-transparent dark:border-t-transparent rounded-full animate-spin"></span>
@@ -668,16 +671,14 @@ export const AuthScreen: React.FC = () => {
                     )}
                   </button>
 
-                  <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 pt-2">
+                  <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 pt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        setForgotStep(1);
-                        setErrorMessage(null);
-                      }}
+                      onClick={handleRequestResetCode}
+                      disabled={isLoading}
                       className="hover:text-zinc-900 dark:hover:text-white flex items-center space-x-1 cursor-pointer"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                       <span>Request new code</span>
                     </button>
                     <button
@@ -687,12 +688,11 @@ export const AuthScreen: React.FC = () => {
                         setErrorMessage(null);
                         setSuccessMessage(null);
                       }}
-                      className="hover:text-zinc-900 dark:hover:text-white font-medium cursor-pointer"
+                      className="hover:text-zinc-900 dark:hover:text-white cursor-pointer"
                     >
                       Back to Sign In
                     </button>
                   </div>
-
                 </form>
               )}
 
