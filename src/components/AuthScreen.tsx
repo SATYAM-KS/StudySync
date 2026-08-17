@@ -27,6 +27,67 @@ import { UserAvatar } from './UserAvatar.tsx';
 
 type AuthMode = 'login' | 'signup' | 'forgot';
 
+interface PasswordStrengthResult {
+  isValid: boolean;
+  hasMinLength: boolean;
+  hasLower: boolean;
+  hasUpper: boolean;
+  hasNumber: boolean;
+  hasSymbol: boolean;
+  error?: string;
+}
+
+const checkPasswordStrength = (pwd: string): PasswordStrengthResult => {
+  const text = pwd || '';
+  const hasMinLength = text.length >= 8;
+  const hasLower = /[a-z]/.test(text);
+  const hasUpper = /[A-Z]/.test(text);
+  const hasNumber = /[0-9]/.test(text);
+  const hasSymbol = /[^A-Za-z0-9]/.test(text);
+
+  const isValid = hasMinLength && hasLower && hasUpper && hasNumber && hasSymbol;
+
+  let error: string | undefined;
+  if (!hasMinLength) error = 'Password must be at least 8 characters long.';
+  else if (!hasLower) error = 'Password must include at least one lowercase letter (a-z).';
+  else if (!hasUpper) error = 'Password must include at least one uppercase letter (A-Z).';
+  else if (!hasNumber) error = 'Password must include at least one number (0-9).';
+  else if (!hasSymbol) error = 'Password must include at least one special symbol (!@#$%^&* etc.).';
+
+  return { isValid, hasMinLength, hasLower, hasUpper, hasNumber, hasSymbol, error };
+};
+
+const PasswordRequirementsChecklist: React.FC<{ password: string }> = ({ password }) => {
+  if (!password) return null;
+  const { hasMinLength, hasLower, hasUpper, hasNumber, hasSymbol } = checkPasswordStrength(password);
+  
+  const rules = [
+    { label: '8+ chars', met: hasMinLength },
+    { label: 'Uppercase (A-Z)', met: hasUpper },
+    { label: 'Lowercase (a-z)', met: hasLower },
+    { label: 'Number (0-9)', met: hasNumber },
+    { label: 'Symbol (!@#$)', met: hasSymbol }
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-1.5 pt-1 animate-in fade-in duration-150">
+      {rules.map((r, i) => (
+        <span
+          key={i}
+          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 transition-all ${
+            r.met
+              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800'
+          }`}
+        >
+          <span>{r.met ? '✓' : '•'}</span>
+          <span>{r.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+};
+
 export const AuthScreen: React.FC = () => {
   const { login, signup, forgotPassword, resetPassword } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
@@ -92,8 +153,9 @@ export const AuthScreen: React.FC = () => {
       setErrorMessage('Please enter your HackerRank profile URL or username.');
       return;
     }
-    if (signupPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
+    const pwdValidation = checkPasswordStrength(signupPassword);
+    if (!pwdValidation.isValid) {
+      setErrorMessage(pwdValidation.error || 'Please choose a stronger password.');
       return;
     }
     setErrorMessage(null);
@@ -171,8 +233,9 @@ export const AuthScreen: React.FC = () => {
       setErrorMessage('Please enter a new password.');
       return;
     }
-    if (newPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+    const pwdValidation = checkPasswordStrength(newPassword);
+    if (!pwdValidation.isValid) {
+      setErrorMessage(pwdValidation.error || 'Please choose a stronger password.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -440,14 +503,14 @@ export const AuthScreen: React.FC = () => {
               {/* Password */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                  Password * (min 6 chars)
+                  Password * (min 8 chars with uppercase, lowercase, number & symbol)
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    minLength={6}
+                    minLength={8}
                     value={signupPassword}
                     onChange={(e) => setSignupPassword(e.target.value)}
                     placeholder="••••••••"
@@ -461,6 +524,7 @@ export const AuthScreen: React.FC = () => {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                <PasswordRequirementsChecklist password={signupPassword} />
               </div>
 
               {/* LeetCode Profile Link (Mandatory) */}
@@ -642,14 +706,14 @@ export const AuthScreen: React.FC = () => {
                   {/* New Password */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                      New Password (min 6 characters)
+                      New Password (min 8 chars with uppercase, lowercase, number & symbol)
                     </label>
                     <div className="relative">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         required
-                        minLength={6}
+                        minLength={8}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="••••••••"
@@ -663,6 +727,7 @@ export const AuthScreen: React.FC = () => {
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    <PasswordRequirementsChecklist password={newPassword} />
                   </div>
 
                   {/* Confirm New Password */}

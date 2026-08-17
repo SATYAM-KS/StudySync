@@ -863,6 +863,36 @@ function verifyResetToken(token, email, code) {
     return false;
   }
 }
+function checkPasswordStrength(password) {
+  const pwd = password || "";
+  const hasMinLength = pwd.length >= 8;
+  const hasLower = /[a-z]/.test(pwd);
+  const hasUpper = /[A-Z]/.test(pwd);
+  const hasNumber = /[0-9]/.test(pwd);
+  const hasSymbol = /[^A-Za-z0-9]/.test(pwd);
+  const isValid = hasMinLength && hasLower && hasUpper && hasNumber && hasSymbol;
+  let error;
+  if (!hasMinLength) {
+    error = "Password must be at least 8 characters long.";
+  } else if (!hasLower) {
+    error = "Password must include at least one lowercase letter (a-z).";
+  } else if (!hasUpper) {
+    error = "Password must include at least one uppercase letter (A-Z).";
+  } else if (!hasNumber) {
+    error = "Password must include at least one number (0-9).";
+  } else if (!hasSymbol) {
+    error = "Password must include at least one special symbol (!@#$%^&* etc.).";
+  }
+  return {
+    isValid,
+    hasMinLength,
+    hasLower,
+    hasUpper,
+    hasNumber,
+    hasSymbol,
+    error
+  };
+}
 
 // src/server/email.ts
 import nodemailer from "nodemailer";
@@ -1386,6 +1416,11 @@ app.post("/api/auth/signup", async (req, res) => {
       res.status(409).json({ error: "An account with this email already exists" });
       return;
     }
+    const pwdCheck = checkPasswordStrength(password);
+    if (!pwdCheck.isValid) {
+      res.status(400).json({ error: pwdCheck.error });
+      return;
+    }
     const passwordHash = await bcrypt.hash(password, 10);
     const newUser = {
       id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -1488,8 +1523,9 @@ app.post("/api/auth/reset-password", async (req, res) => {
       res.status(400).json({ error: "Invalid or expired verification code. Please request a new code." });
       return;
     }
-    if (newPassword.length < 6) {
-      res.status(400).json({ error: "Password must be at least 6 characters long" });
+    const pwdCheck = checkPasswordStrength(newPassword);
+    if (!pwdCheck.isValid) {
+      res.status(400).json({ error: pwdCheck.error });
       return;
     }
     const passwordHash = await bcrypt.hash(newPassword, 10);

@@ -26,7 +26,7 @@ import {
   getStudyBlocksForUser,
   getCampaignLeaderboard
 } from './src/server/db.ts';
-import { generateToken, generateResetToken, verifyResetToken, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
+import { generateToken, generateResetToken, verifyResetToken, checkPasswordStrength, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
 import { sendPasswordResetEmail } from './src/server/email.ts';
 import { 
   setupSocketServer, 
@@ -87,6 +87,12 @@ app.post('/api/auth/signup', async (req, res) => {
     const existing = await getUserByEmail(email);
     if (existing) {
       res.status(409).json({ error: 'An account with this email already exists' });
+      return;
+    }
+
+    const pwdCheck = checkPasswordStrength(password);
+    if (!pwdCheck.isValid) {
+      res.status(400).json({ error: pwdCheck.error });
       return;
     }
 
@@ -219,8 +225,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    const pwdCheck = checkPasswordStrength(newPassword);
+    if (!pwdCheck.isValid) {
+      res.status(400).json({ error: pwdCheck.error });
       return;
     }
 

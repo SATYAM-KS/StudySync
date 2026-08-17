@@ -86,3 +86,48 @@ export function verifyResetToken(token: string, email: string, code: string): bo
     return false;
   }
 }
+
+export interface PasswordStrength {
+  isValid: boolean;
+  hasMinLength: boolean;
+  hasLower: boolean;
+  hasUpper: boolean;
+  hasNumber: boolean;
+  hasSymbol: boolean;
+  error?: string;
+}
+
+export function checkPasswordStrength(password: string): PasswordStrength {
+  const pwd = password || '';
+  const hasMinLength = pwd.length >= 8;
+  const hasLower = /[a-z]/.test(pwd);
+  const hasUpper = /[A-Z]/.test(pwd);
+  const hasNumber = /[0-9]/.test(pwd);
+  const hasSymbol = /[^A-Za-z0-9]/.test(pwd);
+
+  const isValid = hasMinLength && hasLower && hasUpper && hasNumber && hasSymbol;
+
+  let error: string | undefined;
+  if (!hasMinLength) {
+    error = 'Password must be at least 8 characters long.';
+  } else if (!hasLower) {
+    error = 'Password must include at least one lowercase letter (a-z).';
+  } else if (!hasUpper) {
+    error = 'Password must include at least one uppercase letter (A-Z).';
+  } else if (!hasNumber) {
+    error = 'Password must include at least one number (0-9).';
+  } else if (!hasSymbol) {
+    error = 'Password must include at least one special symbol (!@#$%^&* etc.).';
+  }
+
+  return {
+    isValid,
+    hasMinLength,
+    hasLower,
+    hasUpper,
+    hasNumber,
+    hasSymbol,
+    error
+  };
+}
+
