@@ -396,11 +396,12 @@ async function getCampaigns(userId) {
       const result2 = camps.map(mapCampaignFromDb).map((c) => {
         const approved = allMembers.filter((m) => m.campaignId === c.id && m.status === "approved");
         const userMem = userId ? allMembers.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
+        const isCreator = Boolean(userId && c.adminId === userId);
         return {
           ...c,
           memberCount: approved.length,
-          userStatus: userMem ? userMem.status : void 0,
-          userRole: userMem ? userMem.role : void 0
+          userStatus: isCreator ? "approved" : userMem ? userMem.status : void 0,
+          userRole: isCreator ? "admin" : userMem ? userMem.role : void 0
         };
       });
       return setToCache(cacheKey, result2, 4e3);
@@ -410,11 +411,12 @@ async function getCampaigns(userId) {
   const result = db.campaigns.map((c) => {
     const approvedMembers = db.memberships.filter((m) => m.campaignId === c.id && m.status === "approved");
     let userMembership = userId ? db.memberships.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
+    const isCreator = Boolean(userId && c.adminId === userId);
     return {
       ...c,
       memberCount: approvedMembers.length,
-      userStatus: userMembership ? userMembership.status : void 0,
-      userRole: userMembership ? userMembership.role : void 0
+      userStatus: isCreator ? "approved" : userMembership ? userMembership.status : void 0,
+      userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0
     };
   });
   return setToCache(cacheKey, result, 4e3);
@@ -431,11 +433,12 @@ async function getCampaignById(id, userId) {
       const approved = allMembers.filter((m) => m.status === "approved");
       const userMem = userId ? allMembers.find((m) => m.userId === userId) : void 0;
       const c = mapCampaignFromDb(camp);
+      const isCreator2 = Boolean(userId && c.adminId === userId);
       const result2 = {
         ...c,
         memberCount: approved.length,
-        userStatus: userMem ? userMem.status : void 0,
-        userRole: userMem ? userMem.role : void 0
+        userStatus: isCreator2 ? "approved" : userMem ? userMem.status : void 0,
+        userRole: isCreator2 ? "admin" : userMem ? userMem.role : void 0
       };
       return setToCache(cacheKey, result2, 4e3);
     }
@@ -445,11 +448,12 @@ async function getCampaignById(id, userId) {
   if (!campaign) return null;
   const approvedMembers = db.memberships.filter((m) => m.campaignId === campaign.id && m.status === "approved");
   let userMembership = userId ? db.memberships.find((m) => m.campaignId === campaign.id && m.userId === userId) : void 0;
+  const isCreator = Boolean(userId && campaign.adminId === userId);
   const result = {
     ...campaign,
     memberCount: approvedMembers.length,
-    userStatus: userMembership ? userMembership.status : void 0,
-    userRole: userMembership ? userMembership.role : void 0
+    userStatus: isCreator ? "approved" : userMembership ? userMembership.status : void 0,
+    userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0
   };
   return setToCache(cacheKey, result, 4e3);
 }

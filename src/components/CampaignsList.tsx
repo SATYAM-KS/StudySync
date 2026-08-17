@@ -205,9 +205,9 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCampaigns.map((camp) => {
-              const isApproved = camp.userStatus === 'approved';
-              const isPending = camp.userStatus === 'pending';
               const isAdmin = camp.userRole === 'admin' || camp.userRole === 'co-admin' || camp.adminId === user?.id;
+              const isApproved = isAdmin || camp.userStatus === 'approved';
+              const isPending = !isAdmin && camp.userStatus === 'pending';
               const isCurrentStudying = isStudying && activeCampaignId === camp.id;
               const activeInCamp = activeStudySessions.filter(s => s.campaignId === camp.id);
 

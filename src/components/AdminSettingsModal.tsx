@@ -86,6 +86,10 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       if (res.ok) {
         setStatusMessage('Member approved successfully!');
         fetchMembers();
+        onCampaignUpdated({
+          ...campaign,
+          memberCount: (campaign.memberCount || 0) + 1
+        });
       }
     } catch (e) {
       console.error(e);
@@ -140,6 +144,10 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       if (res.ok) {
         setStatusMessage('Member removed');
         fetchMembers();
+        onCampaignUpdated({
+          ...campaign,
+          memberCount: Math.max(1, (campaign.memberCount || 1) - 1)
+        });
       }
     } catch (e) {
       console.error(e);
