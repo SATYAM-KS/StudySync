@@ -30,15 +30,10 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         className="w-full h-full drop-shadow-[0_2px_10px_rgba(255,255,255,0.15)]"
       >
-        {/* Avocado Stem & Leaf */}
+        {/* Avocado Stem */}
         <path
           d="M50 14 C48 7 54 3 58 3 C57 7 53 10 50 14 Z"
           fill="currentColor"
-        />
-        <path
-          d="M55 5 C62 5 66 9 65 14 C60 14 56 10 55 5 Z"
-          fill="currentColor"
-          fillOpacity="0.85"
         />
 
         {/* Avocado Outer Body with Inner Seed (Pit) Cutout */}

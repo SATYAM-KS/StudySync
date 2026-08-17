@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
+import { BrandLogo } from './BrandLogo.tsx';
 import { checkScheduleStatus, formatTimeTo12h } from '../utils/schedule.ts';
 import { 
   Play, 
@@ -107,9 +108,9 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
         <div className="lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm relative overflow-hidden">
           
           <div className="flex items-center justify-between relative z-10">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs">
-                <BookOpen className="w-4 h-4" />
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs shrink-0">
+                <BrandLogo size="xs" className="w-5 h-5 text-white dark:text-black" />
               </div>
               <h3 className="font-extrabold text-base text-zinc-950 dark:text-white tracking-tight">Focus Studio</h3>
             </div>

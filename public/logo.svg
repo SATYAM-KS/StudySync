@@ -4,11 +4,6 @@
     fill="#FFFFFF"
   />
   <path
-    d="M55 5 C62 5 66 9 65 14 C60 14 56 10 55 5 Z"
-    fill="#FFFFFF"
-    fill-opacity="0.85"
-  />
-  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M50 14
