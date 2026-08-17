@@ -1845,43 +1845,41 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
       campaignName,
       subjectNote || "Focus Study"
     );
-    let savedBlock = null;
-    if (analysis.isProductiveWork) {
-      const block = {
-        id: `blk_${req.user.id}_${Date.now()}`,
+    const isProductive = Boolean(analysis.isProductiveWork);
+    const block = {
+      id: `blk_${req.user.id}_${Date.now()}`,
+      userId: req.user.id,
+      userName: req.user.name,
+      userAvatarUrl: req.user.avatarUrl,
+      campaignId,
+      campaignName,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      durationMinutes: 5,
+      status: isProductive ? "active" : "idle",
+      subjectNote: subjectNote || analysis.activitySummary || (isProductive ? "Focus Study" : "Non-Study Activity Detected"),
+      snapshotUrl
+    };
+    let savedBlock = block;
+    try {
+      savedBlock = await logStudyBlock(block);
+    } catch (dbErr) {
+      console.error("Failed to persist study block in DB:", dbErr);
+    }
+    try {
+      io.to(`campaign:${campaignId}`).emit("study:block_logged", {
+        block: savedBlock,
         userId: req.user.id,
-        userName: req.user.name,
-        userAvatarUrl: req.user.avatarUrl,
-        campaignId,
-        campaignName,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        durationMinutes: 5,
-        status: "active",
-        subjectNote: subjectNote || analysis.activitySummary || "Focus Study",
-        snapshotUrl
-      };
-      try {
-        savedBlock = await logStudyBlock(block);
-      } catch (dbErr) {
-        console.error("Failed to persist study block in DB:", dbErr);
-        savedBlock = block;
-      }
-      try {
-        io.to(`campaign:${campaignId}`).emit("study:block_logged", {
-          block: savedBlock,
-          userId: req.user.id,
-          campaignId
-        });
-        io.emit("study:block_logged", {
-          block: savedBlock,
-          userId: req.user.id,
-          campaignId
-        });
-      } catch {
-      }
+        campaignId
+      });
+      io.emit("study:block_logged", {
+        block: savedBlock,
+        userId: req.user.id,
+        campaignId
+      });
+    } catch {
     }
     res.json({
-      registered: analysis.isProductiveWork,
+      registered: isProductive,
       analysis,
       block: savedBlock
     });

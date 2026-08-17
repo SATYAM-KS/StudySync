@@ -142,7 +142,8 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       }
 
       const updatedBlocks = [newBlock, ...prev.blocks];
-      const duration = newBlock.durationMinutes || 5;
+      const isPassed = newBlock.status === 'active';
+      const duration = isPassed ? (newBlock.durationMinutes || 5) : 0;
 
       const updatedData: HistoryResponse = {
         blocks: updatedBlocks,

@@ -628,48 +628,44 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
       subjectNote || 'Focus Study'
     );
 
-    let savedBlock: StudyBlock | null = null;
+    const isProductive = Boolean(analysis.isProductiveWork);
+    const block: StudyBlock = {
+      id: `blk_${req.user!.id}_${Date.now()}`,
+      userId: req.user!.id,
+      userName: req.user!.name,
+      userAvatarUrl: req.user!.avatarUrl,
+      campaignId,
+      campaignName,
+      timestamp: new Date().toISOString(),
+      durationMinutes: 5,
+      status: isProductive ? 'active' : 'idle',
+      subjectNote: subjectNote || analysis.activitySummary || (isProductive ? 'Focus Study' : 'Non-Study Activity Detected'),
+      snapshotUrl
+    };
 
-    if (analysis.isProductiveWork) {
-      // Automatically register +5 minutes of verified study time
-      const block: StudyBlock = {
-        id: `blk_${req.user!.id}_${Date.now()}`,
-        userId: req.user!.id,
-        userName: req.user!.name,
-        userAvatarUrl: req.user!.avatarUrl,
-        campaignId,
-        campaignName,
-        timestamp: new Date().toISOString(),
-        durationMinutes: 5,
-        status: 'active',
-        subjectNote: subjectNote || analysis.activitySummary || 'Focus Study',
-        snapshotUrl
-      };
-
-      try {
-        savedBlock = await logStudyBlock(block);
-      } catch (dbErr) {
-        console.error('Failed to persist study block in DB:', dbErr);
-        savedBlock = block;
-      }
-
-      // Broadcast to cohort leaderboard & study history in real-time
-      try {
-        io.to(`campaign:${campaignId}`).emit('study:block_logged', {
-          block: savedBlock,
-          userId: req.user!.id,
-          campaignId
-        });
-        io.emit('study:block_logged', {
-          block: savedBlock,
-          userId: req.user!.id,
-          campaignId
-        });
-      } catch {}
+    let savedBlock: StudyBlock = block;
+    try {
+      savedBlock = await logStudyBlock(block);
+    } catch (dbErr) {
+      console.error('Failed to persist study block in DB:', dbErr);
     }
 
+    // Broadcast to cohort leaderboard & study history in real-time
+    try {
+      io.to(`campaign:${campaignId}`).emit('study:block_logged', {
+        block: savedBlock,
+        userId: req.user!.id,
+        campaignId
+      });
+      io.emit('study:block_logged', {
+        block: savedBlock,
+        userId: req.user!.id,
+        campaignId
+      });
+    } catch {}
+
     res.json({
-      registered: analysis.isProductiveWork,
+      registered: isProductive,
       analysis,
       block: savedBlock
     });
