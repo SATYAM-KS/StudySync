@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Campaign } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
