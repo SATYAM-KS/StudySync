@@ -355,9 +355,9 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
           </div>
 
           {/* Tab content — fills remaining height with instant 0ms CSS-preserved switching */}
-          <div className="flex-1 overflow-hidden p-4">
+          <div className="flex-1 overflow-hidden relative">
             <div
-              className="h-full overflow-y-auto"
+              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
               style={{
                 overscrollBehavior: 'contain',
                 display: activeTab === 'focus' ? 'block' : 'none'
@@ -367,7 +367,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             </div>
 
             <div
-              className="h-full overflow-y-auto"
+              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
               style={{
                 overscrollBehavior: 'contain',
                 display: activeTab === 'leaderboard' ? 'block' : 'none'
@@ -377,7 +377,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             </div>
 
             <div
-              className="h-full overflow-y-auto"
+              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
               style={{
                 overscrollBehavior: 'contain',
                 display: activeTab === 'history' ? 'block' : 'none'
@@ -391,7 +391,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             </div>
 
             <div
-              className="h-full flex flex-col"
+              className="h-full flex flex-col p-3 sm:p-4"
               style={{
                 display: activeTab === 'chat' ? 'flex' : 'none'
               }}
@@ -401,7 +401,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
 
             {/* VoiceRoom is ALWAYS mounted — hidden with CSS so LiveKit stays connected across tabs */}
             <div
-              className="h-full overflow-y-auto"
+              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
               style={{
                 overscrollBehavior: 'contain',
                 display: activeTab === 'voice' ? 'block' : 'none'

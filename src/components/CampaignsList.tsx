@@ -86,7 +86,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto px-4 sm:px-8 py-8 text-zinc-900 dark:text-zinc-100">
+    <div className="h-full overflow-y-auto px-4 sm:px-8 pt-6 pb-24 text-zinc-900 dark:text-zinc-100" style={{ overscrollBehavior: 'contain' }}>
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Welcome & Global Focus Header */}

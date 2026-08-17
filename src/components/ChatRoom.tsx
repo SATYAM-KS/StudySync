@@ -405,35 +405,65 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
     >
       {/* ── Channel Header ── */}
       <div className="flex flex-col border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav shrink-0">
-        <div className="flex items-center gap-3 px-5 py-3.5">
-          <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs shrink-0">
-            <MessageSquare className="w-4 h-4" />
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+          {/* Left: Icon + Title */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs shrink-0">
+              <MessageSquare className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-bold text-base text-zinc-950 dark:text-white tracking-tight leading-none truncate">
+                Cohort Lounge
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1 truncate leading-none">
+                {searchQuery ? `Showing results for "${searchQuery}"` : 'Live discussion'}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-base text-zinc-950 dark:text-white tracking-tight leading-none">
-              Cohort Lounge
-            </h3>
-            <p className="text-xs text-zinc-400 mt-1 truncate leading-none">
-              {searchQuery ? `Showing results for "${searchQuery}"` : 'Live discussion'}
-            </p>
+
+          {/* Right: Search toggle + View Tabs (Chat / Media / Docs) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Search toggle */}
+            <button
+              type="button"
+              onClick={toggleSearch}
+              className={`p-2 rounded-xl transition cursor-pointer active:scale-95 ${
+                isSearchOpen
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
+                  : 'glass-pill text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+              title="Search messages"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* View Tabs (Chat / Media / Docs) */}
+            <div className="flex items-center gap-1 glass-pill p-1 rounded-xl">
+              {(['chat', 'media', 'docs'] as const).map(view => {
+                const labels: Record<typeof view, { label: string; icon: React.ReactNode }> = {
+                  chat: { label: 'Chat', icon: <MessageSquare className="w-3.5 h-3.5" /> },
+                  media: { label: 'Media', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                  docs: { label: 'Documents', icon: <FileText className="w-3.5 h-3.5" /> }
+                };
+                const active = chatView === view;
+                return (
+                  <button
+                    key={view}
+                    type="button"
+                    onClick={() => setChatView(view)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer active:scale-95 ${
+                      active
+                        ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {labels[view].icon}
+                    <span className="hidden sm:inline">{labels[view].label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          {/* Search toggle */}
-          <button
-            type="button"
-            onClick={toggleSearch}
-            className={`p-2 rounded-xl transition cursor-pointer active:scale-95 ${
-              isSearchOpen
-                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
-                : 'glass-pill text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-            }`}
-            title="Search messages"
-          >
-            <Search className="w-4 h-4" />
-          </button>
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 glass-pill px-3 py-1 rounded-full shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live
-          </span>
         </div>
 
         {/* Search bar — slides in */}
@@ -462,33 +492,6 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
             )}
           </div>
         )}
-      </div>
-
-      {/* ── View Tabs (Chat / Media / Docs) ── */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-200/60 dark:border-white/[0.06] glass-nav shrink-0">
-        {(['chat', 'media', 'docs'] as const).map(view => {
-          const labels: Record<typeof view, { label: string; icon: React.ReactNode }> = {
-            chat: { label: 'Chat', icon: <MessageSquare className="w-3.5 h-3.5" /> },
-            media: { label: 'Media', icon: <ImageIcon className="w-3.5 h-3.5" /> },
-            docs: { label: 'Documents', icon: <FileText className="w-3.5 h-3.5" /> }
-          };
-          const active = chatView === view;
-          return (
-            <button
-              key={view}
-              type="button"
-              onClick={() => setChatView(view)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer active:scale-95 ${
-                active
-                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
-              }`}
-            >
-              {labels[view].icon}
-              {labels[view].label}
-            </button>
-          );
-        })}
       </div>
 
       {/* ── Media Grid ── */}
