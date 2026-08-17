@@ -134,12 +134,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   // Aggregated stats
   const [stats, setStats] = useState<StudyStats | null>(null);
 
-  // 12:00 AM Midnight Daily College / Class Routine & Target Calculation
-  const getTodayKey = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+  // 2:00 AM Study Day Boundary Routine & Target Calculation
+  // Any study before 2:00 AM counts toward the previous study day.
+  // At 2:00 AM, the new study day starts and the check-in modal pops up.
+  const getTodayKey = (date: Date = new Date()) => {
+    const adjusted = new Date(date.getTime() - 2 * 60 * 60 * 1000);
+    const year = adjusted.getFullYear();
+    const month = String(adjusted.getMonth() + 1).padStart(2, '0');
+    const day = String(adjusted.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
@@ -170,7 +172,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id]);
 
-  // Interval to check for midnight crossing
+  // Interval to check for 2:00 AM study day crossing
   useEffect(() => {
     const interval = setInterval(() => {
       if (!user) return;
@@ -180,7 +182,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         setCollegeRoutine(null);
         setShowRoutineModal(true);
       }
-    }, 30000);
+    }, 15000); // check every 15s
     return () => clearInterval(interval);
   }, [user?.id]);
 

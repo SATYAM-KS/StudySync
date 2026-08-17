@@ -672,9 +672,11 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
   }
 
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  // 2:00 AM Study Day Boundary: Subtract 2 hours so [00:00 to 01:59 AM] belongs to the previous study day
+  const adjustedNow = new Date(now.getTime() - 2 * 3600000);
+  const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
   const weekStart = todayStart - 6 * 86400000;
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
 
   const entries: LeaderboardEntry[] = approvedMembers.map(member => {
     const userBlocks = campaignBlocks.filter(b => b.userId === member.userId);
@@ -690,7 +692,8 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
 
     userBlocks.forEach(b => {
       const bTime = new Date(b.timestamp).getTime();
-      const bDateStr = b.timestamp.split('T')[0];
+      const bDate = new Date(bTime - 2 * 3600000);
+      const bDateStr = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, '0')}-${String(bDate.getDate()).padStart(2, '0')}`;
       activeDaysSet.add(bDateStr);
 
       totalMinutes += b.durationMinutes;
@@ -712,8 +715,8 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
 
     let currentStreak = 0;
     for (let d = 0; d < 365; d++) {
-      const checkDate = new Date(todayStart - d * 86400000);
-      const dateStr = checkDate.toISOString().split('T')[0];
+      const checkDate = new Date(adjustedNow.getTime() - d * 86400000);
+      const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
       if (activeDaysSet.has(dateStr)) {
         currentStreak++;
       } else if (d === 0 && !activeDaysSet.has(dateStr)) {

@@ -47,11 +47,11 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
                 Daily Focus Check-in
               </h2>
               <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                12 AM Reset
+                2 AM Reset
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              {todayFormatted} · Calibrate your daily study target
+              {todayFormatted} · Calibrate your daily study target (Resets 2:00 AM)
             </p>
           </div>
         </div>
@@ -62,7 +62,7 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
             Did you attend college / classes today?
           </h3>
           <p className="text-xs text-zinc-400 mt-1">
-            Your study hours can be completed at any time throughout the day.
+            Study anytime in the day & late night. Sessions before 2:00 AM count toward today.
           </p>
         </div>
 

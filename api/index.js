@@ -624,9 +624,10 @@ async function getCampaignLeaderboard(campaignId) {
     }));
   }
   const now = /* @__PURE__ */ new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const adjustedNow = new Date(now.getTime() - 2 * 36e5);
+  const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
   const weekStart = todayStart - 6 * 864e5;
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
   const entries = approvedMembers.map((member) => {
     const userBlocks = campaignBlocks.filter((b) => b.userId === member.userId);
     const userProfile = allUsers.find((u) => u.id === member.userId);
@@ -638,7 +639,8 @@ async function getCampaignLeaderboard(campaignId) {
     const activeDaysSet = /* @__PURE__ */ new Set();
     userBlocks.forEach((b) => {
       const bTime = new Date(b.timestamp).getTime();
-      const bDateStr = b.timestamp.split("T")[0];
+      const bDate = new Date(bTime - 2 * 36e5);
+      const bDateStr = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, "0")}-${String(bDate.getDate()).padStart(2, "0")}`;
       activeDaysSet.add(bDateStr);
       totalMinutes += b.durationMinutes;
       if (bTime >= todayStart) {
@@ -656,8 +658,8 @@ async function getCampaignLeaderboard(campaignId) {
     });
     let currentStreak = 0;
     for (let d = 0; d < 365; d++) {
-      const checkDate = new Date(todayStart - d * 864e5);
-      const dateStr = checkDate.toISOString().split("T")[0];
+      const checkDate = new Date(adjustedNow.getTime() - d * 864e5);
+      const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
       if (activeDaysSet.has(dateStr)) {
         currentStreak++;
       } else if (d === 0 && !activeDaysSet.has(dateStr)) {
@@ -1893,9 +1895,8 @@ app.get("/api/study/stats", authMiddleware, async (req, res) => {
     const userBlocks = await getStudyBlocksForUser(req.user.id);
     const activeBlocks = userBlocks.filter((b) => b.status === "active");
     const now = /* @__PURE__ */ new Date();
-    const todayDateStr = now.toISOString().split("T")[0];
-    const todayLocalDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const adjustedNow = new Date(now.getTime() - 2 * 36e5);
+    const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
     const weekStart = todayStart - 6 * 864e5;
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
@@ -1903,17 +1904,17 @@ app.get("/api/study/stats", authMiddleware, async (req, res) => {
     const dailyMinutesMap = {};
     activeBlocks.forEach((b) => {
       const bTime = new Date(b.timestamp).getTime();
-      const dateStr = b.timestamp.split("T")[0];
+      const adjustedBTime = new Date(bTime - 2 * 36e5);
+      const dateStr = `${adjustedBTime.getFullYear()}-${String(adjustedBTime.getMonth() + 1).padStart(2, "0")}-${String(adjustedBTime.getDate()).padStart(2, "0")}`;
       dailyMinutesMap[dateStr] = (dailyMinutesMap[dateStr] || 0) + b.durationMinutes;
       totalMinutes += b.durationMinutes;
-      const isToday = b.timestamp.startsWith(todayDateStr) || b.timestamp.startsWith(todayLocalDateStr) || bTime >= todayStart;
-      if (isToday) todayMinutes += b.durationMinutes;
-      if (bTime >= weekStart || isToday) thisWeekMinutes += b.durationMinutes;
+      if (bTime >= todayStart) todayMinutes += b.durationMinutes;
+      if (bTime >= weekStart) thisWeekMinutes += b.durationMinutes;
     });
     const recentDays = [];
     for (let d = 6; d >= 0; d--) {
-      const date = new Date(now.getTime() - d * 864e5);
-      const dateStr = date.toISOString().split("T")[0];
+      const date = new Date(adjustedNow.getTime() - d * 864e5);
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       recentDays.push({
         date: dateStr,
         dayName: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()],
@@ -1942,11 +1943,10 @@ app.get("/api/study/history", authMiddleware, async (req, res) => {
     const userBlocks = await getStudyBlocksForUser(req.user.id, campaignId);
     const sortedBlocks = userBlocks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     const now = /* @__PURE__ */ new Date();
-    const todayDateStr = now.toISOString().split("T")[0];
-    const todayLocalDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const adjustedNow = new Date(now.getTime() - 2 * 36e5);
+    const todayStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), adjustedNow.getDate(), 2, 0, 0, 0).getTime();
     const weekStart = todayStart - 6 * 864e5;
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const monthStart = new Date(adjustedNow.getFullYear(), adjustedNow.getMonth(), 1, 2, 0, 0, 0).getTime();
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
     let thisMonthMinutes = 0;
@@ -1955,9 +1955,8 @@ app.get("/api/study/history", authMiddleware, async (req, res) => {
       if (b.status === "active") {
         const bTime = new Date(b.timestamp).getTime();
         totalMinutes += b.durationMinutes;
-        const isToday = b.timestamp.startsWith(todayDateStr) || b.timestamp.startsWith(todayLocalDateStr) || bTime >= todayStart;
-        if (isToday) todayMinutes += b.durationMinutes;
-        if (bTime >= weekStart || isToday) thisWeekMinutes += b.durationMinutes;
+        if (bTime >= todayStart) todayMinutes += b.durationMinutes;
+        if (bTime >= weekStart) thisWeekMinutes += b.durationMinutes;
         if (bTime >= monthStart) thisMonthMinutes += b.durationMinutes;
       }
     });
