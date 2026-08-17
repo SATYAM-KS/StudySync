@@ -863,6 +863,24 @@ export async function toggleMessageReaction(messageId: string, emoji: string, us
   return msg;
 }
 
+export async function deleteMessage(messageId: string): Promise<boolean> {
+  if (supabase) {
+    try {
+      await supabase.from('messages').delete().eq('id', messageId);
+    } catch (e) {
+      console.warn('[Database] Supabase deleteMessage error:', e);
+    }
+  }
+  const db = await initDb();
+  const idx = db.messages.findIndex(m => m.id === messageId);
+  if (idx !== -1) {
+    db.messages.splice(idx, 1);
+    saveDb();
+    return true;
+  }
+  return true;
+}
+
 // ==========================================
 // Call Sessions & Participant Methods
 // ==========================================

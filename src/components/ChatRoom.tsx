@@ -4,14 +4,12 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
 import { MediaViewerModal } from './MediaViewerModal.tsx';
-import { Send, Paperclip, Hash, X, Smile, Download, Search, File, FileText, FileImage, Image as ImageIcon, MessageSquare } from 'lucide-react';
+import { Send, Paperclip, Hash, X, Trash2, Download, Search, File, FileText, FileImage, Image as ImageIcon, MessageSquare } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 
 interface ChatRoomProps {
   campaign: Campaign;
 }
-
-const QUICK_REACTIONS = ['👍', '❤️', '🔥', '💪', '🎯', '😂', '🙌'];
 
 function safeDate(val: any): Date {
   if (!val) return new Date();
@@ -74,7 +72,7 @@ function TypingDots() {
 
 export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const { user, token } = useAuth();
-  const { socket, isConnected, sendMessage, reactToMessage, startTyping, stopTyping } = useSocket();
+  const { socket, isConnected, sendMessage, startTyping, stopTyping } = useSocket();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -86,7 +84,6 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   } | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
-  const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [chatView, setChatView] = useState<'chat' | 'media' | 'docs'>('chat');
@@ -103,6 +100,27 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAtBottomRef = useRef(true);
+
+  // ── Delete message handler ─────────────────────────────────────────
+  const handleDeleteMessage = async (messageId: string) => {
+    // 0ms instant optimistic removal
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+
+    if (socket) {
+      socket.emit('message:delete', { messageId, campaignId: campaign.id });
+    }
+
+    if (token) {
+      try {
+        await fetch(`/api/messages/${messageId}?campaignId=${campaign.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        console.error('Failed to delete message:', err);
+      }
+    }
+  };
 
   // ── Fetch history & Polling Fallback ──────────────────────────────
   useEffect(() => {
@@ -157,6 +175,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
       setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
     };
 
+    const onDeleted = (data: { id?: string; messageId?: string }) => {
+      const delId = data.id || data.messageId;
+      if (!delId) return;
+      setMessages(prev => prev.filter(m => m.id !== delId));
+    };
+
     const onTyping = (data: { campaignId?: string; userName: string; isTyping: boolean }) => {
       if (data.campaignId !== campaign.id) return;
       setTypingUsers(prev =>
@@ -168,10 +192,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
 
     socket.on('message:new', onNew);
     socket.on('message:updated', onUpdated);
+    socket.on('message:deleted', onDeleted);
     socket.on('typing:status', onTyping);
     return () => {
       socket.off('message:new', onNew);
       socket.off('message:updated', onUpdated);
+      socket.off('message:deleted', onDeleted);
       socket.off('typing:status', onTyping);
     };
   }, [socket, campaign.id]);
@@ -757,64 +783,22 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
                             </div>
                           )}
 
-                          {/* Reactions */}
-                          {msg.reactions && msg.reactions.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {msg.reactions.map(r => {
-                                const mine = user && r.userIds.includes(user.id);
-                                return (
-                                  <button
-                                    key={r.emoji}
-                                    type="button"
-                                    onClick={e => { e.stopPropagation(); reactToMessage(msg.id, r.emoji, campaign.id); }}
-                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition cursor-pointer select-none ${
-                                      mine
-                                        ? 'bg-zinc-900 dark:bg-white text-white dark:text-black border-zinc-900 dark:border-white font-bold'
-                                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                                    }`}
-                                  >
-                                    <span>{r.emoji}</span>
-                                    <span className="font-semibold">{r.userIds.length}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
                         </div>
 
-                        {/* Hover action bar */}
-                        {hoveredMsgId === msg.id && (
+                        {/* Hover action bar: Delete Message */}
+                        {hoveredMsgId === msg.id && (msg.senderId === user?.id || campaign.adminId === user?.id || campaign.userRole === 'admin' || campaign.userRole === 'co-admin') && (
                           <div
-                            className="absolute right-3 -top-3 z-10 flex items-center gap-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-md px-1 py-0.5"
+                            className="absolute right-3 -top-3 z-10 flex items-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-md px-1 py-0.5 animate-in fade-in zoom-in-95 duration-100"
                             onClick={e => e.stopPropagation()}
                           >
                             <button
                               type="button"
-                              onClick={() => setReactionPickerMsgId(reactionPickerMsgId === msg.id ? null : msg.id)}
-                              className="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer"
-                              title="Add reaction"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-1 rounded hover:bg-rose-500/15 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
+                              title="Delete message"
                             >
-                              <Smile className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          </div>
-                        )}
-
-                        {/* Reaction picker popover */}
-                        {reactionPickerMsgId === msg.id && (
-                          <div
-                            className="absolute right-3 -top-10 z-20 flex items-center gap-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl px-2 py-1.5"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            {QUICK_REACTIONS.map(emoji => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => { reactToMessage(msg.id, emoji, campaign.id); setReactionPickerMsgId(null); }}
-                                className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition text-base cursor-pointer select-none hover:scale-125 active:scale-100 duration-100"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
                           </div>
                         )}
                       </div>

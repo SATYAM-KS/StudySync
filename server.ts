@@ -29,6 +29,7 @@ import {
   getCampaignMessages,
   getDirectMessages,
   createMessage,
+  deleteMessage,
   getCallSession,
   saveCallSession,
   addCallParticipant,
@@ -850,6 +851,26 @@ app.post('/api/messages', authMiddleware, async (req: AuthRequest, res) => {
   } catch (err: any) {
     console.error('Failed to send message:', err);
     res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+app.delete('/api/messages/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const campaignId = req.query.campaignId as string | undefined;
+    await deleteMessage(id);
+
+    if (io) {
+      if (campaignId) {
+        io.to(`campaign:${campaignId}`).emit('message:deleted', { id, messageId: id, campaignId });
+      }
+      io.emit('message:deleted', { id, messageId: id, campaignId });
+    }
+
+    res.json({ success: true, id });
+  } catch (err: any) {
+    console.error('Failed to delete message:', err);
+    res.status(500).json({ error: 'Failed to delete message' });
   }
 });
 

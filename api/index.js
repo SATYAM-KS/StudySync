@@ -783,6 +783,23 @@ async function toggleMessageReaction2(messageId, emoji, userId, userName) {
   saveDb();
   return msg;
 }
+async function deleteMessage(messageId) {
+  if (supabase) {
+    try {
+      await supabase.from("messages").delete().eq("id", messageId);
+    } catch (e) {
+      console.warn("[Database] Supabase deleteMessage error:", e);
+    }
+  }
+  const db = await initDb();
+  const idx = db.messages.findIndex((m) => m.id === messageId);
+  if (idx !== -1) {
+    db.messages.splice(idx, 1);
+    saveDb();
+    return true;
+  }
+  return true;
+}
 async function getCallSession(campaignId) {
   if (supabase) {
     const { data, error } = await supabase.from("active_calls").select("*").eq("campaign_id", campaignId).single();
@@ -1029,13 +1046,23 @@ function setupSocketServer(httpServer) {
     socket.on("message:react", async ({ messageId, emoji, campaignId, recipientId }) => {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
-      const updated = await toggleMessageReaction2(messageId, emoji, user.userId);
+      const updated = await toggleMessageReaction2(messageId, emoji, user.userId, user.userName);
       if (updated) {
         if (campaignId) {
           io2.to(`campaign:${campaignId}`).emit("message:updated", updated);
         } else if (recipientId) {
           io2.to(`user:${user.userId}`).to(`user:${recipientId}`).emit("message:updated", updated);
         }
+      }
+    });
+    socket.on("message:delete", async ({ messageId, campaignId, recipientId }) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+      await deleteMessage(messageId);
+      if (campaignId) {
+        io2.to(`campaign:${campaignId}`).emit("message:deleted", { id: messageId, messageId, campaignId });
+      } else if (recipientId) {
+        io2.to(`user:${user.userId}`).to(`user:${recipientId}`).emit("message:deleted", { id: messageId, messageId, recipientId });
       }
     });
     socket.on("typing:start", ({ campaignId, recipientId }) => {
@@ -2038,6 +2065,23 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Failed to send message:", err);
     res.status(500).json({ error: "Failed to send message" });
+  }
+});
+app.delete("/api/messages/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const campaignId = req.query.campaignId;
+    await deleteMessage(id);
+    if (io) {
+      if (campaignId) {
+        io.to(`campaign:${campaignId}`).emit("message:deleted", { id, messageId: id, campaignId });
+      }
+      io.emit("message:deleted", { id, messageId: id, campaignId });
+    }
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error("Failed to delete message:", err);
+    res.status(500).json({ error: "Failed to delete message" });
   }
 });
 app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {

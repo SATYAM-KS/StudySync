@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { createMessage, toggleMessageReaction, addCallParticipant, removeCallParticipant, updateParticipantState, getCallSession } from './db.ts';
+import { createMessage, toggleMessageReaction, deleteMessage, addCallParticipant, removeCallParticipant, updateParticipantState, getCallSession } from './db.ts';
 import { Message, CallParticipant, LiveStudySession } from '../types/index.ts';
 
 interface ConnectedUser {
@@ -161,13 +161,26 @@ export function setupSocketServer(httpServer: HttpServer) {
       const user = connectedUsers.get(socket.id);
       if (!user) return;
 
-      const updated = await toggleMessageReaction(messageId, emoji, user.userId);
+      const updated = await toggleMessageReaction(messageId, emoji, user.userId, user.userName);
       if (updated) {
         if (campaignId) {
           io.to(`campaign:${campaignId}`).emit('message:updated', updated);
         } else if (recipientId) {
           io.to(`user:${user.userId}`).to(`user:${recipientId}`).emit('message:updated', updated);
         }
+      }
+    });
+
+    // 4b. Delete message event
+    socket.on('message:delete', async ({ messageId, campaignId, recipientId }: { messageId: string; campaignId?: string; recipientId?: string }) => {
+      const user = connectedUsers.get(socket.id);
+      if (!user) return;
+
+      await deleteMessage(messageId);
+      if (campaignId) {
+        io.to(`campaign:${campaignId}`).emit('message:deleted', { id: messageId, messageId, campaignId });
+      } else if (recipientId) {
+        io.to(`user:${user.userId}`).to(`user:${recipientId}`).emit('message:deleted', { id: messageId, messageId, recipientId });
       }
     });
 
