@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   LiveKitRoom,
   useLocalParticipant,
@@ -203,6 +203,22 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
     return () => clearInterval(hbId);
   }, [isConnected, authToken, campaign.id, isMuted, isScreenSharing]);
 
+  // References for unmount cleanup
+  const isConnectedRef = useRef(isConnected);
+  isConnectedRef.current = isConnected;
+
+  const campaignIdRef = useRef(campaign.id);
+  campaignIdRef.current = campaign.id;
+
+  const authTokenRef = useRef(authToken);
+  authTokenRef.current = authToken;
+
+  const userRef = useRef(user);
+  userRef.current = user;
+
+  const socketRef = useRef(socket);
+  socketRef.current = socket;
+
   const disconnect = useCallback(() => {
     setIsConnected(false);
     setLivekitToken(null);
@@ -211,32 +227,40 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
     setLiveKitConnected(null);
 
     // 0ms INSTANT local removal
-    if (user) {
-      setChannelParticipants(prev => prev.filter(p => p.userId !== user.id));
+    if (userRef.current) {
+      setChannelParticipants(prev => prev.filter(p => p.userId !== userRef.current?.id));
     }
 
     // 0ms socket broadcast to all cohort members
-    if (socket) {
-      socket.emit('call:leave', campaign.id);
+    if (socketRef.current) {
+      socketRef.current.emit('call:leave', campaignIdRef.current);
     }
 
     // Instant REST endpoint leave
-    if (authToken) {
-      fetch(`/api/calls/${campaign.id}/leave`, {
+    if (authTokenRef.current) {
+      fetch(`/api/calls/${campaignIdRef.current}/leave`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${authTokenRef.current}` }
       }).catch(() => {});
     }
-  }, [user, socket, campaign.id, authToken, setLiveKitConnected]);
+  }, [setLiveKitConnected]);
 
-  // Cleanup on unmount / navigation
+  // Cleanup on unmount ONLY (not on every state change!)
   useEffect(() => {
     return () => {
-      if (isConnected) {
-        disconnect();
+      if (isConnectedRef.current) {
+        if (socketRef.current) {
+          socketRef.current.emit('call:leave', campaignIdRef.current);
+        }
+        if (authTokenRef.current) {
+          fetch(`/api/calls/${campaignIdRef.current}/leave`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${authTokenRef.current}` }
+          }).catch(() => {});
+        }
       }
     };
-  }, [isConnected, disconnect]);
+  }, []);
 
   const connectToRoom = useCallback(async () => {
     if (!authToken) return;
@@ -248,7 +272,7 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
         body: JSON.stringify({ campaignId: campaign.id })
       });
       const data = await res.json();
-      if (data.token) {
+      if (res.ok && data.token) {
         setLivekitToken(data.token);
         setLivekitUrl(data.url || livekitUrl);
         setIsConnected(true);
@@ -280,6 +304,9 @@ export const VoiceRoom: React.FC<VoiceRoomProps> = ({ campaign }) => {
         if (socket) {
           socket.emit('call:join', { campaignId: campaign.id, isMuted, isScreenSharing });
         }
+      } else {
+        console.error("LiveKit token response error:", data);
+        alert(data.error || "Failed to connect to voice channel. Please try again.");
       }
     } catch (err) {
       console.error("LiveKit connect error:", err);
