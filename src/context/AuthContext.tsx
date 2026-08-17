@@ -16,7 +16,7 @@ interface AuthContextType {
     leetcodeUrl?: string;
     hackerrankUrl?: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  forgotPassword: (email: string) => Promise<{ success: boolean; code?: string; message?: string; error?: string }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; code?: string; previewCode?: string; emailDelivered?: boolean; message?: string; error?: string }>;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<boolean>;
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const forgotPassword = async (email: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+  const forgotPassword = async (email: string): Promise<{ success: boolean; previewCode?: string; emailDelivered?: boolean; message?: string; error?: string }> => {
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
@@ -157,7 +157,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try { data = JSON.parse(text); } catch { data = { error: 'Server returned an invalid response' }; }
 
       if (res.ok && data.success) {
-        return { success: true, message: data.message };
+        return { 
+          success: true, 
+          message: data.message,
+          previewCode: data.previewCode,
+          emailDelivered: data.emailDelivered
+        };
       }
       return { success: false, error: data.error || 'Failed to send reset code' };
     } catch (e: any) {

@@ -1388,11 +1388,14 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     const code = Math.floor(1e5 + Math.random() * 9e5).toString();
     const expiresAt = Date.now() + 15 * 60 * 1e3;
     passwordResetCodes.set(cleanEmail, { code, expiresAt });
-    await sendPasswordResetEmail(cleanEmail, code, user.name);
+    const emailResult = await sendPasswordResetEmail(cleanEmail, code, user.name);
+    console.log(`[Password Reset] Generated OTP for ${cleanEmail}: ${code} (Delivered: ${emailResult.success})`);
     res.json({
       success: true,
-      message: `A 6-digit verification code has been sent to ${cleanEmail}. Please check your inbox and spam folder.`,
-      email: cleanEmail
+      message: emailResult.success ? `A 6-digit verification code has been sent to ${cleanEmail}. Please check your inbox and spam folder.` : `Email service is not configured on the server. Your verification code is: ${code}`,
+      email: cleanEmail,
+      emailDelivered: emailResult.success,
+      ...!emailResult.success && { previewCode: code }
     });
   } catch (err) {
     console.error("Forgot password error:", err);

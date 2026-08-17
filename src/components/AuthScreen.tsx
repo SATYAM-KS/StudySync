@@ -120,6 +120,9 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
+  const [previewCode, setPreviewCode] = useState<string | null>(null);
+  const [emailDelivered, setEmailDelivered] = useState<boolean>(true);
+
   const handleRequestResetCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail.trim()) {
@@ -132,7 +135,15 @@ export const AuthScreen: React.FC = () => {
     try {
       const res = await forgotPassword(forgotEmail.trim());
       if (res.success) {
-        setResetCode('');
+        if (res.previewCode) {
+          setPreviewCode(res.previewCode);
+          setResetCode(res.previewCode);
+          setEmailDelivered(false);
+        } else {
+          setPreviewCode(null);
+          setResetCode('');
+          setEmailDelivered(true);
+        }
         setForgotStep(2);
         setSuccessMessage(null);
       } else {
@@ -575,20 +586,33 @@ export const AuthScreen: React.FC = () => {
                 /* Step 2: Enter Code & New Password */
                 <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
                   {/* Minimal Notice */}
-                  <div className="p-3 bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs flex items-center justify-between">
-                    <div className="flex items-center space-x-2 truncate">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-                      <span className="text-zinc-600 dark:text-zinc-400 truncate">
-                        Code sent to <span className="text-zinc-900 dark:text-white font-medium">{forgotEmail}</span>
-                      </span>
+                  <div className="p-3 bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 truncate">
+                        <div className={`w-2 h-2 rounded-full ${emailDelivered ? 'bg-emerald-500 animate-pulse' : 'bg-cyan-500'} shrink-0`} />
+                        <span className="text-zinc-600 dark:text-zinc-400 truncate">
+                          {emailDelivered ? (
+                            <>Code sent to <span className="text-zinc-900 dark:text-white font-medium">{forgotEmail}</span></>
+                          ) : (
+                            <>Reset Code for <span className="text-zinc-900 dark:text-white font-medium">{forgotEmail}</span></>
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setForgotStep(1)}
+                        className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white underline shrink-0 cursor-pointer ml-2"
+                      >
+                        Change
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setForgotStep(1)}
-                      className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white underline shrink-0 cursor-pointer ml-2"
-                    >
-                      Change
-                    </button>
+
+                    {previewCode && (
+                      <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] flex items-center justify-between">
+                        <span>Verification Code: <strong className="font-mono text-xs tracking-widest text-emerald-300 ml-1">{previewCode}</strong></span>
+                        <span className="text-[10px] text-emerald-500 font-bold">Auto-filled</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* 6-Digit Code */}
@@ -715,8 +739,8 @@ export const AuthScreen: React.FC = () => {
           </div>
           <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
             <Users className="w-4 h-4 text-zinc-700 dark:text-zinc-300 mx-auto mb-1" />
-            <p className="text-[11px] font-bold text-zinc-900 dark:text-white">Voice & Video</p>
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Silent co-study lounges</p>
+            <p className="text-[11px] font-bold text-zinc-900 dark:text-white">Peer Cohorts</p>
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Synchronous accountability</p>
           </div>
           <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
             <ShieldCheck className="w-4 h-4 text-zinc-700 dark:text-zinc-300 mx-auto mb-1" />
