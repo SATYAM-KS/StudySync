@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Campaign, CampaignMembership, DaySchedule } from '../types/index.ts';
+import { Campaign, CampaignMembership } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
-import { ScheduleBuilder } from './ScheduleBuilder.tsx';
-import { DEFAULT_WEEKLY_SCHEDULE, calculateAverageDailyHours } from '../utils/schedule.ts';
 import { 
   X, 
   Shield, 
@@ -39,7 +37,6 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const [members, setMembers] = useState<CampaignMembership[]>([]);
   const [name, setName] = useState(campaign.name);
   const [description, setDescription] = useState(campaign.description);
-  const [schedule, setSchedule] = useState<DaySchedule[]>(campaign.schedule || DEFAULT_WEEKLY_SCHEDULE);
   const [maxMembers, setMaxMembers] = useState(campaign.maxMembers);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'members' | 'requests' | 'settings'>('requests');
@@ -152,10 +149,6 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     e.preventDefault();
     setIsSaving(true);
     setStatusMessage('');
-    const autoTargetDailyHours = calculateAverageDailyHours(schedule);
-    const firstEnabledDay = schedule.find(d => d.enabled && d.slots.length > 0);
-    const fallbackStart = firstEnabledDay?.slots[0]?.startTime || '07:00';
-    const fallbackEnd = firstEnabledDay?.slots[firstEnabledDay.slots.length - 1]?.endTime || '22:00';
 
     try {
       const res = await fetch(`/api/campaigns/${campaign.id}`, {
@@ -167,10 +160,6 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),
-          schedule,
-          dailyStartTime: fallbackStart,
-          dailyEndTime: fallbackEnd,
-          targetDailyHours: autoTargetDailyHours,
           maxMembers: Number(maxMembers)
         })
       });
@@ -423,13 +412,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
               />
             </div>
 
-            {/* Day-by-Day Multi-slot Schedule Builder */}
-            <div className="pt-2">
-              <ScheduleBuilder
-                schedule={schedule}
-                onChange={(updated) => setSchedule(updated)}
-              />
-            </div>
+
 
             <div>
               <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center justify-between">

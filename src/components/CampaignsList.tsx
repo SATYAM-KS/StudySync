@@ -287,12 +287,12 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-200/60 dark:border-white/[0.06] text-xs text-zinc-500 dark:text-zinc-400">
                       <div className="flex items-center space-x-1.5">
                         <Target className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 shrink-0" />
-                        <span>{camp.targetDailyHours}h goal</span>
+                        <span>4h / 7h daily goal</span>
                       </div>
 
                       <div className="flex items-center space-x-1.5">
                         <Clock className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 shrink-0" />
-                        <span className="truncate">{formatTimeTo12h(camp.dailyStartTime)} - {formatTimeTo12h(camp.dailyEndTime)}</span>
+                        <span className="truncate">Flexible anytime</span>
                       </div>
 
                       <div className="flex items-center space-x-1.5">

@@ -10,6 +10,7 @@ import { CampaignsList } from './components/CampaignsList.tsx';
 import { CampaignDetail } from './components/CampaignDetail.tsx';
 import { CreateCampaignModal } from './components/CreateCampaignModal.tsx';
 import { EditProfileModal } from './components/EditProfileModal.tsx';
+import { DailyRoutineModal } from './components/DailyRoutineModal.tsx';
 import { AnimatedBackground } from './components/AnimatedBackground.tsx';
 import { AppLoadingScreen } from './components/AppLoadingScreen.tsx';
 import { BrandLogo } from './components/BrandLogo.tsx';
@@ -22,7 +23,17 @@ import {
 
 const MainApp: React.FC = () => {
   const { user, token, isLoading: isAuthLoading } = useAuth();
-  const { isStudying, activeCampaignId, activeCampaignName, sessionElapsedSeconds, stopStudying } = useStudy();
+  const { 
+    isStudying, 
+    activeCampaignId, 
+    activeCampaignName, 
+    sessionElapsedSeconds, 
+    stopStudying,
+    collegeRoutine,
+    showRoutineModal,
+    setShowRoutineModal,
+    setDailyCollegeRoutine
+  } = useStudy();
   const { isInCall, activeCampaignName: callCampaignName, leaveCall } = useCall();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -193,6 +204,14 @@ const MainApp: React.FC = () => {
       <EditProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* 12 AM Midnight Routine Check-in Modal */}
+      <DailyRoutineModal
+        isOpen={showRoutineModal}
+        onClose={() => setShowRoutineModal(false)}
+        currentRoutine={collegeRoutine}
+        onSelectRoutine={setDailyCollegeRoutine}
       />
 
     </div>

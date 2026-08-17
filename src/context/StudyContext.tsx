@@ -53,6 +53,11 @@ interface StudyContextType {
   lastAIAnalysis: LastAIAnalysis | null;
   screenShareError: string | null;
   stats: StudyStats | null;
+  collegeRoutine: 'college' | 'no_college' | null;
+  todayTargetHours: number;
+  showRoutineModal: boolean;
+  setShowRoutineModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setDailyCollegeRoutine: (routine: 'college' | 'no_college') => void;
   startStudying: (campaignId: string, campaignName: string, subjectNote?: string) => Promise<boolean>;
   stopStudying: () => void;
   reattachScreenShare: () => Promise<boolean>;
@@ -128,6 +133,68 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   // Aggregated stats
   const [stats, setStats] = useState<StudyStats | null>(null);
+
+  // 12:00 AM Midnight Daily College / Class Routine & Target Calculation
+  const getTodayKey = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [collegeRoutine, setCollegeRoutine] = useState<'college' | 'no_college' | null>(() => {
+    try {
+      const todayKey = getTodayKey();
+      const saved = localStorage.getItem(`study_college_routine_${todayKey}`);
+      if (saved === 'college' || saved === 'no_college') return saved;
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [showRoutineModal, setShowRoutineModal] = useState<boolean>(false);
+
+  // Check on user login / date change if routine is not set for today
+  useEffect(() => {
+    if (!user) return;
+    const todayKey = getTodayKey();
+    const saved = localStorage.getItem(`study_college_routine_${todayKey}`);
+    if (saved === 'college' || saved === 'no_college') {
+      setCollegeRoutine(saved);
+      setShowRoutineModal(false);
+    } else {
+      setCollegeRoutine(null);
+      setShowRoutineModal(true);
+    }
+  }, [user?.id]);
+
+  // Interval to check for midnight crossing
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!user) return;
+      const todayKey = getTodayKey();
+      const saved = localStorage.getItem(`study_college_routine_${todayKey}`);
+      if (!saved) {
+        setCollegeRoutine(null);
+        setShowRoutineModal(true);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
+  const setDailyCollegeRoutine = (routine: 'college' | 'no_college') => {
+    const todayKey = getTodayKey();
+    try {
+      localStorage.setItem(`study_college_routine_${todayKey}`, routine);
+    } catch {}
+    setCollegeRoutine(routine);
+    setShowRoutineModal(false);
+  };
+
+  // College = 4h target, No College = 7h target (default 7h if unset)
+  const todayTargetHours = collegeRoutine === 'college' ? 4 : 7;
 
   const isAnalyzingRef = useRef(false);
   const sessionStartedAtRef = useRef<number>(initialSession?.sessionStartedAt || Date.now());
@@ -752,6 +819,11 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       lastAIAnalysis,
       screenShareError,
       stats,
+      collegeRoutine,
+      todayTargetHours,
+      showRoutineModal,
+      setShowRoutineModal,
+      setDailyCollegeRoutine,
       startStudying,
       stopStudying,
       reattachScreenShare,

@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext.tsx';
-import { Campaign, DaySchedule } from '../types/index.ts';
-import { ScheduleBuilder } from './ScheduleBuilder.tsx';
-import { 
-  DEFAULT_WEEKLY_SCHEDULE, 
-  calculateAverageDailyHours,
-  calculateWeeklyHours
-} from '../utils/schedule.ts';
-import { X, Plus, Calendar, Users, Bookmark, RotateCcw } from 'lucide-react';
+import { Campaign } from '../types/index.ts';
+import { X, Plus, Calendar, Users, Bookmark, RotateCcw, Sparkles } from 'lucide-react';
 import { DatePicker } from './ui/DatePicker.tsx';
 
 interface CreateCampaignModalProps {
@@ -18,8 +12,8 @@ interface CreateCampaignModalProps {
 }
 
 const CATEGORIES = [
-  'Medical & Healthcare',
   'Computer Science & Tech',
+  'Medical & Healthcare',
   'Finance & Business',
   'Academic Research',
   'Law & Bar Exam',
@@ -28,7 +22,7 @@ const CATEGORIES = [
   'General High Focus'
 ];
 
-const DRAFT_KEY = 'study_campaign_draft_v1';
+const DRAFT_KEY = 'study_campaign_draft_v2';
 
 export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen, onClose, onCampaignCreated }) => {
   const { token } = useAuth();
@@ -37,20 +31,17 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
-  // Load initial draft from localStorage if available
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(nextMonth);
-  const [schedule, setSchedule] = useState<DaySchedule[]>(DEFAULT_WEEKLY_SCHEDULE);
-  const [maxMembers, setMaxMembers] = useState(15);
+  const [maxMembers, setMaxMembers] = useState(25);
   const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [hasDraft, setHasDraft] = useState(false);
 
-  // Restore draft when modal opens
   useEffect(() => {
     if (isOpen) {
       try {
@@ -62,7 +53,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           if (draft.category) setCategory(draft.category);
           if (draft.startDate) setStartDate(draft.startDate);
           if (draft.endDate) setEndDate(draft.endDate);
-          if (draft.schedule && Array.isArray(draft.schedule)) setSchedule(draft.schedule);
           if (draft.maxMembers) setMaxMembers(draft.maxMembers);
           if (draft.isPublic !== undefined) setIsPublic(draft.isPublic);
           setHasDraft(true);
@@ -73,7 +63,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
     }
   }, [isOpen]);
 
-  // Save draft helper
   const saveDraft = () => {
     try {
       const draftData = {
@@ -82,7 +71,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
         category,
         startDate,
         endDate,
-        schedule,
         maxMembers,
         isPublic,
         savedAt: new Date().toISOString()
@@ -108,25 +96,14 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
     setCategory(CATEGORIES[0]);
     setStartDate(today);
     setEndDate(nextMonth);
-    setSchedule(DEFAULT_WEEKLY_SCHEDULE);
-    setMaxMembers(15);
+    setMaxMembers(25);
     setHasDraft(false);
   };
-
-  if (!isOpen) return null;
-
-  const autoTargetDailyHours = calculateAverageDailyHours(schedule);
-  const weeklyHours = calculateWeeklyHours(schedule);
-
-  // Derive default fallback window from the first enabled day's first slot
-  const firstEnabledDay = schedule.find(d => d.enabled && d.slots.length > 0);
-  const fallbackStart = firstEnabledDay?.slots[0]?.startTime || '07:00';
-  const fallbackEnd = firstEnabledDay?.slots[firstEnabledDay.slots.length - 1]?.endTime || '22:00';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError('Please provide a campaign name');
+      setError('Please provide a cohort name');
       return;
     }
     setError('');
@@ -145,10 +122,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           category,
           startDate,
           endDate,
-          dailyStartTime: fallbackStart,
-          dailyEndTime: fallbackEnd,
-          targetDailyHours: autoTargetDailyHours,
-          schedule,
+          targetDailyHours: 4,
           maxMembers: Number(maxMembers),
           isPublic,
           bannerColor: 'from-zinc-800 to-zinc-900',
@@ -157,17 +131,16 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
       });
 
       if (res.ok) {
-        // Clear saved draft on successful submission
         localStorage.removeItem(DRAFT_KEY);
         const created = await res.json();
         onCampaignCreated(created);
         onClose();
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to create campaign');
+        setError(data.error || 'Failed to create cohort');
       }
     } catch (err: any) {
-      setError(err.message || 'Error creating campaign');
+      setError(err.message || 'Error creating cohort');
     } finally {
       setIsSubmitting(false);
     }
@@ -177,23 +150,20 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/60 dark:bg-black/75 backdrop-blur-xl animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/60 dark:bg-black/75 backdrop-blur-xl animate-in fade-in duration-200 select-none"
       onClick={(e) => {
-        // If clicked on backdrop overlay (outside dialog)
-        if (e.target === e.currentTarget) {
-          handleClose();
-        }
+        if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div 
         ref={modalRef}
-        className="relative w-full max-w-2xl max-h-[90vh] sm:max-h-[86vh] flex flex-col glass-panel rounded-3xl shadow-2xl text-zinc-900 dark:text-zinc-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-zinc-900 dark:text-zinc-100"
+        onClick={e => e.stopPropagation()}
       >
-        
         {/* Pinned Modal Header */}
-        <div className="shrink-0 flex items-center justify-between p-4 sm:p-5 border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav z-10">
+        <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur z-10">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-black flex items-center justify-center font-bold shadow-xs">
+            <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-black flex items-center justify-center font-bold shadow-sm">
               <Plus className="w-5 h-5" />
             </div>
             <div>
@@ -209,7 +179,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
                 )}
               </div>
               <p className="text-xs text-zinc-400">
-                Auto-saves your changes as a draft
+                Peer accountability & flexible study hours
               </p>
             </div>
           </div>
@@ -227,7 +197,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
               </button>
             )}
 
-            {/* Pinned Top-Right Cross Button */}
             <button 
               type="button"
               onClick={handleClose}
@@ -253,13 +222,13 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                Campaign Name *
+                Cohort Name *
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. USMLE Step 1 Sprint 2026"
+                placeholder="e.g. Algorithms & System Design"
                 required
                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white"
               />
@@ -284,12 +253,12 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           {/* Description */}
           <div>
             <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-              Description & Study Goals
+              Description & Focus Topics
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={2}
+              rows={3}
               placeholder="Outline what members will focus on, daily expectations, and study materials..."
               className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white resize-none"
             />
@@ -327,18 +296,21 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
                 min={2}
                 max={100}
                 value={maxMembers}
-                onChange={(e) => setMaxMembers(parseInt(e.target.value) || 10)}
+                onChange={(e) => setMaxMembers(parseInt(e.target.value) || 25)}
                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white"
               />
             </div>
           </div>
 
-          {/* Customizable Day-by-Day Multi-slot Schedule Builder */}
-          <div className="pt-1">
-            <ScheduleBuilder
-              schedule={schedule}
-              onChange={(updated) => setSchedule(updated)}
-            />
+          {/* Daily Dynamic Routine Info Card */}
+          <div className="p-4 rounded-2xl glass-card border border-white/10 flex items-start gap-3 text-xs text-zinc-400">
+            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-zinc-200">Dynamic Daily Study Hours</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Members calibrate their daily goal each day: <strong>4h on college days</strong> and <strong>7h on off-days/holidays</strong>, completed whenever convenient.
+              </p>
+            </div>
           </div>
 
         </form>
@@ -346,7 +318,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
         {/* Pinned Modal Footer */}
         <div className="shrink-0 flex items-center justify-between p-4 sm:p-5 border-t border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur z-10">
           <div className="text-xs text-zinc-500 dark:text-zinc-400">
-            Target: <strong className="text-zinc-950 dark:text-white font-bold">{autoTargetDailyHours}h/day</strong> ({weeklyHours}h/wk)
+            Flexible <strong className="text-zinc-950 dark:text-white font-bold">4h / 7h</strong> daily targets
           </div>
 
           <div className="flex items-center space-x-3">
@@ -363,7 +335,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
               disabled={isSubmitting || !name.trim()}
               className="px-5 py-2.5 rounded-xl bg-black hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-bold text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
             >
-              {isSubmitting ? 'Creating Campaign...' : 'Launch Campaign'}
+              {isSubmitting ? 'Creating Cohort...' : 'Launch Cohort'}
             </button>
           </div>
         </div>

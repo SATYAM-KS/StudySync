@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LeaderboardEntry } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
+import { useStudy } from '../context/StudyContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
 import { 
   Trophy, 
@@ -39,6 +40,7 @@ export function normalizeHackerrankUrl(val?: string | null): string {
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours }) => {
   const { socket } = useSocket();
+  const { todayTargetHours: userDailyTarget } = useStudy();
   const cacheKey = `study_leaderboard_cache_${campaignId}`;
 
   const [entries, setEntries] = useState<LeaderboardEntry[]>(() => {
@@ -103,7 +105,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   };
 
   const getTimeframeTargetHours = (dailyTarget: number, tf: Timeframe) => {
-    const baseDaily = dailyTarget || targetDailyHours || 3;
+    const baseDaily = userDailyTarget || dailyTarget || targetDailyHours || 4;
     if (tf === 'today') return baseDaily;
     if (tf === 'week') return baseDaily * 7;
     return baseDaily * getDaysInCurrentMonth();

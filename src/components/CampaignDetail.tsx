@@ -3,6 +3,7 @@ import { Campaign } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { useCall } from '../context/CallContext.tsx';
+import { useStudy } from '../context/StudyContext.tsx';
 import { FocusLounge } from './FocusLounge.tsx';
 import { Leaderboard } from './Leaderboard.tsx';
 import { StudyHistory } from './StudyHistory.tsx';
@@ -42,6 +43,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   const { user, token } = useAuth();
   const { joinCampaignRoom, leaveCampaignRoom, activeStudySessions } = useSocket();
   const { isInCall, activeCampaignId } = useCall();
+  const { collegeRoutine, todayTargetHours, setShowRoutineModal } = useStudy();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -274,71 +276,63 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />
 
             {/* Stats */}
-            {(() => {
-              const todayStatus = checkScheduleStatus(campaign.schedule, campaign.dailyStartTime, campaign.dailyEndTime);
-              return (
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
-                      <Target className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold">Today's Target</p>
-                      <p className="font-bold text-zinc-900 dark:text-white">
-                        {todayStatus.todayHours}h {todayStatus.todayHours > 0 ? 'today' : '(Rest Day)'}
-                      </p>
-                    </div>
-                  </div>
+            <div className="space-y-3">
+              {/* Today's Dynamic Target Card */}
+              <div 
+                onClick={() => setShowRoutineModal(true)}
+                className="p-3.5 rounded-2xl bg-white/[0.04] dark:bg-white/[0.04] border border-zinc-200/60 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 transition cursor-pointer group shadow-xs"
+                title="Click to calibrate today's study target"
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold flex items-center gap-1">
+                    <Target className="w-3 h-3 text-emerald-400" />
+                    Today's Target
+                  </span>
+                  <span className="text-[10px] text-zinc-400 group-hover:text-zinc-950 dark:group-hover:text-white transition font-medium underline underline-offset-2">
+                    Change
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-base font-extrabold text-zinc-950 dark:text-white">
+                    {todayTargetHours}h Goal
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    collegeRoutine === 'college'
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                      : 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30'
+                  }`}>
+                    {collegeRoutine === 'college' ? 'College Day' : 'No College'}
+                  </span>
+                </div>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  {collegeRoutine === 'college' ? '4h flexible target anytime' : '7h deep work target anytime'}
+                </p>
+              </div>
 
-                  <div className="flex items-start gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0 mt-0.5">
-                      <Clock className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold mb-1">Preferred Windows (Today)</p>
-                      {todayStatus.todaySchedule?.slots && todayStatus.todaySchedule.slots.length > 0 ? (
-                        <div className="space-y-1">
-                          {sortSlotsChronologically(todayStatus.todaySchedule.slots).map((slot, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-xs glass-pill px-2.5 py-1 rounded-lg">
-                              <span className="font-bold text-zinc-950 dark:text-white">
-                                {formatTimeTo12h(slot.startTime)} – {formatTimeTo12h(slot.endTime)}
-                              </span>
-                              <span className="text-[10px] font-mono text-zinc-500 font-semibold ml-1">
-                                {calculateSlotHours(slot)}h
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="font-bold text-zinc-500 dark:text-zinc-400 text-xs">
-                          {todayStatus.todaySlotsText}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+              {/* Members */}
+              <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300 px-1 pt-1">
+                <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
+                  <Users className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold">Members</p>
+                  <p className="font-bold text-zinc-900 dark:text-white">{campaign.memberCount || 1} / {campaign.maxMembers || 20}</p>
+                </div>
+              </div>
 
-                  <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
-                      <Users className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold">Members</p>
-                      <p className="font-bold text-zinc-900 dark:text-white">{campaign.memberCount || 1} / {campaign.maxMembers || 20}</p>
-                    </div>
+              {/* End Date */}
+              {campaign.endDate && (
+                <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300 px-1">
+                  <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
+                    <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                   </div>
-
-                  <div className="flex items-center gap-2.5 text-xs text-zinc-700 dark:text-zinc-300">
-                    <div className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center shrink-0">
-                      <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold">End Date</p>
-                      <p className="font-bold text-zinc-900 dark:text-white">{campaign.endDate}</p>
-                    </div>
+                  <div>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wide font-semibold">End Date</p>
+                    <p className="font-bold text-zinc-900 dark:text-white">{campaign.endDate}</p>
                   </div>
                 </div>
-              );
-            })()}
+              )}
+            </div>
 
             {/* Active session indicator */}
             {activeInThisCamp.length > 0 && (

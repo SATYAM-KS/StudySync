@@ -42,6 +42,9 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
     lastAIAnalysis,
     screenShareError,
     stats,
+    collegeRoutine,
+    todayTargetHours,
+    setShowRoutineModal,
     startStudying,
     stopStudying,
     reattachScreenShare,
@@ -85,20 +88,24 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
       {/* Today's Schedule & Goal Bar */}
       <div className="glass-panel rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className={`w-2.5 h-2.5 rounded-full ${isInsideWindow ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-zinc-400 dark:bg-zinc-600'}`} />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
           <div className="flex items-center gap-2 text-xs">
             <span className="font-bold text-zinc-950 dark:text-white">
-              Today's Target: {scheduleStatus.todayHours}h
+              Today's Goal: {todayTargetHours}h
             </span>
             <span className="text-zinc-400 dark:text-zinc-500">·</span>
             <span className="text-zinc-500 dark:text-zinc-400">
-              {scheduleStatus.todaySlotsText}
+              {collegeRoutine === 'college' ? 'College Day Target (4h)' : 'No College / Deep Focus Target (7h)'} · Study anytime today
             </span>
           </div>
         </div>
-        <span className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500 hidden sm:inline font-semibold">
-          {current12h}
-        </span>
+        <button
+          type="button"
+          onClick={() => setShowRoutineModal(true)}
+          className="text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white transition cursor-pointer underline underline-offset-2"
+        >
+          Change Routine
+        </button>
       </div>
 
       {/* Main Focus Control Grid */}
@@ -227,8 +234,8 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
 
             {/* Time Studied in Minutes out of Total Minutes */}
             {(() => {
-              const todayTargetHours = scheduleStatus.todayHours > 0 ? scheduleStatus.todayHours : (campaign.targetDailyHours || 4);
-              const todayTargetMins = Math.round(todayTargetHours * 60);
+              const targetHours = todayTargetHours || 4;
+              const todayTargetMins = Math.round(targetHours * 60);
               const todayCompletedMins = stats?.todayMinutes || 0;
               const progressPct = Math.min(100, Math.round((todayCompletedMins / (todayTargetMins || 1)) * 100));
               const remainingMins = Math.max(0, todayTargetMins - todayCompletedMins);
