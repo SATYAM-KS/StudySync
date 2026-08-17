@@ -61,3 +61,28 @@ export async function optionalAuthMiddleware(req: AuthRequest, res: Response, ne
   }
   next();
 }
+
+export function generateResetToken(email: string, code: string): string {
+  return jwt.sign(
+    {
+      email: email.trim().toLowerCase(),
+      code: code.trim(),
+      type: 'password_reset'
+    },
+    JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+}
+
+export function verifyResetToken(token: string, email: string, code: string): boolean {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { email: string; code: string; type: string };
+    return (
+      decoded.type === 'password_reset' &&
+      decoded.email === email.trim().toLowerCase() &&
+      decoded.code === code.trim()
+    );
+  } catch {
+    return false;
+  }
+}

@@ -16,8 +16,8 @@ interface AuthContextType {
     leetcodeUrl?: string;
     hackerrankUrl?: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  forgotPassword: (email: string) => Promise<{ success: boolean; code?: string; previewCode?: string; emailDelivered?: boolean; message?: string; error?: string }>;
-  resetPassword: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; code?: string; resetToken?: string; previewCode?: string; emailDelivered?: boolean; message?: string; error?: string }>;
+  resetPassword: (email: string, code: string, newPassword: string, resetToken?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<boolean>;
   allUsers: User[];
@@ -195,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { 
           success: true, 
           message: data.message,
+          resetToken: data.resetToken,
           previewCode: data.previewCode,
           emailDelivered: delivered
         };
@@ -206,18 +207,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const resetPassword = async (email: string, code: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+  const resetPassword = async (email: string, code: string, newPassword: string, resetToken?: string): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code, newPassword })
+        body: JSON.stringify({ 
+          email, 
+          code, 
+          newPassword,
+          resetToken: resetToken || localStorage.getItem('study_reset_token') || undefined
+        })
       });
       const text = await res.text();
       let data: any = {};
       try { data = JSON.parse(text); } catch { data = { error: 'Server returned an invalid response' }; }
 
       if (res.ok && data.success) {
+        localStorage.removeItem('study_reset_token');
         if (data.token && data.user) {
           setUser(data.user);
           setToken(data.token);

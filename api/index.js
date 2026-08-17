@@ -844,6 +844,25 @@ async function optionalAuthMiddleware(req, res, next) {
   }
   next();
 }
+function generateResetToken(email, code) {
+  return jwt.sign(
+    {
+      email: email.trim().toLowerCase(),
+      code: code.trim(),
+      type: "password_reset"
+    },
+    JWT_SECRET,
+    { expiresIn: "15m" }
+  );
+}
+function verifyResetToken(token, email, code) {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded.type === "password_reset" && decoded.email === email.trim().toLowerCase() && decoded.code === code.trim();
+  } catch {
+    return false;
+  }
+}
 
 // src/server/email.ts
 import nodemailer from "nodemailer";
@@ -1430,12 +1449,14 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     const code = Math.floor(1e5 + Math.random() * 9e5).toString();
     const expiresAt = Date.now() + 15 * 60 * 1e3;
     passwordResetCodes.set(cleanEmail, { code, expiresAt });
+    const resetToken = generateResetToken(cleanEmail, code);
     const emailResult = await sendPasswordResetEmail(cleanEmail, code, user.name);
     console.log(`[Password Reset] Generated OTP for ${cleanEmail}: ${code} (Delivered: ${emailResult.success})`);
     res.json({
       success: true,
       message: emailResult.success ? `A 6-digit verification code has been sent to ${cleanEmail}. Please check your inbox and spam folder.` : `Email service is not configured on the server. Your verification code is: ${code}`,
       email: cleanEmail,
+      resetToken,
       emailDelivered: emailResult.success,
       ...!emailResult.success && { previewCode: code }
     });
@@ -1446,24 +1467,25 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 });
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
-    const { email, code, newPassword } = req.body;
+    const { email, code, newPassword, resetToken } = req.body;
     if (!email || !code || !newPassword) {
       res.status(400).json({ error: "Email, verification code, and new password are required" });
       return;
     }
     const cleanEmail = email.trim().toLowerCase();
-    const resetEntry = passwordResetCodes.get(cleanEmail);
-    if (!resetEntry) {
-      res.status(400).json({ error: "No active reset request found. Please request a new code." });
-      return;
+    const cleanCode = code.trim();
+    let isVerified = false;
+    if (resetToken) {
+      isVerified = verifyResetToken(resetToken, cleanEmail, cleanCode);
     }
-    if (Date.now() > resetEntry.expiresAt) {
-      passwordResetCodes.delete(cleanEmail);
-      res.status(400).json({ error: "The verification code has expired. Please request a new code." });
-      return;
+    if (!isVerified) {
+      const resetEntry = passwordResetCodes.get(cleanEmail);
+      if (resetEntry && resetEntry.code === cleanCode && Date.now() <= resetEntry.expiresAt) {
+        isVerified = true;
+      }
     }
-    if (resetEntry.code !== code.trim()) {
-      res.status(400).json({ error: "Invalid verification code. Please check and try again." });
+    if (!isVerified) {
+      res.status(400).json({ error: "Invalid or expired verification code. Please request a new code." });
       return;
     }
     if (newPassword.length < 6) {

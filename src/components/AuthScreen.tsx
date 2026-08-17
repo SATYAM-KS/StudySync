@@ -122,6 +122,7 @@ export const AuthScreen: React.FC = () => {
 
   const [previewCode, setPreviewCode] = useState<string | null>(null);
   const [emailDelivered, setEmailDelivered] = useState<boolean>(true);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const handleRequestResetCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +136,10 @@ export const AuthScreen: React.FC = () => {
     try {
       const res = await forgotPassword(forgotEmail.trim());
       if (res.success) {
+        if (res.resetToken) {
+          setResetToken(res.resetToken);
+          try { localStorage.setItem('study_reset_token', res.resetToken); } catch {}
+        }
         if (res.previewCode) {
           setPreviewCode(res.previewCode);
           setResetCode(res.previewCode);
@@ -179,7 +184,7 @@ export const AuthScreen: React.FC = () => {
     setSuccessMessage(null);
     setIsLoading(true);
     try {
-      const res = await resetPassword(forgotEmail.trim(), resetCode.trim(), newPassword);
+      const res = await resetPassword(forgotEmail.trim(), resetCode.trim(), newPassword, resetToken || undefined);
       if (res.success) {
         setSuccessMessage('Password reset successfully! Redirecting...');
       } else {
