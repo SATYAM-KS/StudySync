@@ -39,6 +39,16 @@ const MainApp: React.FC = () => {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(() => {
     return sessionStorage.getItem('study_active_campaign') || null;
   });
+  const [activeTab, setActiveTab] = useState<'focus' | 'leaderboard' | 'history'>(() => {
+    const activeId = sessionStorage.getItem('study_active_campaign');
+    if (activeId) {
+      const saved = sessionStorage.getItem('study_tab_' + activeId);
+      if (saved === 'focus' || saved === 'leaderboard' || saved === 'history') {
+        return saved as 'focus' | 'leaderboard' | 'history';
+      }
+    }
+    return 'focus';
+  });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
@@ -47,8 +57,21 @@ const MainApp: React.FC = () => {
     setSelectedCampaignId(id);
     if (id) {
       sessionStorage.setItem('study_active_campaign', id);
+      const saved = sessionStorage.getItem('study_tab_' + id);
+      if (saved === 'focus' || saved === 'leaderboard' || saved === 'history') {
+        setActiveTab(saved as 'focus' | 'leaderboard' | 'history');
+      } else {
+        setActiveTab('focus');
+      }
     } else {
       sessionStorage.removeItem('study_active_campaign');
+    }
+  };
+
+  const handleTabChange = (tab: 'focus' | 'leaderboard' | 'history') => {
+    setActiveTab(tab);
+    if (selectedCampaignId) {
+      sessionStorage.setItem('study_tab_' + selectedCampaignId, tab);
     }
   };
 
@@ -180,6 +203,9 @@ const MainApp: React.FC = () => {
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
           onGoHome={() => handleSelectCampaign(null)}
+          selectedCampaignId={selectedCampaignId}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
         />
       </div>
 
@@ -190,6 +216,8 @@ const MainApp: React.FC = () => {
             campaignId={selectedCampaignId}
             onBack={() => handleSelectCampaign(null)}
             onCampaignDeleted={handleCampaignDeleted}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
           />
         ) : (
           <CampaignsList

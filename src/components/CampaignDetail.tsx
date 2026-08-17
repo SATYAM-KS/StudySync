@@ -26,6 +26,8 @@ interface CampaignDetailProps {
   campaignId: string;
   onBack: () => void;
   onCampaignDeleted: () => void;
+  activeTab?: TabType;
+  onTabChange?: (tab: TabType) => void;
 }
 
 type TabType = 'focus' | 'leaderboard' | 'history';
@@ -33,7 +35,9 @@ type TabType = 'focus' | 'leaderboard' | 'history';
 export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   campaignId,
   onBack,
-  onCampaignDeleted
+  onCampaignDeleted,
+  activeTab: controlledTab,
+  onTabChange: controlledOnTabChange
 }) => {
   const { user, token } = useAuth();
   const { joinCampaignRoom, leaveCampaignRoom, activeStudySessions, onlineUserIds } = useSocket();
@@ -54,13 +58,23 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   };
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
+  const [internalTab, setInternalTab] = useState<TabType>(() => {
     const saved = sessionStorage.getItem('study_tab_' + campaignId);
     if (saved === 'focus' || saved === 'leaderboard' || saved === 'history') {
       return saved as TabType;
     }
     return 'focus';
   });
+
+  const activeTab = controlledTab || internalTab;
+  const handleTabChange = (tab: TabType) => {
+    if (controlledOnTabChange) {
+      controlledOnTabChange(tab);
+    } else {
+      setInternalTab(tab);
+      sessionStorage.setItem('study_tab_' + campaignId, tab);
+    }
+  };
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRequestingJoin, setIsRequestingJoin] = useState(false);
@@ -81,11 +95,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
     } finally {
       setIsRequestingJoin(false);
     }
-  };
-
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
-    sessionStorage.setItem('study_tab_' + campaignId, tab);
   };
 
   const fetchCampaign = async () => {
@@ -352,31 +361,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
 
       {/* ═══ RIGHT PANEL: Content ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* Sub-nav Header: Centered Cohort Tabs */}
-        <div className="h-14 px-4 sm:px-8 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-center shrink-0 glass-nav">
-          <div className="w-full max-w-2xl grid grid-cols-3 gap-1.5 glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] shadow-xs">
-            {([ 
-              { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: activeInThisCamp.length > 0 ? '●' : null },
-              { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
-              { id: 'history',     icon: History,       label: 'Study History',     badge: null },
-            ] as const).map(({ id, icon: Icon, label, badge }) => (
-              <button
-                key={id}
-                onClick={() => handleTabChange(id)}
-                className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                  activeTab === id
-                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md font-black'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span>{label}</span>
-                {badge === '●' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Tab content — fills remaining height with instant 0ms CSS-preserved switching */}
         <div className="flex-1 overflow-hidden relative">
