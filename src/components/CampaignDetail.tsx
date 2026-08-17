@@ -197,68 +197,41 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   const activeInThisCamp = activeStudySessions.filter(s => s.campaignId === campaign.id);
 
   return (
-    <div className="h-full flex flex-col text-zinc-900 dark:text-zinc-100 overflow-hidden">
+    <div className="h-full flex text-zinc-900 dark:text-zinc-100 overflow-hidden">
 
-      {/* ── Single Unified Top Bar: back + tabs + admin ── */}
-      <div className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 border-b border-zinc-200/80 dark:border-white/[0.08] glass-nav backdrop-blur-2xl">
-        {/* Left: Back button */}
-        <button
-          onClick={onBack}
-          className="flex items-center space-x-2 text-xs font-bold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 px-3.5 py-1.5 rounded-xl transition cursor-pointer active:scale-95 shrink-0 border border-zinc-200/80 dark:border-white/[0.08]"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>All Cohorts</span>
-        </button>
+      {/* ═══ LEFT PANEL: Campaign sidebar with All Cohorts + Admin ═══ */}
+      <div className="w-72 shrink-0 flex flex-col border-r border-zinc-200/80 dark:border-white/[0.08] glass-panel overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+        
+        {/* Top sidebar action bar: All Cohorts & Admin */}
+        <div className="p-3.5 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0 glass-nav">
+          <button
+            onClick={onBack}
+            className="flex items-center space-x-1.5 text-xs font-bold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 px-3 py-1.5 rounded-xl transition cursor-pointer active:scale-95 border border-zinc-200/80 dark:border-white/[0.08]"
+            title="Back to all cohorts"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>All Cohorts</span>
+          </button>
 
-        {/* Center / Right: Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08]">
-          {([ 
-            { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: activeInThisCamp.length > 0 ? '●' : null },
-            { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
-            { id: 'history',     icon: History,       label: 'Study History',     badge: null },
-          ] as const).map(({ id, icon: Icon, label, badge }) => (
+          {isAdminOrCoAdmin && (
             <button
-              key={id}
-              onClick={() => handleTabChange(id)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                activeTab === id
-                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md'
-                  : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
-              }`}
+              onClick={() => setShowAdminModal(true)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-900 dark:text-white text-xs font-black transition cursor-pointer active:scale-95 border border-zinc-200/80 dark:border-white/[0.08]"
+              title="Cohort Admin Settings"
             >
-              <Icon className="w-3.5 h-3.5 shrink-0" />
-              <span>{label}</span>
-              {badge === '●' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />}
+              <Settings className="w-3.5 h-3.5" />
+              <span>Admin</span>
             </button>
-          ))}
+          )}
         </div>
 
-        {/* Right: Admin settings */}
-        {isAdminOrCoAdmin ? (
-          <button
-            onClick={() => setShowAdminModal(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-900 dark:text-white text-xs font-black transition cursor-pointer active:scale-95 shrink-0 border border-zinc-200/80 dark:border-white/[0.08]"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Admin</span>
-          </button>
-        ) : (
-          <div className="w-8 shrink-0 hidden lg:block" />
-        )}
-      </div>
+        <div className="p-5 space-y-5 flex-1">
 
-      {/* ── Two-column body ── */}
-      <div className="flex-1 flex overflow-hidden">
-
-        {/* ═══ LEFT PANEL: Campaign info ═══ */}
-        <div className="w-72 shrink-0 flex flex-col border-r border-zinc-200/80 dark:border-white/[0.08] glass-panel overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
-          <div className="p-5 space-y-5">
-
-            {/* Tags */}
-            <div className="flex flex-wrap gap-1.5">
-              <span className="px-3 py-1 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black text-[10px] font-black tracking-wider uppercase shadow-xs">
-                {campaign.category}
-              </span>
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1.5">
+            <span className="px-3 py-1 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black text-[10px] font-black tracking-wider uppercase shadow-xs">
+              {campaign.category}
+            </span>
               {(campaign.tags || []).map(t => (
                 <span key={t} className="px-2.5 py-0.5 rounded-full glass-pill text-zinc-600 dark:text-zinc-400 text-[10px] font-semibold border border-zinc-200/60 dark:border-white/[0.06]">
                   #{t}
@@ -344,47 +317,71 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               </>
             )}
           </div>
+      </div>
+
+      {/* ═══ RIGHT PANEL: Content ═══ */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+
+        {/* Sub-nav Header: Centered Cohort Tabs */}
+        <div className="shrink-0 flex items-center justify-center px-4 sm:px-6 py-2.5 border-b border-zinc-200/80 dark:border-white/[0.08] glass-nav">
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] shadow-xs">
+            {([ 
+              { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: activeInThisCamp.length > 0 ? '●' : null },
+              { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
+              { id: 'history',     icon: History,       label: 'Study History',     badge: null },
+            ] as const).map(({ id, icon: Icon, label, badge }) => (
+              <button
+                key={id}
+                onClick={() => handleTabChange(id)}
+                className={`flex items-center gap-2 px-4.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  activeTab === id
+                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{label}</span>
+                {badge === '●' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* ═══ RIGHT PANEL: Content ═══ */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Tab content — fills remaining height with instant 0ms CSS-preserved switching */}
+        <div className="flex-1 overflow-hidden relative">
+          <div
+            className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
+            style={{
+              overscrollBehavior: 'contain',
+              display: activeTab === 'focus' ? 'block' : 'none'
+            }}
+          >
+            <FocusLounge campaign={campaign} />
+          </div>
 
-          {/* Tab content — fills remaining height with instant 0ms CSS-preserved switching */}
-          <div className="flex-1 overflow-hidden relative">
-            <div
-              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
-              style={{
-                overscrollBehavior: 'contain',
-                display: activeTab === 'focus' ? 'block' : 'none'
-              }}
-            >
-              <FocusLounge campaign={campaign} />
-            </div>
+          <div
+            className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
+            style={{
+              overscrollBehavior: 'contain',
+              display: activeTab === 'leaderboard' ? 'block' : 'none'
+            }}
+          >
+            <Leaderboard campaignId={campaign.id} targetDailyHours={campaign.targetDailyHours} />
+          </div>
 
-            <div
-              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
-              style={{
-                overscrollBehavior: 'contain',
-                display: activeTab === 'leaderboard' ? 'block' : 'none'
-              }}
-            >
-              <Leaderboard campaignId={campaign.id} targetDailyHours={campaign.targetDailyHours} />
-            </div>
-
-            <div
-              className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
-              style={{
-                overscrollBehavior: 'contain',
-                display: activeTab === 'history' ? 'block' : 'none'
-              }}
-            >
-              <StudyHistory 
-                campaignId={campaign.id} 
-                campaignName={campaign.name}
-                targetDailyHours={campaign.targetDailyHours} 
-                campaignCreatedAt={campaign.createdAt || campaign.startDate}
-              />
-            </div>
+          <div
+            className="h-full overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-24"
+            style={{
+              overscrollBehavior: 'contain',
+              display: activeTab === 'history' ? 'block' : 'none'
+            }}
+          >
+            <StudyHistory 
+              campaignId={campaign.id} 
+              campaignName={campaign.name}
+              targetDailyHours={campaign.targetDailyHours} 
+              campaignCreatedAt={campaign.createdAt || campaign.startDate}
+            />
           </div>
         </div>
       </div>
