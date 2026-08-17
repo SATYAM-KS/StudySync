@@ -1840,11 +1840,29 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
     } catch (cErr) {
       console.warn("Could not fetch campaign name for proctor:", cErr);
     }
-    const analysis = await analyzeScreenSnapshot(
-      snapshotUrl,
-      campaignName,
-      subjectNote || "Focus Study"
-    );
+    let analysis = {
+      isProductiveWork: false,
+      confidence: 85,
+      activitySummary: "Proctor Evaluation",
+      category: "idle",
+      reason: "AI evaluation in progress or check flagged."
+    };
+    try {
+      analysis = await analyzeScreenSnapshot(
+        snapshotUrl,
+        campaignName,
+        subjectNote || "Focus Study"
+      );
+    } catch (aErr) {
+      console.warn("AI analysis error, flagging block as idle:", aErr?.message || aErr);
+      analysis = {
+        isProductiveWork: false,
+        confidence: 80,
+        activitySummary: "Inspection Flagged",
+        category: "idle",
+        reason: aErr?.message || "Proctor inspection timeout or non-study content detected."
+      };
+    }
     const isProductive = Boolean(analysis.isProductiveWork);
     const block = {
       id: `blk_${req.user.id}_${Date.now()}`,

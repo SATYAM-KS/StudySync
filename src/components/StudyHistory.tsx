@@ -334,7 +334,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         totalMinutes,
         totalHours,
         formattedDuration,
-        subjectNote: earliestBlock.subjectNote || 'General Study',
+        subjectNote: group.find(b => b.status === 'active' && b.subjectNote && b.subjectNote !== 'Non-Study Activity Detected')?.subjectNote || earliestBlock.subjectNote || 'General Study',
         campaignName: earliestBlock.campaignName || campaignName,
         blocks: [...group].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
         passedCount,
@@ -354,8 +354,8 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       const currTime = new Date(block.timestamp).getTime();
       const gapMinutes = (currTime - prevTime) / (60 * 1000);
 
-      const isSameTopic = (block.subjectNote || 'General Study') === (prevBlock.subjectNote || 'General Study');
-      if (gapMinutes <= 12 && isSameTopic) {
+      // Group all 5-minute checkpoints (passed and flagged) within a contiguous 15-minute window
+      if (gapMinutes <= 15) {
         currentGroup.push(block);
       } else {
         finalizeGroup(currentGroup);

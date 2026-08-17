@@ -622,11 +622,30 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
       console.warn('Could not fetch campaign name for proctor:', cErr);
     }
 
-    const analysis = await analyzeScreenSnapshot(
-      snapshotUrl, 
-      campaignName, 
-      subjectNote || 'Focus Study'
-    );
+    let analysis: any = {
+      isProductiveWork: false,
+      confidence: 85,
+      activitySummary: 'Proctor Evaluation',
+      category: 'idle',
+      reason: 'AI evaluation in progress or check flagged.'
+    };
+
+    try {
+      analysis = await analyzeScreenSnapshot(
+        snapshotUrl, 
+        campaignName, 
+        subjectNote || 'Focus Study'
+      );
+    } catch (aErr: any) {
+      console.warn('AI analysis error, flagging block as idle:', aErr?.message || aErr);
+      analysis = {
+        isProductiveWork: false,
+        confidence: 80,
+        activitySummary: 'Inspection Flagged',
+        category: 'idle',
+        reason: aErr?.message || 'Proctor inspection timeout or non-study content detected.'
+      };
+    }
 
     const isProductive = Boolean(analysis.isProductiveWork);
     const block: StudyBlock = {
@@ -650,7 +669,7 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
       console.error('Failed to persist study block in DB:', dbErr);
     }
 
-    // Broadcast to cohort leaderboard & study history in real-time
+    // Always broadcast every inspection (pass or fail)
     try {
       io.to(`campaign:${campaignId}`).emit('study:block_logged', {
         block: savedBlock,

@@ -531,25 +531,67 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         const errorData = await res.json().catch(() => ({}));
+        const timeStr = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
         setLastAIAnalysis({
           status: 'off_task',
-          summary: 'Verification Server Error',
+          summary: 'Verification Check Failed',
           reason: errorData.error || 'Could not verify screen content at this time.',
-          timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+          timestamp: timeStr
         });
+
+        // Dispatch fallback idle block to keep timeline continuous
+        if (typeof window !== 'undefined') {
+          const fallbackBlock = {
+            id: `blk_err_${Date.now()}`,
+            userId: user?.id || 'me',
+            userName: user?.name || 'Student',
+            campaignId: cid,
+            campaignName: activeCampaignName,
+            timestamp: new Date().toISOString(),
+            durationMinutes: 5,
+            status: 'idle' as const,
+            subjectNote: sNote || 'Inspection Failed / Non-Study',
+            snapshotUrl: snapUrl
+          };
+          window.dispatchEvent(new CustomEvent('study:block_logged', { 
+            detail: { block: fallbackBlock, campaignId: cid, userId: user?.id } 
+          }));
+        }
+
         playCheckInChime();
       }
     } catch (e: any) {
       console.error('AI Analysis error:', e);
       const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
+      const timeStr = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
       setLastAIAnalysis({
         status: 'off_task',
         summary: isAbort ? 'Inspection Timeout' : 'Network/Server Glitch',
         reason: isAbort
           ? 'Screen analysis timed out on the network. Retrying on the next block.'
           : 'Temporary network connection issue. Your study session will retry on the next check.',
-        timestamp: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+        timestamp: timeStr
       });
+
+      // Dispatch fallback idle block on error
+      if (typeof window !== 'undefined') {
+        const fallbackBlock = {
+          id: `blk_err_${Date.now()}`,
+          userId: user?.id || 'me',
+          userName: user?.name || 'Student',
+          campaignId: cid,
+          campaignName: activeCampaignName,
+          timestamp: new Date().toISOString(),
+          durationMinutes: 5,
+          status: 'idle' as const,
+          subjectNote: sNote || (isAbort ? 'Inspection Timeout' : 'Screen Check Paused'),
+          snapshotUrl: latestSnapshotUrl
+        };
+        window.dispatchEvent(new CustomEvent('study:block_logged', { 
+          detail: { block: fallbackBlock, campaignId: cid, userId: user?.id } 
+        }));
+      }
+
       playCheckInChime();
     } finally {
       clearTimeout(timeoutId);
