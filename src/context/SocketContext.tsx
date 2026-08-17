@@ -156,7 +156,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (!token || !user) return;
 
     syncPresenceAndSessions();
-    const interval = setInterval(syncPresenceAndSessions, 1000);
+    const interval = setInterval(syncPresenceAndSessions, isConnected ? 20000 : 8000);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {

@@ -188,42 +188,102 @@ function mapMessageFromDb(row: any): Message {
 }
 
 // ==========================================
+// High-Efficiency In-Memory Caches (Zero-Egress)
+// ==========================================
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+const cacheStore = new Map<string, CacheEntry<any>>();
+
+function getFromCache<T>(key: string): T | null {
+  const entry = cacheStore.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    cacheStore.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setToCache<T>(key: string, data: T, ttlMs: number = 4000): T {
+  cacheStore.set(key, { data, expiresAt: Date.now() + ttlMs });
+  return data;
+}
+
+export function invalidateCache(prefix?: string) {
+  if (!prefix) {
+    cacheStore.clear();
+    return;
+  }
+  for (const key of cacheStore.keys()) {
+    if (key.startsWith(prefix)) cacheStore.delete(key);
+  }
+}
+
+// ==========================================
 // User Methods
 // ==========================================
 export async function getUsers(): Promise<User[]> {
+  const cached = getFromCache<User[]>('all_users');
+  if (cached) return cached;
+
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await supabase.from('users').select('id, name, email, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at');
     if (!error && data) {
-      return data.map(r => {
+      const mapped = data.map(r => {
         const u = mapUserFromDb(r);
         const { passwordHash, ...clean } = u;
         return clean;
       });
+      return setToCache('all_users', mapped, 5000);
     }
   }
   const db = await initDb();
-  return db.users.map(({ passwordHash, ...user }) => user);
+  const mapped = db.users.map(({ passwordHash, ...user }) => user);
+  return setToCache('all_users', mapped, 5000);
 }
 
 export async function getUserById(id: string): Promise<(User & { passwordHash: string }) | undefined> {
+  const cacheKey = `user_id_${id}`;
+  const cached = getFromCache<User & { passwordHash: string }>(cacheKey);
+  if (cached) return cached;
+
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
-    if (!error && data) return mapUserFromDb(data);
+    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at').eq('id', id).single();
+    if (!error && data) {
+      const mapped = mapUserFromDb(data);
+      return setToCache(cacheKey, mapped, 5000);
+    }
   }
   const db = await initDb();
-  return db.users.find(u => u.id === id);
+  const local = db.users.find(u => u.id === id);
+  if (local) setToCache(cacheKey, local, 5000);
+  return local;
 }
 
 export async function getUserByEmail(email: string): Promise<(User & { passwordHash: string }) | undefined> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cacheKey = `user_email_${cleanEmail}`;
+  const cached = getFromCache<User & { passwordHash: string }>(cacheKey);
+  if (cached) return cached;
+
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('*').ilike('email', email.trim()).single();
-    if (!error && data) return mapUserFromDb(data);
+    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at').ilike('email', cleanEmail).single();
+    if (!error && data) {
+      const mapped = mapUserFromDb(data);
+      return setToCache(cacheKey, mapped, 5000);
+    }
   }
   const db = await initDb();
-  return db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const local = db.users.find(u => u.email.toLowerCase() === cleanEmail);
+  if (local) setToCache(cacheKey, local, 5000);
+  return local;
 }
 
 export async function createUser(userData: User & { passwordHash: string }): Promise<User> {
+  invalidateCache('user');
+  invalidateCache('all_users');
   const packedBio = packBioWithCodingLinks(userData.bio, userData.leetcodeUrl, userData.hackerrankUrl);
   if (supabase) {
     const fullPayload: any = {
@@ -260,6 +320,8 @@ export async function createUser(userData: User & { passwordHash: string }): Pro
 }
 
 export async function updateUserPasswordByEmail(email: string, newPasswordHash: string): Promise<boolean> {
+  invalidateCache('user');
+  invalidateCache('all_users');
   if (supabase) {
     const { error } = await supabase.from('users').update({ password_hash: newPasswordHash }).ilike('email', email.trim());
     if (!error) return true;
@@ -273,6 +335,10 @@ export async function updateUserPasswordByEmail(email: string, newPasswordHash: 
 }
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+  invalidateCache('user');
+  invalidateCache('all_users');
+  invalidateCache('camps');
+  invalidateCache('leaderboard');
   if (supabase) {
     // Fetch existing user to preserve / pack bio properly
     const { data: existingRow } = await supabase.from('users').select('*').eq('id', id).single();
@@ -351,13 +417,24 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
 // Campaign Methods
 // ==========================================
 export async function getCampaigns(userId?: string): Promise<Campaign[]> {
+  const cacheKey = `camps_${userId || 'all'}`;
+  const cached = getFromCache<Campaign[]>(cacheKey);
+  if (cached) return cached;
+
   if (supabase) {
-    const { data: camps, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+    const { data: camps, error } = await supabase
+      .from('campaigns')
+      .select('id, name, description, category, admin_id, admin_name, start_date, end_date, daily_start_time, daily_end_time, target_daily_hours, schedule, max_members, is_public, banner_color, tags, created_at')
+      .order('created_at', { ascending: false });
+
     if (!error && camps) {
-      const { data: members } = await supabase.from('memberships').select('*');
+      const { data: members } = await supabase
+        .from('memberships')
+        .select('campaign_id, user_id, role, status');
+
       const allMembers = (members || []).map(mapMembershipFromDb);
 
-      return camps.map(mapCampaignFromDb).map(c => {
+      const result = camps.map(mapCampaignFromDb).map(c => {
         const approved = allMembers.filter(m => m.campaignId === c.id && m.status === 'approved');
         const userMem = userId ? allMembers.find(m => m.campaignId === c.id && m.userId === userId) : undefined;
         return {
@@ -367,11 +444,13 @@ export async function getCampaigns(userId?: string): Promise<Campaign[]> {
           userRole: userMem ? userMem.role : undefined
         };
       });
+
+      return setToCache(cacheKey, result, 4000);
     }
   }
 
   const db = await initDb();
-  return db.campaigns.map(c => {
+  const result = db.campaigns.map(c => {
     const approvedMembers = db.memberships.filter(m => m.campaignId === c.id && m.status === 'approved');
     let userMembership = userId ? db.memberships.find(m => m.campaignId === c.id && m.userId === userId) : undefined;
     return {
@@ -381,23 +460,38 @@ export async function getCampaigns(userId?: string): Promise<Campaign[]> {
       userRole: userMembership ? userMembership.role : undefined
     };
   });
+  return setToCache(cacheKey, result, 4000);
 }
 
 export async function getCampaignById(id: string, userId?: string): Promise<Campaign | null> {
+  const cacheKey = `camp_${id}_${userId || 'all'}`;
+  const cached = getFromCache<Campaign | null>(cacheKey);
+  if (cached !== null) return cached;
+
   if (supabase) {
-    const { data: camp, error } = await supabase.from('campaigns').select('*').eq('id', id).single();
+    const { data: camp, error } = await supabase
+      .from('campaigns')
+      .select('id, name, description, category, admin_id, admin_name, start_date, end_date, daily_start_time, daily_end_time, target_daily_hours, schedule, max_members, is_public, banner_color, tags, created_at')
+      .eq('id', id)
+      .single();
+
     if (!error && camp) {
-      const { data: members } = await supabase.from('memberships').select('*').eq('campaign_id', id);
+      const { data: members } = await supabase
+        .from('memberships')
+        .select('campaign_id, user_id, user_name, user_avatar_url, role, status')
+        .eq('campaign_id', id);
+
       const allMembers = (members || []).map(mapMembershipFromDb);
       const approved = allMembers.filter(m => m.status === 'approved');
       const userMem = userId ? allMembers.find(m => m.userId === userId) : undefined;
       const c = mapCampaignFromDb(camp);
-      return {
+      const result: Campaign = {
         ...c,
         memberCount: approved.length,
         userStatus: userMem ? userMem.status : undefined,
         userRole: userMem ? userMem.role : undefined
       };
+      return setToCache(cacheKey, result, 4000);
     }
   }
 
@@ -406,15 +500,19 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
   if (!campaign) return null;
   const approvedMembers = db.memberships.filter(m => m.campaignId === campaign.id && m.status === 'approved');
   let userMembership = userId ? db.memberships.find(m => m.campaignId === campaign.id && m.userId === userId) : undefined;
-  return {
+  const result: Campaign = {
     ...campaign,
     memberCount: approvedMembers.length,
     userStatus: userMembership ? userMembership.status : undefined,
     userRole: userMembership ? userMembership.role : undefined
   };
+  return setToCache(cacheKey, result, 4000);
 }
 
 export async function createCampaign(campaign: Campaign, creator: User): Promise<Campaign> {
+  invalidateCache('camp');
+  invalidateCache('camps');
+  invalidateCache('leaderboard');
   const membershipId = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
   const membership: CampaignMembership = {
     id: membershipId,
@@ -472,6 +570,9 @@ export async function createCampaign(campaign: Campaign, creator: User): Promise
 }
 
 export async function updateCampaign(id: string, updates: Partial<Campaign>): Promise<Campaign | null> {
+  invalidateCache('camp');
+  invalidateCache('camps');
+  invalidateCache('leaderboard');
   if (supabase) {
     const payload: any = {};
     if (updates.name !== undefined) payload.name = updates.name;
@@ -505,6 +606,9 @@ export async function updateCampaign(id: string, updates: Partial<Campaign>): Pr
 }
 
 export async function deleteCampaign(id: string): Promise<boolean> {
+  invalidateCache('camp');
+  invalidateCache('camps');
+  invalidateCache('leaderboard');
   if (supabase) {
     await supabase.from('campaigns').delete().eq('id', id);
     await supabase.from('memberships').delete().eq('campaign_id', id);
@@ -528,24 +632,46 @@ export async function deleteCampaign(id: string): Promise<boolean> {
 // Membership Methods
 // ==========================================
 export async function getCampaignMembers(campaignId: string): Promise<CampaignMembership[]> {
+  const cacheKey = `members_${campaignId}`;
+  const cached = getFromCache<CampaignMembership[]>(cacheKey);
+  if (cached) return cached;
+
   if (supabase) {
-    const { data, error } = await supabase.from('memberships').select('*').eq('campaign_id', campaignId);
-    if (!error && data) return data.map(mapMembershipFromDb);
+    const { data, error } = await supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_email, user_avatar_url, role, status, joined_at').eq('campaign_id', campaignId);
+    if (!error && data) {
+      const mapped = data.map(mapMembershipFromDb);
+      return setToCache(cacheKey, mapped, 4000);
+    }
   }
   const db = await initDb();
-  return db.memberships.filter(m => m.campaignId === campaignId);
+  const mapped = db.memberships.filter(m => m.campaignId === campaignId);
+  return setToCache(cacheKey, mapped, 4000);
 }
 
 export async function getMembership(userId: string, campaignId: string): Promise<CampaignMembership | undefined> {
+  const cacheKey = `mem_${userId}_${campaignId}`;
+  const cached = getFromCache<CampaignMembership>(cacheKey);
+  if (cached) return cached;
+
   if (supabase) {
-    const { data, error } = await supabase.from('memberships').select('*').eq('user_id', userId).eq('campaign_id', campaignId).single();
-    if (!error && data) return mapMembershipFromDb(data);
+    const { data, error } = await supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_email, user_avatar_url, role, status, joined_at').eq('user_id', userId).eq('campaign_id', campaignId).single();
+    if (!error && data) {
+      const mapped = mapMembershipFromDb(data);
+      return setToCache(cacheKey, mapped, 4000);
+    }
   }
   const db = await initDb();
-  return db.memberships.find(m => m.userId === userId && m.campaignId === campaignId);
+  const local = db.memberships.find(m => m.userId === userId && m.campaignId === campaignId);
+  if (local) setToCache(cacheKey, local, 4000);
+  return local;
 }
 
 export async function createMembership(membership: CampaignMembership): Promise<CampaignMembership> {
+  invalidateCache('camp');
+  invalidateCache('camps');
+  invalidateCache('members');
+  invalidateCache('mem_');
+  invalidateCache('leaderboard');
   if (supabase) {
     await supabase.from('memberships').upsert({
       id: membership.id,
@@ -571,6 +697,11 @@ export async function createMembership(membership: CampaignMembership): Promise<
 }
 
 export async function updateMembership(id: string, updates: Partial<CampaignMembership>): Promise<CampaignMembership | null> {
+  invalidateCache('camp');
+  invalidateCache('camps');
+  invalidateCache('members');
+  invalidateCache('mem_');
+  invalidateCache('leaderboard');
   if (supabase) {
     const payload: any = {};
     if (updates.status !== undefined) payload.status = updates.status;
@@ -603,6 +734,8 @@ export async function deleteMembership(id: string): Promise<boolean> {
 // Study Block Methods
 // ==========================================
 export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
+  invalidateCache('study_blocks');
+  invalidateCache('leaderboard');
   if (supabase) {
     await supabase.from('study_blocks').insert({
       id: block.id,
@@ -615,7 +748,7 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
       duration_minutes: block.durationMinutes || 5,
       status: block.status || 'active',
       subject_note: block.subjectNote || 'Focus Study',
-      snapshot_url: block.snapshotUrl || null
+      snapshot_url: block.snapshotUrl && !block.snapshotUrl.startsWith('data:') ? block.snapshotUrl : null
     });
   }
   const db = await initDb();
@@ -625,17 +758,35 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
 }
 
 export async function getStudyBlocksForUser(userId: string, campaignId?: string): Promise<StudyBlock[]> {
+  const cacheKey = `study_blocks_${userId}_${campaignId || 'all'}`;
+  const cached = getFromCache<StudyBlock[]>(cacheKey);
+  if (cached) return cached;
+
   if (supabase) {
-    let query = supabase.from('study_blocks').select('*').eq('user_id', userId);
+    let query = supabase
+      .from('study_blocks')
+      .select('id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note')
+      .eq('user_id', userId)
+      .order('timestamp', { ascending: false })
+      .limit(100);
+
     if (campaignId) query = query.eq('campaign_id', campaignId);
     const { data, error } = await query;
-    if (!error && data) return data.map(mapStudyBlockFromDb);
+    if (!error && data) {
+      const mapped = data.map(mapStudyBlockFromDb);
+      return setToCache(cacheKey, mapped, 5000);
+    }
   }
   const db = await initDb();
-  return db.studyBlocks.filter(b => b.userId === userId && (!campaignId || b.campaignId === campaignId));
+  const mapped = db.studyBlocks.filter(b => b.userId === userId && (!campaignId || b.campaignId === campaignId));
+  return setToCache(cacheKey, mapped, 5000);
 }
 
 export async function getCampaignLeaderboard(campaignId: string): Promise<LeaderboardEntry[]> {
+  const cacheKey = `leaderboard_${campaignId}`;
+  const cached = getFromCache<LeaderboardEntry[]>(cacheKey);
+  if (cached) return cached;
+
   let approvedMembers: CampaignMembership[] = [];
   let campaignBlocks: StudyBlock[] = [];
   let targetHours = 4;
@@ -645,7 +796,7 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
     const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
       supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
       supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId).eq('status', 'approved'),
-      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, created_at, status').eq('campaign_id', campaignId).eq('status', 'active').limit(500),
+      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(500),
       supabase.from('users').select('id, leetcode_url, hackerrank_url').limit(200)
     ]);
     if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
@@ -755,23 +906,29 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
     };
   });
 
-  return entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
+  const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
+  return setToCache(cacheKey, sorted, 4000);
 }
 
 // ==========================================
 // Messages Methods
 // ==========================================
 export async function getCampaignMessages(campaignId: string): Promise<Message[]> {
+  const cacheKey = `msgs_${campaignId}`;
+  const cached = getFromCache<Message[]>(cacheKey);
+  if (cached) return cached;
+
   if (supabase) {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('*')
+        .select('id, campaign_id, sender_id, sender_name, sender_avatar_url, content, timestamp, type, recipient_id, attachment_url, attachment_name, attachment_type, reactions')
         .eq('campaign_id', campaignId)
         .order('timestamp', { ascending: true })
         .limit(100);
       if (!error && data) {
-        return data.map(mapMessageFromDb);
+        const mapped = data.map(mapMessageFromDb);
+        return setToCache(cacheKey, mapped, 3000);
       }
       if (error) {
         console.warn('[Database] Supabase getCampaignMessages error:', error.message);
@@ -781,16 +938,18 @@ export async function getCampaignMessages(campaignId: string): Promise<Message[]
     }
   }
   const db = await initDb();
-  return db.messages.filter(m => m.campaignId === campaignId);
+  const mapped = db.messages.filter(m => m.campaignId === campaignId);
+  return setToCache(cacheKey, mapped, 3000);
 }
 
 export async function getDirectMessages(userId1: string, userId2: string): Promise<Message[]> {
   if (supabase) {
     try {
       const { data, error } = await supabase.from('messages')
-        .select('*')
+        .select('id, campaign_id, sender_id, sender_name, sender_avatar_url, content, timestamp, type, recipient_id, attachment_url, attachment_name, attachment_type, reactions')
         .or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`)
-        .order('timestamp', { ascending: true });
+        .order('timestamp', { ascending: true })
+        .limit(100);
       if (!error && data) return data.map(mapMessageFromDb);
     } catch {}
   }
@@ -802,6 +961,7 @@ export async function getDirectMessages(userId1: string, userId2: string): Promi
 }
 
 export async function createMessage(message: Message): Promise<Message> {
+  invalidateCache('msgs');
   const isDm = Boolean(message.recipientId);
   const msgType = message.type || (isDm ? 'dm' : 'campaign');
   const ts = message.timestamp || message.createdAt || new Date().toISOString();
@@ -848,6 +1008,7 @@ export async function createMessage(message: Message): Promise<Message> {
 }
 
 export async function toggleMessageReaction(messageId: string, emoji: string, userId: string, userName: string): Promise<Message | null> {
+  invalidateCache('msgs');
   const db = await initDb();
   const msg = db.messages.find(m => m.id === messageId);
   if (!msg) return null;
@@ -895,6 +1056,7 @@ export async function getMessageById(messageId: string): Promise<Message | null>
 }
 
 export async function deleteMessage(messageId: string): Promise<boolean> {
+  invalidateCache('msgs');
   if (supabase) {
     try {
       await supabase.from('messages').delete().eq('id', messageId);

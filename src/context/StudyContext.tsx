@@ -616,7 +616,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     };
 
     sendStudyHeartbeat();
-    const interval = setInterval(sendStudyHeartbeat, 1000);
+    const interval = setInterval(sendStudyHeartbeat, 6000);
     return () => clearInterval(interval);
   }, [isStudying, activeCampaignId, activeCampaignName, subjectNote, token]);
 

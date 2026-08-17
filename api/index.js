@@ -193,37 +193,83 @@ function mapMessageFromDb(row) {
     reactions: Array.isArray(row.reactions) ? row.reactions : []
   };
 }
+var cacheStore = /* @__PURE__ */ new Map();
+function getFromCache(key) {
+  const entry = cacheStore.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    cacheStore.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+function setToCache(key, data, ttlMs = 4e3) {
+  cacheStore.set(key, { data, expiresAt: Date.now() + ttlMs });
+  return data;
+}
+function invalidateCache(prefix) {
+  if (!prefix) {
+    cacheStore.clear();
+    return;
+  }
+  for (const key of cacheStore.keys()) {
+    if (key.startsWith(prefix)) cacheStore.delete(key);
+  }
+}
 async function getUsers() {
+  const cached = getFromCache("all_users");
+  if (cached) return cached;
   if (supabase) {
-    const { data, error } = await supabase.from("users").select("*");
+    const { data, error } = await supabase.from("users").select("id, name, email, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at");
     if (!error && data) {
-      return data.map((r) => {
+      const mapped2 = data.map((r) => {
         const u = mapUserFromDb(r);
         const { passwordHash, ...clean } = u;
         return clean;
       });
+      return setToCache("all_users", mapped2, 5e3);
     }
   }
   const db = await initDb();
-  return db.users.map(({ passwordHash, ...user }) => user);
+  const mapped = db.users.map(({ passwordHash, ...user }) => user);
+  return setToCache("all_users", mapped, 5e3);
 }
 async function getUserById(id) {
+  const cacheKey = `user_id_${id}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   if (supabase) {
-    const { data, error } = await supabase.from("users").select("*").eq("id", id).single();
-    if (!error && data) return mapUserFromDb(data);
+    const { data, error } = await supabase.from("users").select("id, name, email, password_hash, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at").eq("id", id).single();
+    if (!error && data) {
+      const mapped = mapUserFromDb(data);
+      return setToCache(cacheKey, mapped, 5e3);
+    }
   }
   const db = await initDb();
-  return db.users.find((u) => u.id === id);
+  const local = db.users.find((u) => u.id === id);
+  if (local) setToCache(cacheKey, local, 5e3);
+  return local;
 }
 async function getUserByEmail(email) {
+  const cleanEmail = email.trim().toLowerCase();
+  const cacheKey = `user_email_${cleanEmail}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   if (supabase) {
-    const { data, error } = await supabase.from("users").select("*").ilike("email", email.trim()).single();
-    if (!error && data) return mapUserFromDb(data);
+    const { data, error } = await supabase.from("users").select("id, name, email, password_hash, avatar_url, bio, study_goal, leetcode_url, hackerrank_url, created_at").ilike("email", cleanEmail).single();
+    if (!error && data) {
+      const mapped = mapUserFromDb(data);
+      return setToCache(cacheKey, mapped, 5e3);
+    }
   }
   const db = await initDb();
-  return db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const local = db.users.find((u) => u.email.toLowerCase() === cleanEmail);
+  if (local) setToCache(cacheKey, local, 5e3);
+  return local;
 }
 async function createUser(userData) {
+  invalidateCache("user");
+  invalidateCache("all_users");
   const packedBio = packBioWithCodingLinks(userData.bio, userData.leetcodeUrl, userData.hackerrankUrl);
   if (supabase) {
     const fullPayload = {
@@ -258,6 +304,8 @@ async function createUser(userData) {
   return user;
 }
 async function updateUserPasswordByEmail(email, newPasswordHash) {
+  invalidateCache("user");
+  invalidateCache("all_users");
   if (supabase) {
     const { error } = await supabase.from("users").update({ password_hash: newPasswordHash }).ilike("email", email.trim());
     if (!error) return true;
@@ -270,6 +318,10 @@ async function updateUserPasswordByEmail(email, newPasswordHash) {
   return true;
 }
 async function updateUser(id, updates) {
+  invalidateCache("user");
+  invalidateCache("all_users");
+  invalidateCache("camps");
+  invalidateCache("leaderboard");
   if (supabase) {
     const { data: existingRow } = await supabase.from("users").select("*").eq("id", id).single();
     const existingExtracted = existingRow ? extractCodingLinks(existingRow.bio || "") : { cleanBio: "", leetcodeUrl: "", hackerrankUrl: "" };
@@ -333,12 +385,15 @@ async function updateUser(id, updates) {
   return cleanUser;
 }
 async function getCampaigns(userId) {
+  const cacheKey = `camps_${userId || "all"}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   if (supabase) {
-    const { data: camps, error } = await supabase.from("campaigns").select("*").order("created_at", { ascending: false });
+    const { data: camps, error } = await supabase.from("campaigns").select("id, name, description, category, admin_id, admin_name, start_date, end_date, daily_start_time, daily_end_time, target_daily_hours, schedule, max_members, is_public, banner_color, tags, created_at").order("created_at", { ascending: false });
     if (!error && camps) {
-      const { data: members } = await supabase.from("memberships").select("*");
+      const { data: members } = await supabase.from("memberships").select("campaign_id, user_id, role, status");
       const allMembers = (members || []).map(mapMembershipFromDb);
-      return camps.map(mapCampaignFromDb).map((c) => {
+      const result2 = camps.map(mapCampaignFromDb).map((c) => {
         const approved = allMembers.filter((m) => m.campaignId === c.id && m.status === "approved");
         const userMem = userId ? allMembers.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
         return {
@@ -348,10 +403,11 @@ async function getCampaigns(userId) {
           userRole: userMem ? userMem.role : void 0
         };
       });
+      return setToCache(cacheKey, result2, 4e3);
     }
   }
   const db = await initDb();
-  return db.campaigns.map((c) => {
+  const result = db.campaigns.map((c) => {
     const approvedMembers = db.memberships.filter((m) => m.campaignId === c.id && m.status === "approved");
     let userMembership = userId ? db.memberships.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
     return {
@@ -361,22 +417,27 @@ async function getCampaigns(userId) {
       userRole: userMembership ? userMembership.role : void 0
     };
   });
+  return setToCache(cacheKey, result, 4e3);
 }
 async function getCampaignById(id, userId) {
+  const cacheKey = `camp_${id}_${userId || "all"}`;
+  const cached = getFromCache(cacheKey);
+  if (cached !== null) return cached;
   if (supabase) {
-    const { data: camp, error } = await supabase.from("campaigns").select("*").eq("id", id).single();
+    const { data: camp, error } = await supabase.from("campaigns").select("id, name, description, category, admin_id, admin_name, start_date, end_date, daily_start_time, daily_end_time, target_daily_hours, schedule, max_members, is_public, banner_color, tags, created_at").eq("id", id).single();
     if (!error && camp) {
-      const { data: members } = await supabase.from("memberships").select("*").eq("campaign_id", id);
+      const { data: members } = await supabase.from("memberships").select("campaign_id, user_id, user_name, user_avatar_url, role, status").eq("campaign_id", id);
       const allMembers = (members || []).map(mapMembershipFromDb);
       const approved = allMembers.filter((m) => m.status === "approved");
       const userMem = userId ? allMembers.find((m) => m.userId === userId) : void 0;
       const c = mapCampaignFromDb(camp);
-      return {
+      const result2 = {
         ...c,
         memberCount: approved.length,
         userStatus: userMem ? userMem.status : void 0,
         userRole: userMem ? userMem.role : void 0
       };
+      return setToCache(cacheKey, result2, 4e3);
     }
   }
   const db = await initDb();
@@ -384,14 +445,18 @@ async function getCampaignById(id, userId) {
   if (!campaign) return null;
   const approvedMembers = db.memberships.filter((m) => m.campaignId === campaign.id && m.status === "approved");
   let userMembership = userId ? db.memberships.find((m) => m.campaignId === campaign.id && m.userId === userId) : void 0;
-  return {
+  const result = {
     ...campaign,
     memberCount: approvedMembers.length,
     userStatus: userMembership ? userMembership.status : void 0,
     userRole: userMembership ? userMembership.role : void 0
   };
+  return setToCache(cacheKey, result, 4e3);
 }
 async function createCampaign(campaign, creator) {
+  invalidateCache("camp");
+  invalidateCache("camps");
+  invalidateCache("leaderboard");
   const membershipId = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
   const membership = {
     id: membershipId,
@@ -444,6 +509,9 @@ async function createCampaign(campaign, creator) {
   };
 }
 async function updateCampaign(id, updates) {
+  invalidateCache("camp");
+  invalidateCache("camps");
+  invalidateCache("leaderboard");
   if (supabase) {
     const payload = {};
     if (updates.name !== void 0) payload.name = updates.name;
@@ -474,6 +542,9 @@ async function updateCampaign(id, updates) {
   return c;
 }
 async function deleteCampaign(id) {
+  invalidateCache("camp");
+  invalidateCache("camps");
+  invalidateCache("leaderboard");
   if (supabase) {
     await supabase.from("campaigns").delete().eq("id", id);
     await supabase.from("memberships").delete().eq("campaign_id", id);
@@ -492,22 +563,42 @@ async function deleteCampaign(id) {
   return true;
 }
 async function getCampaignMembers(campaignId) {
+  const cacheKey = `members_${campaignId}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   if (supabase) {
-    const { data, error } = await supabase.from("memberships").select("*").eq("campaign_id", campaignId);
-    if (!error && data) return data.map(mapMembershipFromDb);
+    const { data, error } = await supabase.from("memberships").select("id, campaign_id, user_id, user_name, user_email, user_avatar_url, role, status, joined_at").eq("campaign_id", campaignId);
+    if (!error && data) {
+      const mapped2 = data.map(mapMembershipFromDb);
+      return setToCache(cacheKey, mapped2, 4e3);
+    }
   }
   const db = await initDb();
-  return db.memberships.filter((m) => m.campaignId === campaignId);
+  const mapped = db.memberships.filter((m) => m.campaignId === campaignId);
+  return setToCache(cacheKey, mapped, 4e3);
 }
 async function getMembership(userId, campaignId) {
+  const cacheKey = `mem_${userId}_${campaignId}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   if (supabase) {
-    const { data, error } = await supabase.from("memberships").select("*").eq("user_id", userId).eq("campaign_id", campaignId).single();
-    if (!error && data) return mapMembershipFromDb(data);
+    const { data, error } = await supabase.from("memberships").select("id, campaign_id, user_id, user_name, user_email, user_avatar_url, role, status, joined_at").eq("user_id", userId).eq("campaign_id", campaignId).single();
+    if (!error && data) {
+      const mapped = mapMembershipFromDb(data);
+      return setToCache(cacheKey, mapped, 4e3);
+    }
   }
   const db = await initDb();
-  return db.memberships.find((m) => m.userId === userId && m.campaignId === campaignId);
+  const local = db.memberships.find((m) => m.userId === userId && m.campaignId === campaignId);
+  if (local) setToCache(cacheKey, local, 4e3);
+  return local;
 }
 async function createMembership(membership) {
+  invalidateCache("camp");
+  invalidateCache("camps");
+  invalidateCache("members");
+  invalidateCache("mem_");
+  invalidateCache("leaderboard");
   if (supabase) {
     await supabase.from("memberships").upsert({
       id: membership.id,
@@ -532,6 +623,11 @@ async function createMembership(membership) {
   return membership;
 }
 async function updateMembership(id, updates) {
+  invalidateCache("camp");
+  invalidateCache("camps");
+  invalidateCache("members");
+  invalidateCache("mem_");
+  invalidateCache("leaderboard");
   if (supabase) {
     const payload = {};
     if (updates.status !== void 0) payload.status = updates.status;
@@ -559,6 +655,8 @@ async function deleteMembership(id) {
   return true;
 }
 async function logStudyBlock(block) {
+  invalidateCache("study_blocks");
+  invalidateCache("leaderboard");
   if (supabase) {
     await supabase.from("study_blocks").insert({
       id: block.id,
@@ -571,7 +669,7 @@ async function logStudyBlock(block) {
       duration_minutes: block.durationMinutes || 5,
       status: block.status || "active",
       subject_note: block.subjectNote || "Focus Study",
-      snapshot_url: block.snapshotUrl || null
+      snapshot_url: block.snapshotUrl && !block.snapshotUrl.startsWith("data:") ? block.snapshotUrl : null
     });
   }
   const db = await initDb();
@@ -580,16 +678,26 @@ async function logStudyBlock(block) {
   return block;
 }
 async function getStudyBlocksForUser(userId, campaignId) {
+  const cacheKey = `study_blocks_${userId}_${campaignId || "all"}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   if (supabase) {
-    let query = supabase.from("study_blocks").select("*").eq("user_id", userId);
+    let query = supabase.from("study_blocks").select("id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note").eq("user_id", userId).order("timestamp", { ascending: false }).limit(100);
     if (campaignId) query = query.eq("campaign_id", campaignId);
     const { data, error } = await query;
-    if (!error && data) return data.map(mapStudyBlockFromDb);
+    if (!error && data) {
+      const mapped2 = data.map(mapStudyBlockFromDb);
+      return setToCache(cacheKey, mapped2, 5e3);
+    }
   }
   const db = await initDb();
-  return db.studyBlocks.filter((b) => b.userId === userId && (!campaignId || b.campaignId === campaignId));
+  const mapped = db.studyBlocks.filter((b) => b.userId === userId && (!campaignId || b.campaignId === campaignId));
+  return setToCache(cacheKey, mapped, 5e3);
 }
 async function getCampaignLeaderboard(campaignId) {
+  const cacheKey = `leaderboard_${campaignId}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   let approvedMembers = [];
   let campaignBlocks = [];
   let targetHours = 4;
@@ -598,7 +706,7 @@ async function getCampaignLeaderboard(campaignId) {
     const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
       supabase.from("campaigns").select("target_daily_hours").eq("id", campaignId).single(),
       supabase.from("memberships").select("id, campaign_id, user_id, user_name, user_avatar_url, role, status").eq("campaign_id", campaignId).eq("status", "approved"),
-      supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, created_at, status").eq("campaign_id", campaignId).eq("status", "active").limit(500),
+      supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").eq("campaign_id", campaignId).eq("status", "active").limit(500),
       supabase.from("users").select("id, leetcode_url, hackerrank_url").limit(200)
     ]);
     if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
@@ -695,14 +803,19 @@ async function getCampaignLeaderboard(campaignId) {
       lastActive
     };
   });
-  return entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
+  const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
+  return setToCache(cacheKey, sorted, 4e3);
 }
 async function getCampaignMessages(campaignId) {
+  const cacheKey = `msgs_${campaignId}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return cached;
   if (supabase) {
     try {
-      const { data, error } = await supabase.from("messages").select("*").eq("campaign_id", campaignId).order("timestamp", { ascending: true }).limit(100);
+      const { data, error } = await supabase.from("messages").select("id, campaign_id, sender_id, sender_name, sender_avatar_url, content, timestamp, type, recipient_id, attachment_url, attachment_name, attachment_type, reactions").eq("campaign_id", campaignId).order("timestamp", { ascending: true }).limit(100);
       if (!error && data) {
-        return data.map(mapMessageFromDb);
+        const mapped2 = data.map(mapMessageFromDb);
+        return setToCache(cacheKey, mapped2, 3e3);
       }
       if (error) {
         console.warn("[Database] Supabase getCampaignMessages error:", error.message);
@@ -712,12 +825,13 @@ async function getCampaignMessages(campaignId) {
     }
   }
   const db = await initDb();
-  return db.messages.filter((m) => m.campaignId === campaignId);
+  const mapped = db.messages.filter((m) => m.campaignId === campaignId);
+  return setToCache(cacheKey, mapped, 3e3);
 }
 async function getDirectMessages(userId1, userId2) {
   if (supabase) {
     try {
-      const { data, error } = await supabase.from("messages").select("*").or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`).order("timestamp", { ascending: true });
+      const { data, error } = await supabase.from("messages").select("id, campaign_id, sender_id, sender_name, sender_avatar_url, content, timestamp, type, recipient_id, attachment_url, attachment_name, attachment_type, reactions").or(`and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`).order("timestamp", { ascending: true }).limit(100);
       if (!error && data) return data.map(mapMessageFromDb);
     } catch {
     }
@@ -728,6 +842,7 @@ async function getDirectMessages(userId1, userId2) {
   );
 }
 async function createMessage(message) {
+  invalidateCache("msgs");
   const isDm = Boolean(message.recipientId);
   const msgType = message.type || (isDm ? "dm" : "campaign");
   const ts = message.timestamp || message.createdAt || (/* @__PURE__ */ new Date()).toISOString();
@@ -770,6 +885,7 @@ async function createMessage(message) {
   return fullMsg;
 }
 async function toggleMessageReaction2(messageId, emoji, userId, userName) {
+  invalidateCache("msgs");
   const db = await initDb();
   const msg = db.messages.find((m) => m.id === messageId);
   if (!msg) return null;
@@ -813,6 +929,7 @@ async function getMessageById(messageId) {
   return null;
 }
 async function deleteMessage(messageId) {
+  invalidateCache("msgs");
   if (supabase) {
     try {
       await supabase.from("messages").delete().eq("id", messageId);
