@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useSocket } from '../context/SocketContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
 import { BrandLogo } from './BrandLogo.tsx';
 import { 
   Clock, 
+  Trophy,
+  History,
   ChevronDown,
   LogOut,
   User as UserIcon,
   Plus,
   Sparkles,
-  Flame,
-  Trophy,
-  History
+  Flame
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -28,18 +29,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   onGoHome, 
   onOpenCreateModal,
   selectedCampaignId,
-  activeTab,
+  activeTab = 'focus',
   onTabChange
 }) => {
   const { user, logout } = useAuth();
+  const { activeStudySessions } = useSocket();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const activeInThisCamp = selectedCampaignId 
+    ? activeStudySessions.filter(s => s.campaignId === selectedCampaignId)
+    : [];
 
   return (
     <header className="sticky top-0 z-40 glass-nav text-zinc-900 dark:text-zinc-100 transition-all duration-300 border-b border-zinc-200/80 dark:border-white/[0.08] shadow-sm backdrop-blur-2xl">
-      <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
         {/* Brand */}
-        <div className="flex items-center space-x-3 cursor-pointer group select-none shrink-0" onClick={onGoHome}>
+        <div className="flex items-center space-x-3 cursor-pointer group select-none" onClick={onGoHome}>
           <div className="relative">
             <BrandLogo size="sm" className="group-hover:scale-105 transition-transform duration-300 shadow-sm" />
             <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
@@ -56,25 +62,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Center: Cohort Tabs when in Dashboard, plain when on Home */}
-        {selectedCampaignId && onTabChange && activeTab ? (
+        {/* Center: Compact Cohort Navigation (Shown only in Cohort Dashboard) */}
+        {selectedCampaignId ? (
           <div className="flex items-center gap-1 glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] shadow-xs">
             {([ 
-              { id: 'focus',       icon: Clock,   label: 'Focus Studio' },
-              { id: 'leaderboard', icon: Trophy,  label: 'Leaderboard' },
-              { id: 'history',     icon: History, label: 'Study History' },
-            ] as const).map(({ id, icon: Icon, label }) => (
+              { id: 'focus',       icon: Clock,   label: 'Focus Studio',  badge: activeInThisCamp.length > 0 ? '●' : null },
+              { id: 'leaderboard', icon: Trophy,  label: 'Leaderboard',   badge: null },
+              { id: 'history',     icon: History, label: 'Study History', badge: null },
+            ] as const).map(({ id, icon: Icon, label, badge }) => (
               <button
                 key={id}
-                onClick={() => onTabChange(id)}
-                className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                onClick={() => onTabChange?.(id)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                   activeTab === id
-                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-sm font-black'
+                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md font-black'
                     : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden xs:inline sm:inline">{label}</span>
+                <span>{label}</span>
+                {badge === '●' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.9)]" />}
               </button>
             ))}
           </div>
@@ -83,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
 
         {/* Right Actions */}
-        <div className="flex items-center space-x-2.5 shrink-0">
+        <div className="flex items-center space-x-2.5">
           {/* Create Campaign Shortcut */}
           <button
             onClick={onOpenCreateModal}

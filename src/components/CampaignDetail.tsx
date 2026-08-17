@@ -36,8 +36,8 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   campaignId,
   onBack,
   onCampaignDeleted,
-  activeTab: controlledTab,
-  onTabChange: controlledOnTabChange
+  activeTab: controlledActiveTab,
+  onTabChange
 }) => {
   const { user, token } = useAuth();
   const { joinCampaignRoom, leaveCampaignRoom, activeStudySessions, onlineUserIds } = useSocket();
@@ -66,10 +66,11 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
     return 'focus';
   });
 
-  const activeTab = controlledTab || internalTab;
+  const activeTab = controlledActiveTab || internalTab;
+
   const handleTabChange = (tab: TabType) => {
-    if (controlledOnTabChange) {
-      controlledOnTabChange(tab);
+    if (onTabChange) {
+      onTabChange(tab);
     } else {
       setInternalTab(tab);
       sessionStorage.setItem('study_tab_' + campaignId, tab);

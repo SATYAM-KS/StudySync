@@ -39,15 +39,8 @@ const MainApp: React.FC = () => {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(() => {
     return sessionStorage.getItem('study_active_campaign') || null;
   });
-  const [activeTab, setActiveTab] = useState<'focus' | 'leaderboard' | 'history'>(() => {
-    const activeId = sessionStorage.getItem('study_active_campaign');
-    if (activeId) {
-      const saved = sessionStorage.getItem('study_tab_' + activeId);
-      if (saved === 'focus' || saved === 'leaderboard' || saved === 'history') {
-        return saved as 'focus' | 'leaderboard' | 'history';
-      }
-    }
-    return 'focus';
+  const [campaignTab, setCampaignTab] = useState<'focus' | 'leaderboard' | 'history'>(() => {
+    return (sessionStorage.getItem('study_active_tab') as 'focus' | 'leaderboard' | 'history') || 'focus';
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -57,22 +50,14 @@ const MainApp: React.FC = () => {
     setSelectedCampaignId(id);
     if (id) {
       sessionStorage.setItem('study_active_campaign', id);
-      const saved = sessionStorage.getItem('study_tab_' + id);
-      if (saved === 'focus' || saved === 'leaderboard' || saved === 'history') {
-        setActiveTab(saved as 'focus' | 'leaderboard' | 'history');
-      } else {
-        setActiveTab('focus');
-      }
     } else {
       sessionStorage.removeItem('study_active_campaign');
     }
   };
 
-  const handleTabChange = (tab: 'focus' | 'leaderboard' | 'history') => {
-    setActiveTab(tab);
-    if (selectedCampaignId) {
-      sessionStorage.setItem('study_tab_' + selectedCampaignId, tab);
-    }
+  const handleCampaignTabChange = (tab: 'focus' | 'leaderboard' | 'history') => {
+    setCampaignTab(tab);
+    sessionStorage.setItem('study_active_tab', tab);
   };
 
   // Fetch all campaigns when authenticated
@@ -204,8 +189,8 @@ const MainApp: React.FC = () => {
           onOpenProfile={() => setIsProfileModalOpen(true)}
           onGoHome={() => handleSelectCampaign(null)}
           selectedCampaignId={selectedCampaignId}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
+          activeTab={campaignTab}
+          onTabChange={handleCampaignTabChange}
         />
       </div>
 
@@ -214,10 +199,10 @@ const MainApp: React.FC = () => {
         {selectedCampaignId ? (
           <CampaignDetail
             campaignId={selectedCampaignId}
+            activeTab={campaignTab}
+            onTabChange={handleCampaignTabChange}
             onBack={() => handleSelectCampaign(null)}
             onCampaignDeleted={handleCampaignDeleted}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
           />
         ) : (
           <CampaignsList
