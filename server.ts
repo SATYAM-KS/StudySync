@@ -363,6 +363,9 @@ app.post('/api/campaigns', authMiddleware, async (req: AuthRequest, res) => {
     };
 
     const created = await createCampaign(newCampaign, req.user!);
+    if (io) {
+      io.emit('campaign:created', created);
+    }
     res.status(201).json(created);
   } catch (err: any) {
     console.error('Create campaign error:', err);
@@ -386,6 +389,10 @@ app.put('/api/campaigns/:id', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const updated = await updateCampaign(req.params.id, req.body);
+    if (io && updated) {
+      io.emit('campaign:updated', updated);
+      io.to(`campaign:${req.params.id}`).emit('campaign:updated', updated);
+    }
     res.json(updated);
   } catch (err: any) {
     console.error('[PUT /api/campaigns/:id]', err?.message || err);
@@ -405,6 +412,9 @@ app.delete('/api/campaigns/:id', authMiddleware, async (req: AuthRequest, res) =
       return;
     }
     await deleteCampaign(req.params.id);
+    if (io) {
+      io.emit('campaign:deleted', { id: req.params.id });
+    }
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to delete campaign' });
@@ -461,6 +471,10 @@ app.post('/api/campaigns/:id/join', authMiddleware, async (req: AuthRequest, res
     };
 
     const saved = await createMembership(newMembership);
+    if (io) {
+      io.emit('campaign:member_joined', { campaignId: req.params.id, membership: saved });
+      io.to(`campaign:${req.params.id}`).emit('campaign:member_joined', { campaignId: req.params.id, membership: saved });
+    }
     res.status(201).json(saved);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to submit join request' });
@@ -495,6 +509,11 @@ app.put('/api/campaigns/:id/members/:memberId', authMiddleware, async (req: Auth
       return;
     }
 
+    if (io) {
+      io.emit('campaign:membership_updated', { campaignId: req.params.id, membership: updated });
+      io.to(`campaign:${req.params.id}`).emit('campaign:membership_updated', { campaignId: req.params.id, membership: updated });
+    }
+
     res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to update membership' });
@@ -527,6 +546,10 @@ app.delete('/api/campaigns/:id/members/:memberId', authMiddleware, async (req: A
     }
 
     await deleteMembership(targetMember.id);
+    if (io) {
+      io.emit('campaign:member_left', { campaignId: req.params.id, memberId: targetMember.id, userId: targetMember.userId });
+      io.to(`campaign:${req.params.id}`).emit('campaign:member_left', { campaignId: req.params.id, memberId: targetMember.id, userId: targetMember.userId });
+    }
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to remove member' });

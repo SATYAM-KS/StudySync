@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext.tsx';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
-import { SocketProvider } from './context/SocketContext.tsx';
+import { SocketProvider, useSocket } from './context/SocketContext.tsx';
 import { StudyProvider, useStudy } from './context/StudyContext.tsx';
 import { CallProvider, useCall } from './context/CallContext.tsx';
 import { Navbar } from './components/Navbar.tsx';
@@ -23,6 +23,7 @@ import {
 
 const MainApp: React.FC = () => {
   const { user, token, isLoading: isAuthLoading } = useAuth();
+  const { socket } = useSocket();
   const { 
     isStudying, 
     activeCampaignId, 
@@ -83,6 +84,49 @@ const MainApp: React.FC = () => {
       setIsLoadingCampaigns(false);
     }
   }, [token]);
+
+  // Real-time synchronization without browser refresh
+  useEffect(() => {
+    if (!socket) return;
+
+    const onCampaignCreated = (newCamp: Campaign) => {
+      setCampaigns(prev => {
+        if (prev.some(c => c.id === newCamp.id)) return prev;
+        return [newCamp, ...prev];
+      });
+    };
+
+    const onCampaignUpdated = (updatedCamp: Campaign) => {
+      setCampaigns(prev => prev.map(c => c.id === updatedCamp.id ? { ...c, ...updatedCamp } : c));
+    };
+
+    const onCampaignDeleted = ({ id }: { id: string }) => {
+      setCampaigns(prev => prev.filter(c => c.id !== id));
+      if (selectedCampaignId === id) {
+        handleSelectCampaign(null);
+      }
+    };
+
+    const onMembershipChanged = () => {
+      fetchCampaigns();
+    };
+
+    socket.on('campaign:created', onCampaignCreated);
+    socket.on('campaign:updated', onCampaignUpdated);
+    socket.on('campaign:deleted', onCampaignDeleted);
+    socket.on('campaign:member_joined', onMembershipChanged);
+    socket.on('campaign:membership_updated', onMembershipChanged);
+    socket.on('campaign:member_left', onMembershipChanged);
+
+    return () => {
+      socket.off('campaign:created', onCampaignCreated);
+      socket.off('campaign:updated', onCampaignUpdated);
+      socket.off('campaign:deleted', onCampaignDeleted);
+      socket.off('campaign:member_joined', onMembershipChanged);
+      socket.off('campaign:membership_updated', onMembershipChanged);
+      socket.off('campaign:member_left', onMembershipChanged);
+    };
+  }, [socket, selectedCampaignId]);
 
   const handleJoinCampaign = async (campaignId: string) => {
     if (!token) return;

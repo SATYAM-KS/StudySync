@@ -96,14 +96,39 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
     }
   };
 
+  const { socket } = useSocket();
+
   useEffect(() => {
     fetchCampaign();
     joinCampaignRoom(campaignId);
 
+    if (!socket) return () => leaveCampaignRoom(campaignId);
+
+    const onCampUpdated = (updated: Campaign) => {
+      if (updated.id === campaignId) {
+        setCampaign(prev => prev ? { ...prev, ...updated } : updated);
+      }
+    };
+
+    const onMembershipChanged = (data?: { campaignId?: string }) => {
+      if (!data?.campaignId || data.campaignId === campaignId) {
+        fetchCampaign();
+      }
+    };
+
+    socket.on('campaign:updated', onCampUpdated);
+    socket.on('campaign:membership_updated', onMembershipChanged);
+    socket.on('campaign:member_joined', onMembershipChanged);
+    socket.on('campaign:member_left', onMembershipChanged);
+
     return () => {
       leaveCampaignRoom(campaignId);
+      socket.off('campaign:updated', onCampUpdated);
+      socket.off('campaign:membership_updated', onMembershipChanged);
+      socket.off('campaign:member_joined', onMembershipChanged);
+      socket.off('campaign:member_left', onMembershipChanged);
     };
-  }, [campaignId, token]);
+  }, [campaignId, token, socket]);
 
   if (isLoading || !campaign) {
     return (

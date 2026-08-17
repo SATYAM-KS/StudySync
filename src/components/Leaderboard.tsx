@@ -83,22 +83,80 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     fetchLeaderboard();
 
     if (!socket) return;
-    const handleUpdate = () => {
+    const handleBlockLogged = (data?: any) => {
+      const block = data?.block;
+      if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
+        const mins = Number(block.durationMinutes) || 5;
+        setEntries(prev => prev.map(entry => {
+          if (entry.userId === block.userId) {
+            const newToday = entry.todayMinutes + mins;
+            const newWeek = entry.thisWeekMinutes + mins;
+            const newMonth = entry.thisMonthMinutes + mins;
+            const newTotal = entry.totalMinutes + mins;
+            return {
+              ...entry,
+              todayMinutes: newToday,
+              todayHours: Number((newToday / 60).toFixed(1)),
+              thisWeekMinutes: newWeek,
+              thisWeekHours: Number((newWeek / 60).toFixed(1)),
+              thisMonthMinutes: newMonth,
+              thisMonthHours: Number((newMonth / 60).toFixed(1)),
+              totalMinutes: newTotal,
+              totalHours: Number((newTotal / 60).toFixed(1)),
+              lastActive: new Date().toISOString()
+            };
+          }
+          return entry;
+        }));
+      }
       fetchLeaderboard();
     };
 
-    socket.on('study:block_logged', handleUpdate);
-    socket.on('campaign:member_joined', handleUpdate);
+    const handleMemberUpdate = () => {
+      fetchLeaderboard();
+    };
+
+    socket.on('study:block_logged', handleBlockLogged);
+    socket.on('campaign:member_joined', handleMemberUpdate);
+    socket.on('campaign:membership_updated', handleMemberUpdate);
+    socket.on('campaign:member_left', handleMemberUpdate);
 
     return () => {
-      socket.off('study:block_logged', handleUpdate);
-      socket.off('campaign:member_joined', handleUpdate);
+      socket.off('study:block_logged', handleBlockLogged);
+      socket.off('campaign:member_joined', handleMemberUpdate);
+      socket.off('campaign:membership_updated', handleMemberUpdate);
+      socket.off('campaign:member_left', handleMemberUpdate);
     };
   }, [campaignId, socket]);
 
   // Real-time local study events
   useEffect(() => {
-    const handleLocalEvent = () => {
+    const handleLocalEvent = (e: any) => {
+      const block = e?.detail?.block;
+      if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
+        const mins = Number(block.durationMinutes) || 5;
+        setEntries(prev => prev.map(entry => {
+          if (entry.userId === block.userId) {
+            const newToday = entry.todayMinutes + mins;
+            const newWeek = entry.thisWeekMinutes + mins;
+            const newMonth = entry.thisMonthMinutes + mins;
+            const newTotal = entry.totalMinutes + mins;
+            return {
+              ...entry,
+              todayMinutes: newToday,
+              todayHours: Number((newToday / 60).toFixed(1)),
+              thisWeekMinutes: newWeek,
+              thisWeekHours: Number((newWeek / 60).toFixed(1)),
+              thisMonthMinutes: newMonth,
+              thisMonthHours: Number((newMonth / 60).toFixed(1)),
+              totalMinutes: newTotal,
+              totalHours: Number((newTotal / 60).toFixed(1)),
+              lastActive: new Date().toISOString()
+            };
+          }
+          return entry;
+        }));
+      }
       fetchLeaderboard();
     };
     window.addEventListener('study:block_logged', handleLocalEvent);
