@@ -99,6 +99,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ campaign }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAtBottomRef = useRef(true);
+
   // ── Delete message permission helper ────────────────────────────────
   const canDeleteMessage = (msg: Message) => {
     if (!user) return false;
