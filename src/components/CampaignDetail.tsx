@@ -190,24 +190,54 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   return (
     <div className="h-full flex flex-col text-zinc-900 dark:text-zinc-100 overflow-hidden">
 
-      {/* ── Top bar: back + admin ── full width, always pinned */}
-      <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav">
+      {/* ── Single Unified Top Bar: back + tabs + admin ── */}
+      <div className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav">
+        {/* Left: Back button */}
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 text-xs font-semibold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 px-3.5 py-2 rounded-xl transition cursor-pointer active:scale-95"
+          className="flex items-center space-x-2 text-xs font-semibold text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 px-3.5 py-1.5 rounded-xl transition cursor-pointer active:scale-95 shrink-0"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>All Cohorts</span>
         </button>
 
-        {isAdminOrCoAdmin && (
+        {/* Center / Right: Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
+          {([ 
+            { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: isCallActive ? null : (activeInThisCamp.length > 0 ? '●' : null) },
+            { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
+            { id: 'history',     icon: History,       label: 'Study History',     badge: null },
+            { id: 'chat',        icon: MessageSquare, label: 'Lounge Chat',       badge: null },
+            { id: 'voice',       icon: Headphones,    label: 'Voice Channel',     badge: isCallActive ? 'Live' : null },
+          ] as const).map(({ id, icon: Icon, label, badge }) => (
+            <button
+              key={id}
+              onClick={() => handleTabChange(id)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+                activeTab === id
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              <span>{label}</span>
+              {badge === '●' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+              {badge === 'Live' && <span className="text-[9px] px-1.5 py-0.2 rounded bg-zinc-900 text-white dark:bg-white dark:text-black font-bold font-mono">Live</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: Admin settings */}
+        {isAdminOrCoAdmin ? (
           <button
             onClick={() => setShowAdminModal(true)}
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-900 dark:text-white text-xs font-bold transition cursor-pointer active:scale-95"
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-900 dark:text-white text-xs font-bold transition cursor-pointer active:scale-95 shrink-0"
           >
-            <Settings className="w-4 h-4" />
-            <span>Admin Settings</span>
+            <Settings className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Admin</span>
           </button>
+        ) : (
+          <div className="w-8 shrink-0 hidden lg:block" />
         )}
       </div>
 
@@ -325,34 +355,8 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
           </div>
         </div>
 
-        {/* ═══ RIGHT PANEL: Tabs + content ═══ */}
+        {/* ═══ RIGHT PANEL: Content ═══ */}
         <div className="flex-1 flex flex-col overflow-hidden">
-
-          {/* Tab nav */}
-          <div className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 border-b border-zinc-200/60 dark:border-white/[0.08] glass-nav overflow-x-auto">
-            {([ 
-              { id: 'focus',       icon: Clock,         label: 'Focus Studio',      badge: isCallActive ? null : (activeInThisCamp.length > 0 ? '●' : null) },
-              { id: 'leaderboard', icon: Trophy,        label: 'Leaderboard',       badge: null },
-              { id: 'history',     icon: History,       label: 'Study History',     badge: null },
-              { id: 'chat',        icon: MessageSquare, label: 'Lounge Chat',       badge: null },
-              { id: 'voice',       icon: Headphones,    label: 'Voice Channel',     badge: isCallActive ? 'Live' : null },
-            ] as const).map(({ id, icon: Icon, label, badge }) => (
-              <button
-                key={id}
-                onClick={() => handleTabChange(id)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
-                  activeTab === id
-                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span>{label}</span>
-                {badge === '●' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
-                {badge === 'Live' && <span className="text-[9px] px-1.5 py-0.2 rounded bg-zinc-900 text-white dark:bg-white dark:text-black font-bold font-mono">Live</span>}
-              </button>
-            ))}
-          </div>
 
           {/* Tab content — fills remaining height with instant 0ms CSS-preserved switching */}
           <div className="flex-1 overflow-hidden relative">
