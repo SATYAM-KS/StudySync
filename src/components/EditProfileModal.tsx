@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
@@ -8,9 +8,6 @@ import {
   Target, 
   Save, 
   CheckCircle2,
-  Upload,
-  Trash2,
-  Loader2,
   Code2,
   Terminal
 } from 'lucide-react';
@@ -28,62 +25,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
   const [bio, setBio] = useState(user?.bio || '');
   const [leetcodeUrl, setLeetcodeUrl] = useState(user?.leetcodeUrl || '');
   const [hackerrankUrl, setHackerrankUrl] = useState(user?.hackerrankUrl || '');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl || null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   if (!isOpen) return null;
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !token) return;
-
-    if (!file.type.startsWith('image/')) {
-      setUploadError('Please select a valid image file (PNG, JPG, WEBP).');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError('Image must be under 5MB.');
-      return;
-    }
-
-    setUploadError(null);
-    setIsUploading(true);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setAvatarUrl(data.url);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        setUploadError(errData.error || 'Failed to upload photo.');
-      }
-    } catch (err: any) {
-      setUploadError(err.message || 'Upload connection error.');
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleRemoveAvatar = () => {
-    setAvatarUrl(null);
-    setUploadError(null);
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +41,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
       bio: bio.trim(),
       leetcodeUrl: leetcodeUrl.trim(),
       hackerrankUrl: hackerrankUrl.trim(),
-      avatarUrl: avatarUrl || ''
+      avatarUrl: user?.avatarUrl || ''
     });
 
     setIsSaving(false);
@@ -129,7 +74,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <h3 className="font-bold text-base text-zinc-950 dark:text-white">Profile Settings</h3>
-              <p className="text-xs text-zinc-400">Update your public study goal, bio, and avatar</p>
+              <p className="text-xs text-zinc-400">Update your public study goal, bio, and handles</p>
             </div>
           </div>
 
@@ -144,75 +89,17 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         {/* Scrollable Form Body */}
         <form id="profile-edit-form" onSubmit={handleSave} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
           
-          {/* Avatar Section: Custom Upload & Initials Preview */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
-              Profile Avatar
-            </label>
-            
-            <div className="flex items-center space-x-4 p-3.5 rounded-2xl glass-card">
-              {/* Avatar Preview */}
-              <div className="relative shrink-0">
-                <UserAvatar
-                  name={name || 'User'}
-                  avatarUrl={avatarUrl}
-                  size="xl"
-                  rounded="2xl"
-                />
-              </div>
-
-              {/* Upload & Remove Controls */}
-              <div className="flex-1 space-y-1.5 min-w-0">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  className="hidden"
-                />
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold text-xs shadow-sm flex items-center space-x-1.5 transition cursor-pointer disabled:opacity-50"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Upload Photo</span>
-                      </>
-                    )}
-                  </button>
-
-                  {avatarUrl && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveAvatar}
-                      className="px-3 py-1.5 rounded-xl bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-xs transition cursor-pointer flex items-center space-x-1"
-                    >
-                      <Trash2 className="w-3 h-3 text-red-500" />
-                      <span>Remove</span>
-                    </button>
-                  )}
-                </div>
-
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-                  {avatarUrl 
-                    ? 'Custom photo uploaded. Click remove to use initials.' 
-                    : 'No photo uploaded. Your name initials will be displayed.'}
-                </p>
-
-                {uploadError && (
-                  <p className="text-[11px] text-red-500 font-medium">{uploadError}</p>
-                )}
-              </div>
+          {/* Avatar Preview (Default / Auto-Generated) */}
+          <div className="flex items-center space-x-4 p-3.5 rounded-2xl glass-card">
+            <UserAvatar
+              name={name || 'User'}
+              avatarUrl={user?.avatarUrl}
+              size="lg"
+              rounded="2xl"
+            />
+            <div>
+              <p className="text-xs font-bold text-zinc-950 dark:text-white">{name || 'Student'}</p>
+              <p className="text-[11px] text-zinc-400 font-mono">{user?.email}</p>
             </div>
           </div>
 
