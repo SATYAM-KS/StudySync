@@ -52,9 +52,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-black text-base tracking-tight text-zinc-950 dark:text-white font-sans">
                 StudySync
               </span>
-              <span className="text-[9px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs">
-                Cohort
-              </span>
             </div>
             <p className="text-[10px] text-zinc-400 font-medium hidden sm:block leading-none mt-0.5">
               Peer Accountability Hub

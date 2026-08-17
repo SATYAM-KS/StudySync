@@ -85,10 +85,6 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                 <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs">
                   Accountability Platform
                 </span>
-                <span className="text-xs font-semibold px-3 py-1 rounded-full glass-pill border border-zinc-200/80 dark:border-white/10 text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-emerald-500" />
-                  Live AI Screen Proctor
-                </span>
               </div>
 
               <h1 className="text-2xl sm:text-4xl font-black text-zinc-950 dark:text-white tracking-tight leading-tight">
@@ -96,7 +92,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
               </h1>
               
               <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Select your study cohort below to enter live AI-monitored focus sessions, track sprint targets, and study synchronously with peers.
+                Select your study cohort below to enter live focus sessions, track sprint targets, and study synchronously with peers.
               </p>
             </div>
 
