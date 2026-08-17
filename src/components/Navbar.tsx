@@ -44,10 +44,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 glass-nav text-zinc-900 dark:text-zinc-100 transition-all duration-300 border-b border-zinc-200/80 dark:border-white/[0.08] shadow-sm backdrop-blur-2xl">
-      <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
         
         {/* Brand */}
-        <div className="flex items-center space-x-3 cursor-pointer group select-none" onClick={onGoHome}>
+        <div className="flex items-center space-x-3 cursor-pointer group select-none shrink-0" onClick={onGoHome}>
           <div className="relative">
             <BrandLogo size="sm" className="group-hover:scale-105 transition-transform duration-300 shadow-sm" />
             <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
@@ -64,9 +64,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Center: Compact Cohort Navigation (Shown only in Cohort Dashboard) */}
-        {selectedCampaignId ? (
-          <div className="flex items-center gap-1 glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] shadow-xs">
+        {/* Center: Exact Center Cohort Navigation (Focus Studio, Leaderboard, Study History) */}
+        {selectedCampaignId && (
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 glass-pill p-1 rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] shadow-xs">
             {([ 
               { id: 'focus',       icon: Clock,   label: 'Focus Studio',  badge: activeInThisCamp.length > 0 ? '●' : null },
               { id: 'leaderboard', icon: Trophy,  label: 'Leaderboard',   badge: null },
@@ -87,12 +87,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ))}
           </div>
-        ) : (
-          <div className="hidden md:block" />
         )}
 
         {/* Right Actions */}
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center space-x-2.5 shrink-0 ml-auto">
           {/* Create Campaign Shortcut */}
           <button
             onClick={onOpenCreateModal}
