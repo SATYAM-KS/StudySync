@@ -37,7 +37,21 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
 }) => {
   const { user, token } = useAuth();
   const { joinCampaignRoom, leaveCampaignRoom, activeStudySessions, onlineUserIds } = useSocket();
-  const { collegeRoutine, todayTargetHours, setShowRoutineModal } = useStudy();
+  const { 
+    collegeRoutine, 
+    todayTargetHours, 
+    setShowRoutineModal,
+    isStudying,
+    sessionElapsedSeconds,
+    activeCampaignId,
+    activeCampaignName
+  } = useStudy();
+
+  const formatTimer = (totalSec: number) => {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -303,6 +317,24 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               </div>
 
             </div>
+
+            {/* Active Focus Session in Sidebar */}
+            {isStudying && (
+              <>
+                <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-xs shadow-xs animate-pulse">
+                  <div className="flex items-center space-x-2 truncate">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" style={{ animationDuration: '2s' }} />
+                    <span className="font-bold text-emerald-900 dark:text-emerald-300 truncate">
+                      {activeCampaignId === campaign.id ? 'Focusing in this Cohort' : `Focusing: ${activeCampaignName}`}
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold bg-zinc-950 text-white dark:bg-white dark:text-black px-2.5 py-0.5 rounded-md text-[11px] shadow-xs shrink-0 ml-2">
+                    {formatTimer(sessionElapsedSeconds)}
+                  </span>
+                </div>
+              </>
+            )}
 
             {/* Live Presence Status (Online & Focus) */}
             <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />

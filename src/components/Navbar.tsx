@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
 import { BrandLogo } from './BrandLogo.tsx';
-import { useStudy } from '../context/StudyContext.tsx';
 import { 
   Clock, 
   ChevronDown,
@@ -25,15 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCreateModal 
 }) => {
   const { user, logout } = useAuth();
-  const { isStudying, sessionElapsedSeconds, activeCampaignName, stopStudying } = useStudy();
-
   const [showUserMenu, setShowUserMenu] = useState(false);
-
-  const formatTimer = (totalSec: number) => {
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <header className="sticky top-0 z-40 glass-nav text-zinc-900 dark:text-zinc-100 transition-all duration-300 border-b border-zinc-200/80 dark:border-white/[0.08] shadow-sm backdrop-blur-2xl">
@@ -59,17 +50,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center space-x-2.5">
-          {/* Active Study Session Indicator (Right-aligned in Navbar) */}
-          {isStudying && (
-            <div className="flex items-center space-x-2 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 rounded-full text-xs animate-pulse shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" style={{ animationDuration: '2s' }} />
-              <span className="font-semibold truncate max-w-[130px] text-emerald-900 dark:text-emerald-300">{activeCampaignName}</span>
-              <span className="font-mono font-bold bg-zinc-950 text-white dark:bg-white dark:text-black px-2 py-0.5 rounded-md text-[11px] shadow-xs">
-                {formatTimer(sessionElapsedSeconds)}
-              </span>
-            </div>
-          )}
-
           {/* Create Campaign Shortcut */}
           <button
             onClick={onOpenCreateModal}
