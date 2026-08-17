@@ -422,35 +422,40 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       video.playsInline = true;
       document.body.appendChild(video);
 
-      await new Promise<void>((resolve) => {
-        let isDone = false;
-        const done = () => {
-          if (!isDone) {
-            isDone = true;
-            resolve();
-          }
-        };
-        video.onloadedmetadata = () => {
-          video.play().then(done).catch(done);
-        };
-        setTimeout(done, 150);
-      });
+      try {
+        await new Promise<void>((resolve) => {
+          let isDone = false;
+          const done = () => {
+            if (!isDone) {
+              isDone = true;
+              resolve();
+            }
+          };
+          video.onloadedmetadata = () => {
+            video.play().then(done).catch(done);
+          };
+          setTimeout(done, 150);
+        });
 
-      const vw = video.videoWidth > 0 ? video.videoWidth : 960;
-      const vh = video.videoHeight > 0 ? video.videoHeight : 540;
-      const targetW = Math.min(vw, 960);
-      const targetH = Math.round(targetW * (vh / vw)) || 540;
-      const canvas = document.createElement('canvas');
-      canvas.width = targetW;
-      canvas.height = targetH;
-      const ctx = canvas.getContext('2d');
-      let dataUrl: string | null = null;
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+        const vw = video.videoWidth > 0 ? video.videoWidth : 960;
+        const vh = video.videoHeight > 0 ? video.videoHeight : 540;
+        const targetW = Math.min(vw, 960);
+        const targetH = Math.round(targetW * (vh / vw)) || 540;
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        let dataUrl: string | null = null;
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+        }
+        return dataUrl;
+      } finally {
+        if (video.parentNode) {
+          video.parentNode.removeChild(video);
+        }
       }
-      document.body.removeChild(video);
-      return dataUrl;
     } catch (err) {
       console.warn('Screenshot capture error:', err);
       return null;

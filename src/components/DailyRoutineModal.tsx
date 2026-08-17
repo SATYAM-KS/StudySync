@@ -27,7 +27,8 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
 
   if (!isOpen) return null;
 
-  const todayFormatted = format(new Date(), 'EEEE, MMMM d');
+  const adjustedDate = new Date(Date.now() - 2 * 3600000);
+  const todayFormatted = format(adjustedDate, 'EEEE, MMMM d');
 
   const handleConfirm = () => {
     if (!selectedChoice) return;
