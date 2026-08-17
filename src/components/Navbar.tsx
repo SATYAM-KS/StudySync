@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { UserAvatar } from './UserAvatar.tsx';
 import { BrandLogo } from './BrandLogo.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
-import { useSocket } from '../context/SocketContext.tsx';
 import { 
   Clock, 
   ChevronDown,
@@ -27,7 +26,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const { isStudying, sessionElapsedSeconds, activeCampaignName, stopStudying } = useStudy();
-  const { onlineUserIds, activeStudySessions } = useSocket();
 
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -71,17 +69,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
           )}
-
-          {/* Community Online Count */}
-          <div className="flex items-center space-x-2.5 text-xs text-zinc-600 dark:text-zinc-300 glass-pill px-3.5 py-1.5 rounded-full shadow-2xs border border-zinc-200/80 dark:border-white/[0.08]">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
-            <span className="font-semibold">{onlineUserIds.length} online</span>
-            {activeStudySessions.length > 0 && (
-              <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                · {activeStudySessions.length} focus
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Right Actions */}

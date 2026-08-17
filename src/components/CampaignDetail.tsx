@@ -36,7 +36,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   onCampaignDeleted
 }) => {
   const { user, token } = useAuth();
-  const { joinCampaignRoom, leaveCampaignRoom, activeStudySessions } = useSocket();
+  const { joinCampaignRoom, leaveCampaignRoom, activeStudySessions, onlineUserIds } = useSocket();
   const { collegeRoutine, todayTargetHours, setShowRoutineModal } = useStudy();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -304,18 +304,17 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
 
             </div>
 
-            {/* Active session indicator */}
-            {activeInThisCamp.length > 0 && (
-              <>
-                <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                  <span className="font-bold text-emerald-700 dark:text-emerald-300 font-mono">
-                    {activeInThisCamp.length} studying now
-                  </span>
-                </div>
-              </>
-            )}
+            {/* Live Presence Status (Online & Focus) */}
+            <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />
+            <div className="flex items-center justify-center space-x-2.5 text-xs text-zinc-600 dark:text-zinc-300 glass-pill px-3.5 py-2 rounded-full shadow-2xs border border-zinc-200/80 dark:border-white/[0.08]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+              <span className="font-semibold">{onlineUserIds.length} online</span>
+              {activeStudySessions.length > 0 && (
+                <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                  · {activeStudySessions.length} focus
+                </span>
+              )}
+            </div>
           </div>
       </div>
 
