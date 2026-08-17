@@ -644,18 +644,18 @@ export async function getCampaignLeaderboard(campaignId: string): Promise<Leader
   if (supabase) {
     const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
       supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
-      supabase.from('memberships').select('*').eq('campaign_id', campaignId).eq('status', 'approved'),
-      supabase.from('study_blocks').select('*').eq('campaign_id', campaignId).eq('status', 'active'),
-      supabase.from('users').select('*')
+      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId).eq('status', 'approved'),
+      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, created_at, status').eq('campaign_id', campaignId).eq('status', 'active').limit(500),
+      supabase.from('users').select('id, leetcode_url, hackerrank_url').limit(200)
     ]);
     if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
     if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
     if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
     if (usersRes.data) {
-      allUsers = usersRes.data.map(mapUserFromDb).map(u => ({
+      allUsers = usersRes.data.map(u => ({
         id: u.id,
-        leetcodeUrl: u.leetcodeUrl || '',
-        hackerrankUrl: u.hackerrankUrl || ''
+        leetcodeUrl: u.leetcode_url || '',
+        hackerrankUrl: u.hackerrank_url || ''
       }));
     }
   } else {
@@ -768,7 +768,8 @@ export async function getCampaignMessages(campaignId: string): Promise<Message[]
         .from('messages')
         .select('*')
         .eq('campaign_id', campaignId)
-        .order('timestamp', { ascending: true });
+        .order('timestamp', { ascending: true })
+        .limit(100);
       if (!error && data) {
         return data.map(mapMessageFromDb);
       }
