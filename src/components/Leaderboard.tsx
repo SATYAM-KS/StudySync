@@ -141,6 +141,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       fetchLeaderboard();
     };
 
+    const handleMemberUpdate = () => {
+      fetchLeaderboard();
+    };
+
     socket.on('study:block_logged', handleBlockLogged);
     socket.on('study:routine_updated', handleRoutineUpdate);
     socket.on('campaign:member_joined', handleMemberUpdate);
