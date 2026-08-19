@@ -962,9 +962,13 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       }
     }
 
-    let userTargetHours = targetHours;
+    let userTargetHours = 7;
     if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
       userTargetHours = userProfile.dailyRoutine.routine === 'college' ? 4 : 7;
+    } else if (userProfile?.dailyRoutine?.routine === 'college') {
+      userTargetHours = 4;
+    } else if (targetHours === 4 || targetHours === 7) {
+      userTargetHours = targetHours;
     }
 
     const todayHours = Number((todayMinutes / 60).toFixed(1));

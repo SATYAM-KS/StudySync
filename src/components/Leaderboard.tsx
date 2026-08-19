@@ -222,11 +222,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       if (saved === 'college') return 4;
       if (saved === 'no_college') return 7;
     } catch {}
-    return entry.targetDailyHours || targetDailyHours || 4;
+    return entry.targetDailyHours || targetDailyHours || 7;
   };
 
   const getTimeframeTargetHours = (dailyTarget: number | undefined, tf: Timeframe) => {
-    const baseDaily = dailyTarget || 4;
+    const baseDaily = dailyTarget || 7;
     if (tf === 'today') return baseDaily;
     if (tf === 'week') return 34;
     return baseDaily * getDaysInCurrentMonth();
