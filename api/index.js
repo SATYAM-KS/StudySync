@@ -83,6 +83,15 @@ function extractCodingLinks(rawBio) {
   let cleanBio = rawBio || "";
   let leetcodeUrl = "";
   let hackerrankUrl = "";
+  let dailyRoutine = void 0;
+  const routineMatch = cleanBio.match(/\[routine:([^:]+):([^\]]+)\]/i);
+  if (routineMatch) {
+    dailyRoutine = {
+      dateKey: routineMatch[1].trim(),
+      routine: routineMatch[2].trim().toLowerCase() === "no_college" ? "no_college" : "college"
+    };
+    cleanBio = cleanBio.replace(routineMatch[0], "").trim();
+  }
   const lcMatch = cleanBio.match(/\[leetcode:([^\]]+)\]/i);
   if (lcMatch) {
     leetcodeUrl = lcMatch[1].trim();
@@ -93,16 +102,38 @@ function extractCodingLinks(rawBio) {
     hackerrankUrl = hrMatch[1].trim();
     cleanBio = cleanBio.replace(hrMatch[0], "").trim();
   }
-  return { cleanBio, leetcodeUrl, hackerrankUrl };
+  return { cleanBio, leetcodeUrl, hackerrankUrl, dailyRoutine };
 }
-function packBioWithCodingLinks(bio, leetcodeUrl, hackerrankUrl) {
-  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr } = extractCodingLinks(bio || "");
+function packBioWithCodingLinks(bio, leetcodeUrl, hackerrankUrl, dailyRoutine) {
+  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || "");
   const finalLc = (leetcodeUrl !== void 0 ? leetcodeUrl : existingLc).trim();
   const finalHr = (hackerrankUrl !== void 0 ? hackerrankUrl : existingHr).trim();
+  const finalRoutine = dailyRoutine !== void 0 ? dailyRoutine : existingRoutine;
   let packed = cleanBio;
+  if (finalRoutine) packed += ` [routine:${finalRoutine.dateKey}:${finalRoutine.routine}]`;
   if (finalLc) packed += ` [leetcode:${finalLc}]`;
   if (finalHr) packed += ` [hackerrank:${finalHr}]`;
   return packed.trim();
+}
+async function setUserDailyRoutine(userId, dateKey, routine) {
+  const user = await getUserById(userId);
+  if (!user) return;
+  let rawBio = user.bio || "";
+  if (supabase) {
+    const { data } = await supabase.from("users").select("bio").eq("id", userId).single();
+    if (data && data.bio) rawBio = data.bio;
+  }
+  const updatedBio = packBioWithCodingLinks(rawBio, user.leetcodeUrl, user.hackerrankUrl, { dateKey, routine });
+  if (supabase) {
+    await supabase.from("users").update({ bio: updatedBio }).eq("id", userId);
+  }
+  const db = await initDb();
+  const u = db.users.find((x) => x.id === userId);
+  if (u) {
+    u.bio = updatedBio;
+  }
+  saveDb();
+  dbCache.clear();
 }
 function mapUserFromDb(row) {
   const extracted = extractCodingLinks(row.bio || "");
@@ -725,11 +756,15 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
     targetHours = campaign?.targetDailyHours || 4;
     approvedMembers = db.memberships.filter((m) => m.campaignId === campaignId && m.status === "approved");
     campaignBlocks = db.studyBlocks.filter((b) => b.campaignId === campaignId && b.status === "active");
-    allUsers = db.users.map((u) => ({
-      id: u.id,
-      leetcodeUrl: u.leetcodeUrl || "",
-      hackerrankUrl: u.hackerrankUrl || ""
-    }));
+    allUsers = db.users.map((u) => {
+      const extracted = extractCodingLinks(u.bio || "");
+      return {
+        id: u.id,
+        leetcodeUrl: extracted.leetcodeUrl,
+        hackerrankUrl: extracted.hackerrankUrl,
+        dailyRoutine: extracted.dailyRoutine
+      };
+    });
   }
   const weekKeysSet = /* @__PURE__ */ new Set();
   const nowLocalMs = now.getTime() - tz * 60 * 1e3 - 2 * 3600 * 1e3;
@@ -777,9 +812,13 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
         break;
       }
     }
+    let userTargetHours = targetHours;
+    if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
+      userTargetHours = userProfile.dailyRoutine.routine === "college" ? 4 : 7;
+    }
     const todayHours = Number((todayMinutes / 60).toFixed(1));
-    const targetCompleted = todayHours >= targetHours;
-    const progressPercentage = Math.min(100, Math.round(todayHours / (targetHours || 1) * 100));
+    const targetCompleted = todayHours >= userTargetHours;
+    const progressPercentage = Math.min(100, Math.round(todayHours / (userTargetHours || 1) * 100));
     return {
       userId: member.userId,
       userName: member.userName,
@@ -797,7 +836,7 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
       totalHours: Number((totalMinutes / 60).toFixed(1)),
       activeStreakDays: currentStreak,
       streakDays: currentStreak,
-      targetDailyHours: targetHours,
+      targetDailyHours: userTargetHours,
       todayTargetMet: targetCompleted,
       targetCompleted,
       progressPercentage,
@@ -1596,6 +1635,30 @@ app.put("/api/auth/profile", authMiddleware, async (req, res) => {
     res.json({ user: updated });
   } catch (err) {
     res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+app.post("/api/user/daily-routine", authMiddleware, async (req, res) => {
+  try {
+    const { routine, dateKey, tzOffset } = req.body;
+    if (routine !== "college" && routine !== "no_college") {
+      res.status(400).json({ error: "Valid routine (college or no_college) is required" });
+      return;
+    }
+    const tz = typeof tzOffset === "number" && !isNaN(tzOffset) ? tzOffset : -330;
+    const finalDateKey = dateKey || get2AMAlignedDateKey(/* @__PURE__ */ new Date(), tz);
+    await setUserDailyRoutine(req.user.id, finalDateKey, routine);
+    if (io) {
+      io.emit("study:routine_updated", {
+        userId: req.user.id,
+        dateKey: finalDateKey,
+        routine,
+        targetHours: routine === "college" ? 4 : 7
+      });
+    }
+    res.json({ success: true, dateKey: finalDateKey, routine, targetHours: routine === "college" ? 4 : 7 });
+  } catch (err) {
+    console.error("Failed to set daily routine:", err);
+    res.status(500).json({ error: "Failed to update daily routine" });
   }
 });
 app.get("/api/campaigns", optionalAuthMiddleware, async (req, res) => {
