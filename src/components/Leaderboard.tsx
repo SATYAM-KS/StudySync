@@ -42,6 +42,7 @@ export function normalizeHackerrankUrl(val?: string | null): string {
 }
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours }) => {
+  const { user } = useAuth();
   const { socket } = useSocket();
   const { todayTargetHours: userDailyTarget } = useStudy();
   const cacheKey = `study_leaderboard_cache_${campaignId}`;
@@ -154,7 +155,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     };
   }, [campaignId, socket]);
 
-  // Real-time local study events
   useEffect(() => {
     const handleLocalEvent = (e: any) => {
       const block = e?.detail?.block;
@@ -195,10 +195,24 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   };
 
-  const getTimeframeTargetHours = (userTarget: number | undefined, tf: Timeframe) => {
-    const baseDaily = userTarget || targetDailyHours || 4;
+  const getEntryDailyTarget = (entry: LeaderboardEntry) => {
+    if (user && entry.userId === user.id && userDailyTarget) {
+      return userDailyTarget;
+    }
+    try {
+      const todayKey = getTodayDateKey();
+      const userKey = `study_college_routine_${entry.userId}_${todayKey}`;
+      const saved = localStorage.getItem(userKey);
+      if (saved === 'college') return 4;
+      if (saved === 'no_college') return 7;
+    } catch {}
+    return entry.targetDailyHours || targetDailyHours || 4;
+  };
+
+  const getTimeframeTargetHours = (dailyTarget: number | undefined, tf: Timeframe) => {
+    const baseDaily = dailyTarget || 4;
     if (tf === 'today') return baseDaily;
-    if (tf === 'week') return 34; // 5 days @ 4h + 2 days @ 7h
+    if (tf === 'week') return 34;
     return baseDaily * getDaysInCurrentMonth();
   };
 
@@ -224,41 +238,38 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     const leetcodeRaw = entry.leetcodeUrl || (entry as any).leetcodeUsername;
     const hackerrankRaw = entry.hackerrankUrl || (entry as any).hackerrankUsername;
 
-    const leetcodeUrl = normalizeLeetcodeUrl(leetcodeRaw);
-    const hackerrankUrl = normalizeHackerrankUrl(hackerrankRaw);
+    const leetcodeLink = normalizeLeetcodeUrl(leetcodeRaw);
+    const hackerrankLink = normalizeHackerrankUrl(hackerrankRaw);
 
-    if (!leetcodeUrl && !hackerrankUrl) {
-      if (variant === 'table') {
-        return <span className="text-[11px] text-zinc-400/50 font-mono">—</span>;
-      }
+    if (!leetcodeLink && !hackerrankLink) {
       return null;
     }
 
     if (variant === 'podium') {
       return (
         <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
-          {leetcodeUrl && (
+          {leetcodeLink && (
             <a
-              href={leetcodeUrl}
+              href={leetcodeLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition cursor-pointer shadow-xs"
-              title="LeetCode Profile"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition cursor-pointer text-xs font-mono font-bold shadow-xs hover:scale-105 transform duration-150"
+              title="View LeetCode Profile"
             >
-              <Code2 className="w-3 h-3 text-amber-500" />
+              <Code2 className="w-3.5 h-3.5 text-amber-500" />
               <span>LeetCode</span>
               <ExternalLink className="w-2.5 h-2.5 opacity-60" />
             </a>
           )}
-          {hackerrankUrl && (
+          {hackerrankLink && (
             <a
-              href={hackerrankUrl}
+              href={hackerrankLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer shadow-xs"
-              title="HackerRank Profile"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition cursor-pointer text-xs font-mono font-bold shadow-xs hover:scale-105 transform duration-150"
+              title="View HackerRank Profile"
             >
-              <Terminal className="w-3 h-3 text-emerald-500" />
+              <Terminal className="w-3.5 h-3.5 text-emerald-500" />
               <span>HackerRank</span>
               <ExternalLink className="w-2.5 h-2.5 opacity-60" />
             </a>
@@ -268,10 +279,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     }
 
     return (
-      <div className="flex items-center gap-1.5">
-        {leetcodeUrl && (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {leetcodeLink && (
           <a
-            href={leetcodeUrl}
+            href={leetcodeLink}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 transition cursor-pointer text-[10px] font-mono font-bold"
@@ -282,9 +293,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             <ExternalLink className="w-2 h-2 opacity-50" />
           </a>
         )}
-        {hackerrankUrl && (
+        {hackerrankLink && (
           <a
-            href={hackerrankUrl}
+            href={hackerrankLink}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition cursor-pointer text-[10px] font-mono font-bold"
@@ -302,7 +313,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   return (
     <div className="space-y-6 text-zinc-900 dark:text-zinc-100 pb-8 select-none">
       
-      {/* Top Controls & Timeframe Selector */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl shadow-sm transition-colors">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xs">
@@ -316,7 +326,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           </div>
         </div>
 
-        {/* Timeframe Tabs: Today | This Week | This Month */}
         <div className="flex items-center space-x-1 glass-pill p-1 rounded-xl w-full sm:w-auto">
           <button
             onClick={() => setTimeframe('today')}
@@ -351,7 +360,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
         </div>
       </div>
 
-      {/* ═══ Posh Top 3 Podium Cards (Inspired by Reference Designs) ═══ */}
       {isLoading && sortedEntries.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
           {[1, 2, 3].map(i => (
@@ -366,11 +374,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       ) : sortedEntries.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-end">
           
-          {/* 2nd Place (Silver Podium) */}
           {topThree[1] && (() => {
             const mins = getMinutesForTimeframe(topThree[1], timeframe);
             const hrs = mins / 60;
-            const targetHrs = getTimeframeTargetHours(topThree[1].targetDailyHours, timeframe);
+            const dailyTarget = getEntryDailyTarget(topThree[1]);
+            const targetHrs = getTimeframeTargetHours(dailyTarget, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
               <div className="order-2 md:order-1 posh-card rounded-3xl p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden group">
@@ -408,16 +416,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             );
           })()}
 
-          {/* 1st Place (Gold Champion Podium) */}
           {topThree[0] && (() => {
             const mins = getMinutesForTimeframe(topThree[0], timeframe);
             const hrs = mins / 60;
-            const targetHrs = getTimeframeTargetHours(topThree[0].targetDailyHours, timeframe);
+            const dailyTarget = getEntryDailyTarget(topThree[0]);
+            const targetHrs = getTimeframeTargetHours(dailyTarget, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
               <div className="order-1 md:order-2 posh-card rounded-3xl p-7 flex flex-col items-center text-center shadow-xl relative overflow-hidden md:-translate-y-3 group border-2 border-zinc-950/80 dark:border-white/40">
                 
-                {/* Ambient Gold Radial Flare */}
                 <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
 
                 <div className="absolute top-4 right-4 text-zinc-950 dark:text-white font-bold text-xs flex items-center gap-1 font-mono">
@@ -457,11 +464,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             );
           })()}
 
-          {/* 3rd Place (Bronze Podium) */}
           {topThree[2] && (() => {
             const mins = getMinutesForTimeframe(topThree[2], timeframe);
             const hrs = mins / 60;
-            const targetHrs = getTimeframeTargetHours(topThree[2].targetDailyHours, timeframe);
+            const dailyTarget = getEntryDailyTarget(topThree[2]);
+            const targetHrs = getTimeframeTargetHours(dailyTarget, timeframe);
             const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
             return (
               <div className="order-3 md:order-3 posh-card rounded-3xl p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden group">
@@ -502,31 +509,38 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
         </div>
       ) : null}
 
-      {/* Detailed Ranking Table */}
-      <div className="posh-card rounded-3xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-zinc-200/60 dark:border-white/[0.08] flex items-center justify-between">
-          <h4 className="font-bold text-sm sm:text-base text-zinc-950 dark:text-white">Full Cohort Rankings</h4>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 glass-pill px-3 py-1 rounded-full font-mono">{sortedEntries.length} Members</span>
+      <div className="glass-panel rounded-3xl overflow-hidden shadow-sm border border-zinc-200/80 dark:border-white/[0.08]">
+        
+        <div className="px-6 py-4 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between">
+          <h4 className="font-extrabold text-sm text-zinc-950 dark:text-white flex items-center space-x-2">
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <span>Complete Cohort Roster</span>
+          </h4>
+          <span className="text-xs text-zinc-400 font-mono">
+            {sortedEntries.length} Active {sortedEntries.length === 1 ? 'Scholar' : 'Scholars'}
+          </span>
         </div>
 
-        <div className="divide-y divide-zinc-200/60 dark:divide-white/[0.06] overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-100/60 dark:bg-zinc-800/30 text-zinc-500 dark:text-zinc-400 uppercase font-semibold text-[10px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            
+            <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 text-[11px] font-mono text-zinc-500 uppercase tracking-wider border-b border-zinc-200/80 dark:border-white/[0.08]">
               <tr>
-                <th className="py-3.5 px-4">Rank</th>
-                <th className="py-3.5 px-4">Student</th>
-                <th className="py-3.5 px-4">Coding Profiles</th>
-                <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Streak</th>
-                <th className="py-3.5 px-4">{getTimeframeTitle(timeframe)}</th>
-                <th className="py-3.5 px-4 text-right">Logged Time</th>
+                <th className="py-3 px-4">Rank</th>
+                <th className="py-3 px-4">Student</th>
+                <th className="py-3 px-4">Profiles</th>
+                <th className="py-3 px-4">Role</th>
+                <th className="py-3 px-4">Streak</th>
+                <th className="py-3 px-4">{getTimeframeTitle(timeframe)}</th>
+                <th className="py-3 px-4 text-right">Logged Time</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+
+            <tbody className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
               {isLoading && sortedEntries.length === 0 ? (
-                [1, 2, 3, 4].map(i => (
+                Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td className="py-3.5 px-4"><div className="w-4 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="w-6 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
                     <td className="py-3.5 px-4"><div className="w-28 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
                     <td className="py-3.5 px-4"><div className="w-20 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
                     <td className="py-3.5 px-4"><div className="w-12 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" /></td>
@@ -538,26 +552,24 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
               ) : sortedEntries.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-zinc-500 dark:text-zinc-400">
-                    No study focus recorded yet for this timeframe. Start a focus session to rank #1!
+                    No study focus recorded yet for this timeframe.
                   </td>
                 </tr>
               ) : (
                 sortedEntries.map((entry, idx) => {
                   const minutes = getMinutesForTimeframe(entry, timeframe);
                   const hours = minutes / 60;
-                  const dailyTarget = entry.targetDailyHours || targetDailyHours || 4;
+                  const dailyTarget = getEntryDailyTarget(entry);
                   const targetHours = getTimeframeTargetHours(dailyTarget, timeframe);
                   const progressPct = targetHours > 0 ? Math.min(100, Math.round((hours / targetHours) * 100)) : 0;
 
                   return (
                     <tr key={entry.userId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
                       
-                      {/* Rank */}
                       <td className="py-3.5 px-4 font-bold text-zinc-700 dark:text-zinc-300 font-mono">
                         {idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `#${idx + 1}`}
                       </td>
 
-                      {/* Student Info */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-3">
                           <UserAvatar
@@ -572,19 +584,16 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                         </div>
                       </td>
 
-                      {/* Coding Profiles (LeetCode & HackerRank) */}
                       <td className="py-3.5 px-4">
                         {renderCodingBadges(entry, 'table')}
                       </td>
 
-                      {/* Role */}
                       <td className="py-3.5 px-4">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                           {entry.role}
                         </span>
                       </td>
 
-                      {/* Streak */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-1 text-zinc-800 dark:text-zinc-200 font-semibold font-mono">
                           <Flame className="w-3.5 h-3.5 text-amber-500" />
@@ -592,7 +601,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                         </div>
                       </td>
 
-                      {/* Dynamic Timeframe Progress Bar */}
                       <td className="py-3.5 px-4 min-w-[200px]">
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px] font-mono">
@@ -612,7 +620,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                         </div>
                       </td>
 
-                      {/* Time */}
                       <td className="py-3.5 px-4 text-right font-mono font-black text-zinc-950 dark:text-white text-sm">
                         {hours.toFixed(1)}h
                       </td>
@@ -622,8 +629,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                 })
               )}
             </tbody>
+
           </table>
         </div>
+
       </div>
 
     </div>
