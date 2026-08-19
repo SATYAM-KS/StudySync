@@ -746,7 +746,8 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
         return {
           id: u.id,
           leetcodeUrl: extracted.leetcodeUrl,
-          hackerrankUrl: extracted.hackerrankUrl
+          hackerrankUrl: extracted.hackerrankUrl,
+          dailyRoutine: extracted.dailyRoutine
         };
       });
     }

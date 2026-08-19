@@ -191,6 +191,26 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const saved = getSavedRoutine(todayKey);
     if (saved) {
       setCollegeRoutine(saved);
+      // Auto-sync saved routine to backend so other cohort members immediately see it
+      const syncKey = `study_routine_synced_${user.id}_${todayKey}_${saved}`;
+      if (!sessionStorage.getItem(syncKey)) {
+        sessionStorage.setItem(syncKey, '1');
+        const activeToken = tokenRef.current || token || localStorage.getItem('study_token');
+        if (activeToken) {
+          fetch('/api/user/daily-routine', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${activeToken}`
+            },
+            body: JSON.stringify({
+              routine: saved,
+              dateKey: todayKey,
+              tzOffset: new Date().getTimezoneOffset()
+            })
+          }).catch(() => {});
+        }
+      }
     } else {
       setCollegeRoutine(null);
       setShowRoutineModal(true);
@@ -217,7 +237,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id]);
 
-  const setDailyCollegeRoutine = (routine: 'college' | 'no_college') => {
+  const setDailyCollegeRoutine = async (routine: 'college' | 'no_college') => {
     const todayKey = getTodayKey();
     try {
       if (user?.id) {
@@ -227,6 +247,29 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     setCollegeRoutine(routine);
     setShowRoutineModal(false);
+
+    // Sync to backend database so all other cohort members see this student's updated target
+    const activeToken = tokenRef.current || token || localStorage.getItem('study_token');
+    if (activeToken) {
+      try {
+        await fetch('/api/user/daily-routine', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${activeToken}`
+          },
+          body: JSON.stringify({
+            routine,
+            dateKey: todayKey,
+            tzOffset: new Date().getTimezoneOffset()
+          })
+        });
+        refreshStats();
+        window.dispatchEvent(new CustomEvent('study:routine_updated', { detail: { routine, todayKey, userId: user?.id } }));
+      } catch (e) {
+        console.warn('Failed to sync daily routine to server:', e);
+      }
+    }
   };
 
   // College = 4h target, No College = 7h target (default 7h if unset)

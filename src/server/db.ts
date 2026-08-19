@@ -62,10 +62,25 @@ export function saveDb() {
 }
 
 // Helper transformers
-export function extractCodingLinks(rawBio?: string): { cleanBio: string; leetcodeUrl: string; hackerrankUrl: string } {
+export function extractCodingLinks(rawBio?: string): { 
+  cleanBio: string; 
+  leetcodeUrl: string; 
+  hackerrankUrl: string;
+  dailyRoutine?: { dateKey: string; routine: 'college' | 'no_college' };
+} {
   let cleanBio = rawBio || '';
   let leetcodeUrl = '';
   let hackerrankUrl = '';
+  let dailyRoutine: { dateKey: string; routine: 'college' | 'no_college' } | undefined = undefined;
+
+  const routineMatch = cleanBio.match(/\[routine:([^:]+):([^\]]+)\]/i);
+  if (routineMatch) {
+    dailyRoutine = {
+      dateKey: routineMatch[1].trim(),
+      routine: (routineMatch[2].trim().toLowerCase() === 'no_college' ? 'no_college' : 'college') as 'college' | 'no_college'
+    };
+    cleanBio = cleanBio.replace(routineMatch[0], '').trim();
+  }
 
   const lcMatch = cleanBio.match(/\[leetcode:([^\]]+)\]/i);
   if (lcMatch) {
@@ -79,18 +94,52 @@ export function extractCodingLinks(rawBio?: string): { cleanBio: string; leetcod
     cleanBio = cleanBio.replace(hrMatch[0], '').trim();
   }
 
-  return { cleanBio, leetcodeUrl, hackerrankUrl };
+  return { cleanBio, leetcodeUrl, hackerrankUrl, dailyRoutine };
 }
 
-export function packBioWithCodingLinks(bio?: string, leetcodeUrl?: string, hackerrankUrl?: string): string {
-  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr } = extractCodingLinks(bio || '');
+export function packBioWithCodingLinks(
+  bio?: string, 
+  leetcodeUrl?: string, 
+  hackerrankUrl?: string,
+  dailyRoutine?: { dateKey: string; routine: 'college' | 'no_college' }
+): string {
+  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || '');
   const finalLc = (leetcodeUrl !== undefined ? leetcodeUrl : existingLc).trim();
   const finalHr = (hackerrankUrl !== undefined ? hackerrankUrl : existingHr).trim();
+  const finalRoutine = dailyRoutine !== undefined ? dailyRoutine : existingRoutine;
 
   let packed = cleanBio;
+  if (finalRoutine) packed += ` [routine:${finalRoutine.dateKey}:${finalRoutine.routine}]`;
   if (finalLc) packed += ` [leetcode:${finalLc}]`;
   if (finalHr) packed += ` [hackerrank:${finalHr}]`;
   return packed.trim();
+}
+
+export async function setUserDailyRoutine(userId: string, dateKey: string, routine: 'college' | 'no_college'): Promise<void> {
+  const user = await getUserById(userId);
+  if (!user) return;
+
+  let rawBio = user.bio || '';
+  if (supabase) {
+    const { data } = await supabase.from('users').select('bio').eq('id', userId).single();
+    if (data && data.bio) rawBio = data.bio;
+  }
+
+  const updatedBio = packBioWithCodingLinks(rawBio, user.leetcodeUrl, user.hackerrankUrl, { dateKey, routine });
+
+  if (supabase) {
+    await supabase.from('users').update({ bio: updatedBio }).eq('id', userId);
+  }
+
+  const db = await initDb();
+  const u = db.users.find(x => x.id === userId);
+  if (u) {
+    u.bio = updatedBio;
+  }
+  saveDb();
+
+  // Invalidate cache
+  dbCache.clear();
 }
 
 function mapUserFromDb(row: any): User & { passwordHash: string } {
@@ -832,7 +881,8 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
         return {
           id: u.id,
           leetcodeUrl: extracted.leetcodeUrl,
-          hackerrankUrl: extracted.hackerrankUrl
+          hackerrankUrl: extracted.hackerrankUrl,
+          dailyRoutine: extracted.dailyRoutine
         };
       });
     }
@@ -842,11 +892,15 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
     targetHours = campaign?.targetDailyHours || 4;
     approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && m.status === 'approved');
     campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
-    allUsers = db.users.map(u => ({
-      id: u.id,
-      leetcodeUrl: u.leetcodeUrl || '',
-      hackerrankUrl: u.hackerrankUrl || ''
-    }));
+    allUsers = db.users.map(u => {
+      const extracted = extractCodingLinks(u.bio || '');
+      return {
+        id: u.id,
+        leetcodeUrl: extracted.leetcodeUrl,
+        hackerrankUrl: extracted.hackerrankUrl,
+        dailyRoutine: extracted.dailyRoutine
+      };
+    });
   }
 
   // 7-day keys set (past 7 study days)
@@ -908,9 +962,14 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       }
     }
 
+    let userTargetHours = targetHours;
+    if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
+      userTargetHours = userProfile.dailyRoutine.routine === 'college' ? 4 : 7;
+    }
+
     const todayHours = Number((todayMinutes / 60).toFixed(1));
-    const targetCompleted = todayHours >= targetHours;
-    const progressPercentage = Math.min(100, Math.round((todayHours / (targetHours || 1)) * 100));
+    const targetCompleted = todayHours >= userTargetHours;
+    const progressPercentage = Math.min(100, Math.round((todayHours / (userTargetHours || 1)) * 100));
 
     return {
       userId: member.userId,
@@ -929,7 +988,7 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       totalHours: Number((totalMinutes / 60).toFixed(1)),
       activeStreakDays: currentStreak,
       streakDays: currentStreak,
-      targetDailyHours: targetHours,
+      targetDailyHours: userTargetHours,
       todayTargetMet: targetCompleted,
       targetCompleted,
       progressPercentage,

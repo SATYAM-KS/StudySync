@@ -25,7 +25,8 @@ import {
   logStudyBlock,
   getStudyBlocksForUser,
   getCampaignLeaderboard,
-  get2AMAlignedDateKey
+  get2AMAlignedDateKey,
+  setUserDailyRoutine
 } from './src/server/db.ts';
 import { generateToken, generateResetToken, verifyResetToken, checkPasswordStrength, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
 import { sendPasswordResetEmail } from './src/server/email.ts';
@@ -287,6 +288,35 @@ app.put('/api/auth/profile', authMiddleware, async (req: AuthRequest, res) => {
     res.json({ user: updated });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+app.post('/api/user/daily-routine', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { routine, dateKey, tzOffset } = req.body;
+    if (routine !== 'college' && routine !== 'no_college') {
+      res.status(400).json({ error: 'Valid routine (college or no_college) is required' });
+      return;
+    }
+
+    const tz = typeof tzOffset === 'number' && !isNaN(tzOffset) ? tzOffset : -330;
+    const finalDateKey = dateKey || get2AMAlignedDateKey(new Date(), tz);
+
+    await setUserDailyRoutine(req.user!.id, finalDateKey, routine);
+
+    if (io) {
+      io.emit('study:routine_updated', {
+        userId: req.user!.id,
+        dateKey: finalDateKey,
+        routine,
+        targetHours: routine === 'college' ? 4 : 7
+      });
+    }
+
+    res.json({ success: true, dateKey: finalDateKey, routine, targetHours: routine === 'college' ? 4 : 7 });
+  } catch (err: any) {
+    console.error('Failed to set daily routine:', err);
+    res.status(500).json({ error: 'Failed to update daily routine' });
   }
 });
 

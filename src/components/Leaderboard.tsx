@@ -137,11 +137,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       fetchLeaderboard();
     };
 
-    const handleMemberUpdate = () => {
+    const handleRoutineUpdate = () => {
       fetchLeaderboard();
     };
 
     socket.on('study:block_logged', handleBlockLogged);
+    socket.on('study:routine_updated', handleRoutineUpdate);
     socket.on('campaign:member_joined', handleMemberUpdate);
     socket.on('campaign:membership_updated', handleMemberUpdate);
     socket.on('campaign:member_left', handleMemberUpdate);
@@ -149,6 +150,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     return () => {
       window.removeEventListener('study:day_reset', handleDayReset);
       socket.off('study:block_logged', handleBlockLogged);
+      socket.off('study:routine_updated', handleRoutineUpdate);
       socket.off('campaign:member_joined', handleMemberUpdate);
       socket.off('campaign:membership_updated', handleMemberUpdate);
       socket.off('campaign:member_left', handleMemberUpdate);
@@ -184,9 +186,16 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       }
       fetchLeaderboard();
     };
+
+    const handleLocalRoutine = () => {
+      fetchLeaderboard();
+    };
+
     window.addEventListener('study:block_logged', handleLocalEvent);
+    window.addEventListener('study:routine_updated', handleLocalRoutine);
     return () => {
       window.removeEventListener('study:block_logged', handleLocalEvent);
+      window.removeEventListener('study:routine_updated', handleLocalRoutine);
     };
   }, [campaignId]);
 
@@ -198,6 +207,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   const getEntryDailyTarget = (entry: LeaderboardEntry) => {
     if (user && entry.userId === user.id && userDailyTarget) {
       return userDailyTarget;
+    }
+    if (entry.targetDailyHours === 4 || entry.targetDailyHours === 7) {
+      return entry.targetDailyHours;
     }
     try {
       const todayKey = getTodayDateKey();
