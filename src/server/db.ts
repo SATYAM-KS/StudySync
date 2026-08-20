@@ -819,7 +819,7 @@ export async function getStudyBlocksForUser(userId: string, campaignId?: string)
       .select('id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note')
       .eq('user_id', userId)
       .order('timestamp', { ascending: false })
-      .limit(100);
+      .limit(10000);
 
     if (campaignId) query = query.eq('campaign_id', campaignId);
     const { data, error } = await query;
@@ -869,7 +869,7 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
     const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
       supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
       supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId).eq('status', 'approved'),
-      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(500),
+      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(25000),
       supabase.from('users').select('id, bio').limit(200)
     ]);
     if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
