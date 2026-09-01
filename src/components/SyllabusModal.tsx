@@ -60,15 +60,96 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
   const totalTrackable = trackableItems.length;
   const progressPercentage = totalTrackable > 0 ? Math.round((completedCount / totalTrackable) * 100) : 0;
 
-  const toggleItem = (itemKey: string, e?: React.MouseEvent) => {
+  // Build parent-child relationships for hierarchical ticking
+  const moduleChildrenMap: Record<number, number[]> = {};
+  const itemParentMap: Record<number, number> = {};
+  const headerChildrenMap: Record<number, number[]> = {};
+
+  let currentHeaderIdx: number | null = null;
+  let currentModuleIdx: number | null = null;
+
+  parsedItems.forEach((item, idx) => {
+    if (item.type === 'header') {
+      currentHeaderIdx = idx;
+      currentModuleIdx = null;
+      headerChildrenMap[idx] = [];
+    } else if (item.type === 'numbered') {
+      currentModuleIdx = idx;
+      moduleChildrenMap[idx] = [];
+      if (currentHeaderIdx !== null) {
+        headerChildrenMap[currentHeaderIdx].push(idx);
+      }
+    } else {
+      if (currentModuleIdx !== null) {
+        moduleChildrenMap[currentModuleIdx].push(idx);
+        itemParentMap[idx] = currentModuleIdx;
+      }
+      if (currentHeaderIdx !== null) {
+        headerChildrenMap[currentHeaderIdx].push(idx);
+      }
+    }
+  });
+
+  // Toggles an individual sub-item and updates parent module state
+  const toggleIndividualItem = (itemIdx: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setCompletedMap(prev => {
-      const next = { ...prev, [itemKey]: !prev[itemKey] };
+      const next = { ...prev, [`item_${itemIdx}`]: !prev[`item_${itemIdx}`] };
+      const parentIdx = itemParentMap[itemIdx];
+      if (parentIdx !== undefined) {
+        const siblings = moduleChildrenMap[parentIdx] || [];
+        const allSiblingsChecked = siblings.length > 0 && siblings.every(i => 
+          i === itemIdx ? next[`item_${i}`] : Boolean(next[`item_${i}`])
+        );
+        next[`item_${parentIdx}`] = allSiblingsChecked;
+      }
       try {
         localStorage.setItem(storageKey, JSON.stringify(next));
       } catch (err) {
         console.error('Failed to save progress', err);
       }
+      return next;
+    });
+  };
+
+  // Toggles a numbered module heading and automatically ticks/unticks all its sub-topics
+  const toggleModuleGroup = (moduleIdx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const subIndices = moduleChildrenMap[moduleIdx] || [];
+    const targetIndices = [moduleIdx, ...subIndices];
+
+    setCompletedMap(prev => {
+      const allChecked = targetIndices.every(idx => Boolean(prev[`item_${idx}`]));
+      const shouldCheck = !allChecked;
+      const next = { ...prev };
+      targetIndices.forEach(idx => {
+        next[`item_${idx}`] = shouldCheck;
+      });
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch (err) {
+        console.error('Failed to save progress', err);
+      }
+      return next;
+    });
+  };
+
+  // Toggles all items under a section header
+  const toggleHeaderGroup = (headerIdx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const children = headerChildrenMap[headerIdx] || [];
+    if (children.length === 0) return;
+
+    setCompletedMap(prev => {
+      const allChecked = children.every(idx => Boolean(prev[`item_${idx}`]));
+      const shouldCheck = !allChecked;
+      const next = { ...prev };
+      children.forEach(idx => {
+        next[`item_${idx}`] = shouldCheck;
+      });
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch (err) {}
       return next;
     });
   };
@@ -204,7 +285,7 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
 
         </div>
 
-        {/* Scrollable Content Body with Interactive Ticks */}
+        {/* Scrollable Content Body with Interactive Hierarchical Ticks */}
         <div className="relative z-10 flex-1 overflow-y-auto p-5 sm:p-6 space-y-2.5 custom-scrollbar">
           {parsedItems.length === 0 ? (
             <div className="p-12 rounded-2xl bg-white/[0.03] border border-dashed border-white/15 text-center space-y-2.5 my-auto">
@@ -222,49 +303,67 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
               const isChecked = Boolean(completedMap[itemKey]);
 
               if (item.type === 'numbered') {
+                const subIndices = moduleChildrenMap[idx] || [];
+                const solvedSubCount = subIndices.filter(i => Boolean(completedMap[`item_${i}`])).length;
+                const isModuleFullyDone = isChecked || (subIndices.length > 0 && solvedSubCount === subIndices.length);
+
                 return (
                   <div 
                     key={idx} 
-                    onClick={() => toggleItem(itemKey)}
-                    className={`p-4 rounded-2xl border transition shadow-xs mt-3 flex items-start gap-3.5 cursor-pointer select-none ${
-                      isChecked
-                        ? 'bg-emerald-950/20 border-emerald-500/40'
-                        : 'bg-white/[0.05] border-white/10 hover:border-emerald-500/30'
+                    onClick={() => toggleModuleGroup(idx)}
+                    className={`p-4 rounded-2xl border transition shadow-xs mt-3.5 flex items-start gap-3.5 cursor-pointer select-none group ${
+                      isModuleFullyDone
+                        ? 'bg-emerald-950/25 border-emerald-500/40'
+                        : solvedSubCount > 0
+                          ? 'bg-white/[0.06] border-emerald-500/20'
+                          : 'bg-white/[0.05] border-white/10 hover:border-emerald-500/30'
                     }`}
                   >
-                    {/* Tick Checkbox */}
+                    {/* Tick Checkbox for Heading */}
                     <button
                       type="button"
-                      onClick={(e) => toggleItem(itemKey, e)}
+                      onClick={(e) => toggleModuleGroup(idx, e)}
+                      title={isModuleFullyDone ? "Untick module & sub-topics" : "Tick all sub-topics"}
                       className={`w-6 h-6 rounded-lg flex items-center justify-center transition shrink-0 mt-0.5 cursor-pointer ${
-                        isChecked 
+                        isModuleFullyDone 
                           ? 'bg-emerald-500 text-black shadow-xs font-bold' 
-                          : 'border border-white/20 hover:border-emerald-400 bg-white/5 text-transparent'
+                          : 'border border-white/20 group-hover:border-emerald-400 bg-white/5 text-transparent'
                       }`}
-                      aria-label="Toggle completed"
+                      aria-label="Toggle module and all sub-topics"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
                     </button>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-xs font-bold text-emerald-400">
                           {item.number || idx + 1}.
                         </span>
                         <h4 className={`font-bold text-sm leading-snug transition ${
-                          isChecked ? 'text-zinc-300 line-through decoration-emerald-500/60' : 'text-white'
+                          isModuleFullyDone ? 'text-zinc-300 line-through decoration-emerald-500/60' : 'text-white'
                         }`}>
                           {item.title}
                         </h4>
-                        {isChecked && (
+                        
+                        {subIndices.length > 0 ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider ${
+                            isModuleFullyDone 
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : solvedSubCount > 0
+                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                                : 'bg-white/5 text-zinc-400 border border-white/10'
+                          }`}>
+                            {isModuleFullyDone ? 'ALL SOLVED ✓' : `${solvedSubCount}/${subIndices.length} SOLVED`}
+                          </span>
+                        ) : isModuleFullyDone && (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-wider">
-                            Done
+                            DONE
                           </span>
                         )}
                       </div>
                       {item.body && (
                         <p className={`text-xs mt-1 leading-relaxed ${
-                          isChecked ? 'text-zinc-500' : 'text-zinc-400'
+                          isModuleFullyDone ? 'text-zinc-500' : 'text-zinc-400'
                         }`}>
                           {item.body}
                         </p>
@@ -276,7 +375,7 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                 return (
                   <div 
                     key={idx} 
-                    onClick={() => toggleItem(itemKey)}
+                    onClick={() => toggleIndividualItem(idx)}
                     className={`px-3.5 py-2.5 rounded-xl border flex items-center gap-3 transition cursor-pointer select-none ml-2 ${
                       isChecked
                         ? 'bg-emerald-950/20 border-emerald-500/30'
@@ -285,7 +384,7 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                   >
                     <button
                       type="button"
-                      onClick={(e) => toggleItem(itemKey, e)}
+                      onClick={(e) => toggleIndividualItem(idx, e)}
                       className={`w-5 h-5 rounded-md flex items-center justify-center transition shrink-0 cursor-pointer ${
                         isChecked 
                           ? 'bg-emerald-500 text-black font-bold' 
@@ -308,11 +407,29 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                   </div>
                 );
               } else if (item.type === 'header') {
+                const headerChildren = headerChildrenMap[idx] || [];
+                const headerSolvedCount = headerChildren.filter(i => Boolean(completedMap[`item_${i}`])).length;
+                const isHeaderAllSolved = headerChildren.length > 0 && headerSolvedCount === headerChildren.length;
+
                 return (
-                  <div key={idx} className="pt-4 pb-1 border-b border-white/10">
-                    <h3 className="font-extrabold text-sm text-emerald-400 tracking-wide uppercase">
-                      {item.title}
+                  <div 
+                    key={idx} 
+                    onClick={() => toggleHeaderGroup(idx)}
+                    className="pt-5 pb-1.5 border-b border-white/10 flex items-center justify-between cursor-pointer select-none group"
+                    title="Click header to toggle all topics in this section"
+                  >
+                    <h3 className="font-extrabold text-sm text-emerald-400 tracking-wide uppercase group-hover:text-emerald-300 transition flex items-center gap-2">
+                      <span>{item.title}</span>
                     </h3>
+                    {headerChildren.length > 0 && (
+                      <span className={`text-[10px] font-mono transition px-2 py-0.5 rounded-md ${
+                        isHeaderAllSolved 
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold' 
+                          : 'text-zinc-400 group-hover:text-zinc-200'
+                      }`}>
+                        {headerSolvedCount}/{headerChildren.length} solved · Toggle section
+                      </span>
+                    )}
                   </div>
                 );
               }
@@ -323,7 +440,7 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
               return (
                 <div 
                   key={idx} 
-                  onClick={() => toggleItem(itemKey)}
+                  onClick={() => toggleIndividualItem(idx)}
                   className={`px-3.5 py-2.5 rounded-xl border transition flex items-center justify-between gap-2.5 ml-2 cursor-pointer select-none ${
                     isChecked 
                       ? 'bg-emerald-950/20 border-emerald-500/30 shadow-xs' 
@@ -336,7 +453,7 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                     {/* Checkbox */}
                     <button
                       type="button"
-                      onClick={(e) => toggleItem(itemKey, e)}
+                      onClick={(e) => toggleIndividualItem(idx, e)}
                       className={`w-5 h-5 rounded-md flex items-center justify-center transition shrink-0 cursor-pointer ${
                         isChecked 
                           ? 'bg-emerald-500 text-black font-bold' 
