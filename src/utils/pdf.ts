@@ -55,14 +55,36 @@ export function parseSyllabusContent(rawText?: string): Array<{
   }> = [];
 
   lines.forEach(line => {
-    // Check for link pattern: [https://...] or (https://...)
     let link: string | undefined = undefined;
     let cleanLine = line;
-    const linkMatch = line.match(/[\[\(](https?:\/\/[^\s\]\)]+)[\]\)]/);
-    if (linkMatch) {
-      link = linkMatch[1];
-      cleanLine = line.replace(/[\[\(]https?:\/\/[^\s\]\)]+[\]\)]/g, '').trim();
+
+    // 1. Standard Markdown link: [Title](https://...)
+    const mdLinkMatch = cleanLine.match(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/);
+    if (mdLinkMatch) {
+      link = mdLinkMatch[2].trim();
+      cleanLine = cleanLine.replace(mdLinkMatch[0], mdLinkMatch[1]).trim();
     }
+
+    // 2. Bracketed or parenthesized URL: [https://...] or (https://...)
+    if (!link) {
+      const bracketMatch = cleanLine.match(/[\[\(](https?:\/\/[^\s\]\)]+)[\]\)]/);
+      if (bracketMatch) {
+        link = bracketMatch[1].trim();
+        cleanLine = cleanLine.replace(/[\[\(]https?:\/\/[^\s\]\)]+[\]\)]/g, '').trim();
+      }
+    }
+
+    // 3. Raw URL: https://...
+    if (!link) {
+      const rawUrlMatch = cleanLine.match(/(https?:\/\/[^\s]+)/);
+      if (rawUrlMatch) {
+        link = rawUrlMatch[1].trim();
+        cleanLine = cleanLine.replace(/[-–—:]?\s*https?:\/\/[^\s]+/g, '').trim();
+      }
+    }
+
+    // Clean up any lingering enclosing brackets
+    cleanLine = cleanLine.replace(/^\[([^\]]+)\]$/, '$1').trim();
 
     if (cleanLine.startsWith('#') || (cleanLine.startsWith('=') && cleanLine.endsWith('='))) {
       items.push({
@@ -75,7 +97,9 @@ export function parseSyllabusContent(rawText?: string): Array<{
     const numMatch = cleanLine.match(/^(?:##\s*|)(\d+[\.\)]|\d+\s+|Module\s+\d+:?|Week\s+\d+:?|Unit\s+\d+:?)\s*(.*)/i);
     if (numMatch) {
       const numLabel = numMatch[1].replace(/[\.\)\s]+$/, '').trim();
-      const rest = numMatch[2].trim();
+      let rest = numMatch[2].trim();
+      rest = rest.replace(/^\[([^\]]+)\]$/, '$1').trim();
+
       const parts = rest.split(/\s*[-–—:]\s*/);
       if (parts.length > 1) {
         items.push({
@@ -98,9 +122,11 @@ export function parseSyllabusContent(rawText?: string): Array<{
 
     const bulletMatch = cleanLine.match(/^[-*•]\s*(.*)/);
     if (bulletMatch) {
+      let bulletTitle = bulletMatch[1].trim();
+      bulletTitle = bulletTitle.replace(/^\[([^\]]+)\]$/, '$1').trim();
       items.push({
         type: 'bullet',
-        title: bulletMatch[1].trim(),
+        title: bulletTitle,
         link
       });
       return;
@@ -108,7 +134,7 @@ export function parseSyllabusContent(rawText?: string): Array<{
 
     items.push({
       type: 'text',
-      title: cleanLine,
+      title: cleanLine.replace(/^\[([^\]]+)\]$/, '$1').trim(),
       link
     });
   });

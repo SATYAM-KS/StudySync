@@ -105,17 +105,37 @@ export function deserializeSyllabus(rawText?: string): SyllabusTrack[] {
       return;
     }
 
-    // 3. Item / Problem / Resource: - Two Sum (LC 1) [https://...] or * Two Sum or Fizz Buzz (LC 412)
+    // 3. Item / Problem / Resource: - [Title](url) or - Title [url] or - Title: url
     let itemTitle = line;
     let itemLink = '';
 
-    const linkMatch = line.match(/[\[\(](https?:\/\/[^\s\]\)]+)[\]\)]/);
-    if (linkMatch) {
-      itemLink = linkMatch[1];
-      itemTitle = line.replace(/[\[\(]https?:\/\/[^\s\]\)]+[\]\)]/g, '').trim();
+    // Standard markdown link
+    const mdLinkMatch = itemTitle.match(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/);
+    if (mdLinkMatch) {
+      itemLink = mdLinkMatch[2].trim();
+      itemTitle = itemTitle.replace(mdLinkMatch[0], mdLinkMatch[1]).trim();
+    }
+
+    // Bracketed URL
+    if (!itemLink) {
+      const bracketMatch = itemTitle.match(/[\[\(](https?:\/\/[^\s\]\)]+)[\]\)]/);
+      if (bracketMatch) {
+        itemLink = bracketMatch[1].trim();
+        itemTitle = itemTitle.replace(/[\[\(]https?:\/\/[^\s\]\)]+[\]\)]/g, '').trim();
+      }
+    }
+
+    // Raw URL
+    if (!itemLink) {
+      const rawUrlMatch = itemTitle.match(/(https?:\/\/[^\s]+)/);
+      if (rawUrlMatch) {
+        itemLink = rawUrlMatch[1].trim();
+        itemTitle = itemTitle.replace(/[-–—:]?\s*https?:\/\/[^\s]+/g, '').trim();
+      }
     }
 
     itemTitle = itemTitle.replace(/^[-*•]\s*/, '').trim();
+    itemTitle = itemTitle.replace(/^\[([^\]]+)\]$/, '$1').trim();
 
     if (!itemTitle) return;
 

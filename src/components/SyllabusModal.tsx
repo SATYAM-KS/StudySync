@@ -465,13 +465,31 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </button>
 
-                    <span className={`text-xs transition truncate ${
-                      isChecked 
-                        ? 'text-zinc-400 line-through decoration-emerald-500/60' 
-                        : 'text-zinc-200'
-                    }`}>
-                      {item.title}
-                    </span>
+                    {item.link ? (
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className={`text-xs transition truncate hover:underline hover:text-emerald-400 font-medium flex items-center gap-1.5 cursor-pointer ${
+                          isChecked 
+                            ? 'text-zinc-400 line-through decoration-emerald-500/60' 
+                            : 'text-zinc-100 hover:text-emerald-300'
+                        }`}
+                        title={`Directly open link: ${item.link}`}
+                      >
+                        <span className="truncate">{item.title}</span>
+                        <ExternalLink className="w-3 h-3 text-emerald-400 shrink-0 opacity-80" />
+                      </a>
+                    ) : (
+                      <span className={`text-xs transition truncate ${
+                        isChecked 
+                          ? 'text-zinc-400 line-through decoration-emerald-500/60' 
+                          : 'text-zinc-200'
+                      }`}>
+                        {item.title}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -481,11 +499,11 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-medium flex items-center gap-1 transition"
-                        title="Open study resource or problem link"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold flex items-center gap-1.5 transition active:scale-95 shadow-xs cursor-pointer"
+                        title="Directly open study link in new tab"
                       >
-                        <ExternalLink className="w-2.5 h-2.5" />
-                        <span>Link</span>
+                        <span>Open Link</span>
+                        <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                     {isChecked ? (
