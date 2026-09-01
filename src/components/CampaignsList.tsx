@@ -3,6 +3,7 @@ import { Campaign } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
+import { getSyllabusHeadline } from '../utils/pdf.ts';
 import { 
   Plus, 
   Search, 
@@ -17,7 +18,8 @@ import {
   CheckCircle2,
   Sparkles,
   Zap,
-  Layers
+  Layers,
+  BookOpen
 } from 'lucide-react';
 
 interface CampaignsListProps {
@@ -268,13 +270,16 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                   {/* Body Content */}
                   <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
                     
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <h3 className="font-black text-xl text-zinc-950 dark:text-white tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {camp.name}
                       </h3>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
-                        {camp.description || 'Synchronous peer accountability cohort.'}
-                      </p>
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 pt-0.5">
+                        <BookOpen className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate">
+                          {getSyllabusHeadline(camp.description)}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Cohort Key Metrics */}

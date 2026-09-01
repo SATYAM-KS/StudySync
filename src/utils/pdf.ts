@@ -9,6 +9,33 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, "&#039;");
 }
 
+export function getSyllabusHeadline(rawText?: string): string {
+  if (!rawText || !rawText.trim()) return 'Peer Accountability Cohort';
+
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return 'Peer Accountability Cohort';
+
+  // 1. Look for a section header (e.g. "#DSA :-", "# DSA", "== Machine Learning ==")
+  const headerLine = lines.find(l => l.startsWith('#') || (l.startsWith('=') && l.endsWith('=')));
+  if (headerLine) {
+    const cleanHeader = headerLine.replace(/^[#=\s]+|[#=\s:\-]+$/g, '').trim();
+    if (cleanHeader) return cleanHeader;
+  }
+
+  // 2. Or take the first non-empty line and strip leading markdown/numbers/symbols
+  const firstLine = lines[0];
+  const cleanFirst = firstLine
+    .replace(/^(\d+[\.\)]|\d+\s+|Module\s+\d+:?|Week\s+\d+:?|Unit\s+\d+:?|[-*•#=])\s*/i, '')
+    .split(/\s*[-–—:]\s*/)[0]
+    .trim();
+
+  if (cleanFirst) {
+    return cleanFirst.length > 50 ? cleanFirst.slice(0, 47) + '...' : cleanFirst;
+  }
+
+  return 'Peer Accountability Cohort';
+}
+
 export function parseSyllabusContent(rawText?: string): Array<{
   type: 'header' | 'numbered' | 'bullet' | 'text';
   number?: string;
