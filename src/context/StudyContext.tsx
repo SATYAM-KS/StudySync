@@ -193,12 +193,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     return getSavedRoutine(todayKey);
   });
 
-  const [showRoutineModal, setShowRoutineModal] = useState<boolean>(() => {
-    const todayKey = getTodayKey();
-    return getSavedTargetHours(todayKey) === null;
-  });
+  const [showRoutineModal, setShowRoutineModal] = useState<boolean>(false);
 
   const lastKnownTodayKeyRef = useRef<string>(getTodayKey());
+  const hasPromptedTodayRef = useRef<string>('');
 
   // Verify and trigger 2:00 AM check-in & automated day reset
   const checkDailyRoutineStatus = () => {
@@ -209,8 +207,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (todayKey !== lastKnownTodayKeyRef.current) {
       console.log(`[StudyDayReset] 2:00 AM study cycle transition: ${lastKnownTodayKeyRef.current} -> ${todayKey}`);
       lastKnownTodayKeyRef.current = todayKey;
+      hasPromptedTodayRef.current = todayKey;
+      setDailyTargetHoursState(null);
+      setCollegeRoutine(null);
+      setShowRoutineModal(true);
       refreshStats();
       window.dispatchEvent(new CustomEvent('study:day_reset', { detail: { todayKey } }));
+      return;
     }
 
     const savedHours = getSavedTargetHours(todayKey);
@@ -218,6 +221,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (savedHours !== null) {
       setDailyTargetHoursState(savedHours);
       setCollegeRoutine(`${savedHours}h`);
+      setShowRoutineModal(false);
       
       // Auto-sync saved routine to backend so other cohort members immediately see it
       const syncKey = `study_routine_synced_${user.id}_${todayKey}_${savedHours}`;
@@ -241,9 +245,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } else {
-      setDailyTargetHoursState(null);
-      setCollegeRoutine(null);
-      setShowRoutineModal(true);
+      // Prompt once per day if target is not set
+      if (hasPromptedTodayRef.current !== todayKey) {
+        hasPromptedTodayRef.current = todayKey;
+        setDailyTargetHoursState(null);
+        setCollegeRoutine(null);
+        setShowRoutineModal(true);
+      }
     }
   };
 

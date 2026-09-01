@@ -285,9 +285,6 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                     return;
                   }
                   setTopicError(false);
-                  if (dailyTargetHours === null) {
-                    setShowRoutineModal(true);
-                  }
                   startStudying(campaign.id, campaign.name, subjectInput.trim());
                 }}
                 className="flex-1 py-3.5 px-6 rounded-2xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black font-extrabold text-xs shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 cursor-pointer"

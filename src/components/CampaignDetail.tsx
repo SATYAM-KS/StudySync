@@ -87,17 +87,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isRequestingJoin, setIsRequestingJoin] = useState(false);
 
-  // When a user starts with or opens a cohort, ensure their daily target is calibrated
-  useEffect(() => {
-    if (campaign && user) {
-      const todayKey = new Date(Date.now() - 2 * 3600 * 1000).toISOString().split('T')[0];
-      const saved = localStorage.getItem(`study_daily_target_hours_${user.id}_${todayKey}`);
-      if (!saved || dailyTargetHours === null) {
-        setShowRoutineModal(true);
-      }
-    }
-  }, [campaign?.id, user?.id, dailyTargetHours]);
-
   const handleRequestJoin = async () => {
     if (!token) return;
     setIsRequestingJoin(true);
