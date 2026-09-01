@@ -7,6 +7,8 @@ import { FocusLounge } from './FocusLounge.tsx';
 import { Leaderboard } from './Leaderboard.tsx';
 import { StudyHistory } from './StudyHistory.tsx';
 import { AdminSettingsModal } from './AdminSettingsModal.tsx';
+import { SyllabusModal } from './SyllabusModal.tsx';
+import { exportSyllabusToPdf } from '../utils/pdf.ts';
 import { 
   ArrowLeft, 
   Trophy, 
@@ -18,7 +20,10 @@ import {
   Calendar,
   Sparkles,
   Lock,
-  Hourglass
+  Hourglass,
+  BookOpen,
+  Download,
+  FileText
 } from 'lucide-react';
 import { checkScheduleStatus, sortSlotsChronologically, formatTimeTo12h, calculateSlotHours } from '../utils/schedule.ts';
 
@@ -77,6 +82,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
     }
   };
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showSyllabusModal, setShowSyllabusModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRequestingJoin, setIsRequestingJoin] = useState(false);
 
@@ -263,14 +269,47 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               ))}
             </div>
 
-            {/* Name + description */}
+            {/* Name */}
             <div className="space-y-1">
               <h1 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white leading-tight">
                 {campaign.name}
               </h1>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                {campaign.description || 'Synchronous peer accountability cohort.'}
+            </div>
+
+            {/* Syllabus & Curriculum Section */}
+            <div className="p-3.5 rounded-2xl glass-card border border-zinc-200/80 dark:border-white/[0.08] space-y-2.5 bg-zinc-50/50 dark:bg-white/[0.02]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5" />
+                  Cohort Syllabus
+                </span>
+                <span className="text-[10px] font-mono text-zinc-400">PDF Ready</span>
+              </div>
+
+              <p className="text-xs text-zinc-600 dark:text-zinc-300 line-clamp-3 leading-relaxed font-mono text-[11px] whitespace-pre-line">
+                {campaign.description || 'No syllabus modules published yet.'}
               </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowSyllabusModal(true)}
+                  className="flex-1 py-1.5 px-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black text-[11px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs active:scale-95"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>View Syllabus</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => exportSyllabusToPdf(campaign)}
+                  title="Export Syllabus to PDF"
+                  className="py-1.5 px-2.5 rounded-xl bg-zinc-200/80 hover:bg-zinc-300 dark:bg-white/10 dark:hover:bg-white/15 text-zinc-800 dark:text-zinc-200 text-[11px] font-bold transition cursor-pointer flex items-center justify-center gap-1 shadow-xs active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">PDF</span>
+                </button>
+              </div>
             </div>
 
             {/* Divider */}
@@ -405,6 +444,17 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             setShowAdminModal(false);
           }}
           onCampaignDeleted={onCampaignDeleted}
+        />
+      )}
+
+      {/* Syllabus & Curriculum Modal with PDF Export */}
+      {showSyllabusModal && (
+        <SyllabusModal
+          isOpen={showSyllabusModal}
+          onClose={() => setShowSyllabusModal(false)}
+          campaign={campaign}
+          isAdmin={campaign.adminId === user?.id || campaign.userRole === 'admin' || campaign.userRole === 'co-admin'}
+          onEditSyllabus={() => setShowAdminModal(true)}
         />
       )}
     </div>

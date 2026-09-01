@@ -33,6 +33,7 @@ export interface Campaign {
   id: string;
   name: string;
   description: string;
+  syllabus?: string;
   category: string;
   adminId: string;
   adminName?: string;

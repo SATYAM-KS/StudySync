@@ -412,14 +412,18 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                Description
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  Cohort Syllabus & Curriculum
+                </label>
+                <span className="text-[10px] text-zinc-400 font-mono">Members can view & export PDF</span>
+              </div>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+                rows={5}
+                placeholder="1. Data Structures & Algorithms&#10;2. System Design&#10;3. Core CS Subjects&#10;4. Mock Tests"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white leading-relaxed resize-y"
               />
             </div>
 
