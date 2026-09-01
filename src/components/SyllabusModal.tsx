@@ -372,41 +372,6 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                     </div>
                   </div>
                 );
-              } else if (item.type === 'bullet') {
-                return (
-                  <div 
-                    key={idx} 
-                    onClick={() => toggleIndividualItem(idx)}
-                    className={`px-3.5 py-2.5 rounded-xl border flex items-center gap-3 transition cursor-pointer select-none ml-2 ${
-                      isChecked
-                        ? 'bg-emerald-950/20 border-emerald-500/30'
-                        : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={(e) => toggleIndividualItem(idx, e)}
-                      className={`w-5 h-5 rounded-md flex items-center justify-center transition shrink-0 cursor-pointer ${
-                        isChecked 
-                          ? 'bg-emerald-500 text-black font-bold' 
-                          : 'border border-white/20 hover:border-emerald-400 bg-white/5 text-transparent'
-                      }`}
-                      aria-label="Toggle completed"
-                    >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    </button>
-                    <span className={`text-xs font-medium transition flex-1 ${
-                      isChecked ? 'text-zinc-400 line-through decoration-emerald-500/60' : 'text-zinc-200'
-                    }`}>
-                      {item.title}
-                    </span>
-                    {isChecked && (
-                      <span className="text-[10px] font-mono text-emerald-400 font-bold shrink-0">
-                        Solved ✓
-                      </span>
-                    )}
-                  </div>
-                );
               } else if (item.type === 'header') {
                 const headerChildren = headerChildrenMap[idx] || [];
                 const headerSolvedCount = headerChildren.filter(i => Boolean(completedMap[`item_${i}`])).length;
@@ -435,7 +400,7 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                 );
               }
 
-              // Problem / Topic Item
+              // Problem / Topic Item (both bullet & text)
               const isProblemItem = /\(LC\s*\d+\)|\(LeetCode\s*\d+\)/i.test(item.title);
 
               return (
