@@ -242,7 +242,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
     <div className="h-full flex text-zinc-900 dark:text-zinc-100 overflow-hidden">
 
       {/* ═══ LEFT PANEL: Campaign sidebar with All Cohorts + Admin ═══ */}
-      <div className="w-72 shrink-0 flex flex-col border-r border-zinc-200/80 dark:border-white/[0.08] glass-panel overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+      <div className="w-80 sm:w-88 md:w-96 shrink-0 flex flex-col border-r border-zinc-200/80 dark:border-white/[0.08] glass-panel overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
         
         {/* Top sidebar action bar: All Cohorts & Admin */}
         <div className="h-14 px-3.5 border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0 glass-nav">
@@ -332,14 +332,9 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                     <Target className="w-3.5 h-3.5 text-emerald-500" />
                     Today's Target
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowRoutineModal(true)}
-                    className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline font-mono font-bold transition cursor-pointer"
-                    title="Recalibrate your daily study target"
-                  >
-                    Change (2 AM Reset)
-                  </button>
+                  <span className="text-[10px] text-zinc-400 font-mono font-medium">
+                    Locked till 2 AM
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-black text-zinc-950 dark:text-white font-mono">
