@@ -40,7 +40,9 @@ export function parseSyllabusContent(rawText?: string): Array<{
   type: 'header' | 'numbered' | 'bullet' | 'text';
   number?: string;
   title: string;
-  body?: string; }> {
+  body?: string;
+  link?: string;
+}> {
   if (!rawText || !rawText.trim()) return [];
 
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
@@ -49,10 +51,28 @@ export function parseSyllabusContent(rawText?: string): Array<{
     number?: string;
     title: string;
     body?: string;
+    link?: string;
   }> = [];
 
   lines.forEach(line => {
-    const numMatch = line.match(/^(\d+[\.\)]|\d+\s+|Module\s+\d+:?|Week\s+\d+:?|Unit\s+\d+:?)\s*(.*)/i);
+    // Check for link pattern: [https://...] or (https://...)
+    let link: string | undefined = undefined;
+    let cleanLine = line;
+    const linkMatch = line.match(/[\[\(](https?:\/\/[^\s\]\)]+)[\]\)]/);
+    if (linkMatch) {
+      link = linkMatch[1];
+      cleanLine = line.replace(/[\[\(]https?:\/\/[^\s\]\)]+[\]\)]/g, '').trim();
+    }
+
+    if (cleanLine.startsWith('#') || (cleanLine.startsWith('=') && cleanLine.endsWith('='))) {
+      items.push({
+        type: 'header',
+        title: cleanLine.replace(/^[#=\s]+|[#=\s:-]+$/g, '').trim()
+      });
+      return;
+    }
+
+    const numMatch = cleanLine.match(/^(?:##\s*|)(\d+[\.\)]|\d+\s+|Module\s+\d+:?|Week\s+\d+:?|Unit\s+\d+:?)\s*(.*)/i);
     if (numMatch) {
       const numLabel = numMatch[1].replace(/[\.\)\s]+$/, '').trim();
       const rest = numMatch[2].trim();
@@ -62,38 +82,34 @@ export function parseSyllabusContent(rawText?: string): Array<{
           type: 'numbered',
           number: numLabel,
           title: parts[0].trim(),
-          body: parts.slice(1).join(' – ').trim()
+          body: parts.slice(1).join(' – ').trim(),
+          link
         });
       } else {
         items.push({
           type: 'numbered',
           number: numLabel,
-          title: rest
+          title: rest,
+          link
         });
       }
       return;
     }
 
-    const bulletMatch = line.match(/^[-*•]\s*(.*)/);
+    const bulletMatch = cleanLine.match(/^[-*•]\s*(.*)/);
     if (bulletMatch) {
       items.push({
         type: 'bullet',
-        title: bulletMatch[1].trim()
-      });
-      return;
-    }
-
-    if (line.startsWith('#') || (line.startsWith('=') && line.endsWith('='))) {
-      items.push({
-        type: 'header',
-        title: line.replace(/^[#=\s]+|[#=\s]+$/g, '').trim()
+        title: bulletMatch[1].trim(),
+        link
       });
       return;
     }
 
     items.push({
       type: 'text',
-      title: line
+      title: cleanLine,
+      link
     });
   });
 
@@ -119,7 +135,10 @@ export function exportSyllabusToPdf(campaign: Campaign): void {
           <div class="module-card">
             <div class="module-badge">${item.number || '•'}</div>
             <div class="module-content">
-              <div class="module-title">${escapeHtml(item.title)}</div>
+              <div class="module-title">
+                ${escapeHtml(item.title)}
+                ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" style="margin-left: 8px; font-size: 11px; color: #059669; text-decoration: none; font-weight: bold;">[Link ↗]</a>` : ''}
+              </div>
               ${item.body ? `<div class="module-body">${escapeHtml(item.body)}</div>` : ''}
             </div>
           </div>
@@ -129,6 +148,7 @@ export function exportSyllabusToPdf(campaign: Campaign): void {
           <div class="bullet-item">
             <span class="bullet-dot"></span>
             <span>${escapeHtml(item.title)}</span>
+            ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" style="margin-left: 8px; font-size: 11px; color: #059669; text-decoration: none; font-weight: bold;">[Link ↗]</a>` : ''}
           </div>
         `;
       } else if (item.type === 'header') {
@@ -137,7 +157,10 @@ export function exportSyllabusToPdf(campaign: Campaign): void {
         `;
       } else {
         syllabusHtml += `
-          <p class="text-paragraph">${escapeHtml(item.title)}</p>
+          <p class="text-paragraph">
+            ${escapeHtml(item.title)}
+            ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" style="margin-left: 8px; font-size: 11px; color: #059669; text-decoration: none; font-weight: bold;">[Link ↗]</a>` : ''}
+          </p>
         `;
       }
     });

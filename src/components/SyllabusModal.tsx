@@ -17,7 +17,8 @@ import {
   Clock,
   CheckCircle2,
   Circle,
-  RotateCcw
+  RotateCcw,
+  ExternalLink
 } from 'lucide-react';
 
 interface SyllabusModalProps {
@@ -474,6 +475,19 @@ export const SyllabusModal: React.FC<SyllabusModalProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {item.link && (
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-medium flex items-center gap-1 transition"
+                        title="Open study resource or problem link"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" />
+                        <span>Link</span>
+                      </a>
+                    )}
                     {isChecked ? (
                       <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold">
                         Solved ✓

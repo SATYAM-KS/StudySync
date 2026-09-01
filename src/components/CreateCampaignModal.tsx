@@ -5,6 +5,7 @@ import { Campaign } from '../types/index.ts';
 import { X, Plus, Users, Bookmark, RotateCcw, Sparkles, Calendar } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect.tsx';
 import { NumberStepper } from './ui/NumberStepper.tsx';
+import { SyllabusBuilder } from './SyllabusBuilder.tsx';
 
 interface CreateCampaignModalProps {
   isOpen: boolean;
@@ -158,7 +159,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
     >
       <div 
         ref={modalRef}
-        className="relative w-full max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-zinc-900 dark:text-zinc-100"
+        className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-zinc-900 dark:text-zinc-100"
         onClick={e => e.stopPropagation()}
       >
         {/* Pinned Modal Header */}
@@ -297,23 +298,22 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
             </div>
           </div>
 
-          {/* Syllabus / Curriculum */}
+          {/* Syllabus / Curriculum Builder */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
                 Cohort Syllabus & Curriculum
               </label>
               <span className="text-[11px] text-zinc-400 font-mono">Exportable to PDF</span>
             </div>
-            <textarea
+            
+            <SyllabusBuilder
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={5}
-              placeholder="1. Data Structures & Algorithms - Arrays, Trees, Graphs, DP&#10;2. System Design - Load Balancers, Caching, Databases&#10;3. Core CS - OS, Networks, DBMS, OOP&#10;4. Daily Problem Solving & Mock Tests"
-              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-950 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-900 dark:focus:border-white resize-y font-mono text-xs leading-relaxed"
+              onChange={setDescription}
             />
-            <p className="text-[11px] text-zinc-400 mt-1">
-              Add your structured syllabus topics. Cohort members will be able to view and export this into a PDF document anytime.
+
+            <p className="text-[11px] text-zinc-400 mt-1.5">
+              Structure domains, headings, and topics/problems with optional study links. Cohort members will be able to tick progress and export to PDF.
             </p>
           </div>
 
