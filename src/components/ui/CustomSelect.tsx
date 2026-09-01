@@ -40,6 +40,21 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
   const selectedOption = normalizedOptions.find(o => o.value === value);
 
+  const [openUpward, setOpenUpward] = useState(false);
+
+  // Calculate if dropdown should open upward
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 200 && rect.top > 180) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
+  }, [isOpen]);
+
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -105,7 +120,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       {/* Floating Monochrome Dropdown Menu */}
       {isOpen && (
         <div 
-          className="absolute z-50 left-0 right-0 mt-1.5 max-h-60 overflow-y-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 select-none"
+          className={`absolute z-[100] left-0 right-0 min-w-[130px] max-h-60 overflow-y-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 select-none ${
+            openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          }`}
           style={{ overscrollBehavior: 'contain' }}
         >
           {normalizedOptions.map((opt) => {

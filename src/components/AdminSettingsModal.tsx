@@ -371,7 +371,8 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                         onChange={(val) => handleRoleChange(m.id, val)}
                         options={[
                           { value: 'member', label: 'Member' },
-                          { value: 'co-admin', label: 'Co-Admin' }
+                          { value: 'co-admin', label: 'Co-Admin' },
+                          { value: 'admin', label: 'Admin' }
                         ]}
                         size="sm"
                         className="w-32"
