@@ -49,6 +49,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   const { 
     collegeRoutine, 
     todayTargetHours, 
+    dailyTargetHours,
     setShowRoutineModal,
     isStudying,
     sessionElapsedSeconds,
@@ -85,6 +86,17 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   const [showSyllabusModal, setShowSyllabusModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRequestingJoin, setIsRequestingJoin] = useState(false);
+
+  // When a user starts with or opens a cohort, ensure their daily target is calibrated
+  useEffect(() => {
+    if (campaign && user) {
+      const todayKey = new Date(Date.now() - 2 * 3600 * 1000).toISOString().split('T')[0];
+      const saved = localStorage.getItem(`study_daily_target_hours_${user.id}_${todayKey}`) || localStorage.getItem(`study_daily_target_hours_${todayKey}`);
+      if (!saved && dailyTargetHours === null) {
+        setShowRoutineModal(true);
+      }
+    }
+  }, [campaign?.id, user?.id]);
 
   const handleRequestJoin = async () => {
     if (!token) return;
@@ -320,9 +332,14 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                     <Target className="w-3.5 h-3.5 text-emerald-500" />
                     Today's Target
                   </span>
-                  <span className="text-[10px] text-zinc-400 font-mono font-medium">
-                    Locked till 2 AM
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRoutineModal(true)}
+                    className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline font-mono font-bold transition cursor-pointer"
+                    title="Recalibrate your daily study target"
+                  >
+                    Change (2 AM Reset)
+                  </button>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-black text-zinc-950 dark:text-white font-mono">
