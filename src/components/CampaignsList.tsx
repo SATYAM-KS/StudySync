@@ -283,7 +283,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                       {/* Target Indicator */}
                       <div className="flex items-center space-x-2 text-zinc-700 dark:text-zinc-300">
                         <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        <span className="font-bold font-mono text-[11px]">4h / 7h daily</span>
+                        <span className="font-bold font-mono text-[11px]">Flexible daily</span>
                       </div>
 
                       {/* Member Capacity */}

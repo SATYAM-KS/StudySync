@@ -315,9 +315,9 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
           <div className="p-4 rounded-2xl glass-card border border-white/10 flex items-start gap-3 text-xs text-zinc-400">
             <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-zinc-200">Flexible Daily Study Hours</p>
+              <p className="font-bold text-zinc-200">Custom Daily Study Target</p>
               <p className="text-[11px] text-zinc-400 mt-0.5">
-                No rigid schedules or fixed time windows. Members calibrate their goals each day: <strong>4h on college days</strong> and <strong>7h on off-days/holidays</strong>, studied at any time.
+                No rigid schedules or fixed time windows. Members calibrate their goals each day: <strong>minimum 2h up to remaining time until 2:00 AM reset</strong>, studied at any time.
               </p>
             </div>
           </div>
@@ -327,7 +327,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
         {/* Pinned Modal Footer */}
         <div className="shrink-0 flex items-center justify-between p-4 sm:p-5 border-t border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur z-10">
           <div className="text-xs text-zinc-500 dark:text-zinc-400">
-            Flexible <strong className="text-zinc-950 dark:text-white font-bold">4h / 7h</strong> daily targets
+            Flexible <strong className="text-zinc-950 dark:text-white font-bold">2h+ daily target</strong> (2 AM reset)
           </div>
 
           <div className="flex items-center space-x-3">
