@@ -91,12 +91,12 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
   useEffect(() => {
     if (campaign && user) {
       const todayKey = new Date(Date.now() - 2 * 3600 * 1000).toISOString().split('T')[0];
-      const saved = localStorage.getItem(`study_daily_target_hours_${user.id}_${todayKey}`) || localStorage.getItem(`study_daily_target_hours_${todayKey}`);
-      if (!saved && dailyTargetHours === null) {
+      const saved = localStorage.getItem(`study_daily_target_hours_${user.id}_${todayKey}`);
+      if (!saved || dailyTargetHours === null) {
         setShowRoutineModal(true);
       }
     }
-  }, [campaign?.id, user?.id]);
+  }, [campaign?.id, user?.id, dailyTargetHours]);
 
   const handleRequestJoin = async () => {
     if (!token) return;

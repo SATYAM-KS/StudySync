@@ -451,12 +451,12 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       const dayNames = ['S', 'M', 'T', 'W', 'TH', 'F', 'SA'];
       const dayShort = dayNames[targetDate.getDay()];
 
-      // Per-day target and routine resolution:
+      // Per-day target resolution:
       let dayTargetHours = 4;
       let routineLabel = '4h Goal';
 
-      const savedCustomHours = localStorage.getItem(`study_daily_target_hours_${dateKey}`);
-      const savedRoutine = localStorage.getItem(`study_college_routine_${dateKey}`);
+      const userTargetKey = user?.id ? `study_daily_target_hours_${user.id}_${dateKey}` : null;
+      const savedCustomHours = (userTargetKey && localStorage.getItem(userTargetKey)) || localStorage.getItem(`study_daily_target_hours_${dateKey}`);
 
       if (savedCustomHours) {
         const parsed = parseFloat(savedCustomHours);
@@ -464,26 +464,14 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
           dayTargetHours = parsed;
           routineLabel = `${parsed}h Goal`;
         }
-      } else if (savedRoutine === 'college') {
-        dayTargetHours = 4;
-        routineLabel = 'College Day (4h)';
-      } else if (savedRoutine === 'no_college') {
-        dayTargetHours = 7;
-        routineLabel = 'No College (7h)';
       } else if (d === 0) {
         // Today
-        dayTargetHours = todayTargetHours || (collegeRoutine === 'college' ? 4 : 7);
+        dayTargetHours = todayTargetHours || 4;
         routineLabel = `${dayTargetHours}h Goal`;
       } else {
         // Past unrecorded day
-        const dayOfWeek = targetDate.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-          dayTargetHours = 7;
-          routineLabel = 'Weekend (7h)';
-        } else {
-          dayTargetHours = 4;
-          routineLabel = 'Standard (4h)';
-        }
+        dayTargetHours = targetDailyHours || 4;
+        routineLabel = `${dayTargetHours}h Goal`;
       }
 
       let minutes = 0;
@@ -576,7 +564,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-xs">
                 <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 <span className="font-bold text-zinc-900 dark:text-white">{todayTargetHours}h Goal</span>
-                <span className="text-[10px] text-zinc-400">({collegeRoutine === 'college' ? 'College' : 'No College'})</span>
               </div>
 
               <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl glass-pill text-xs font-semibold text-zinc-700 dark:text-zinc-300">
@@ -675,7 +662,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         </div>
       </div>
 
-      {/* ═══ 3. Interactive Study Distribution Bar Chart (Calibrated Per-Day: 4h College / 7h Non-College) ═══ */}
+      {/* ═══ 3. Interactive Study Distribution Bar Chart ═══ */}
       <div className="posh-card rounded-3xl p-6 sm:p-7 shadow-sm space-y-6">
         
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -689,7 +676,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Daily verified hours vs calibrated day target (4h College / 7h No College)
+              Daily verified hours vs calibrated day target ({todayTargetHours}h Goal)
             </p>
           </div>
 

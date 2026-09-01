@@ -112,9 +112,7 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
 
   const handleConfirm = () => {
     onSelectTargetHours(selectedHours);
-    if (onSelectRoutine) {
-      onSelectRoutine(selectedHours <= 4 ? 'college' : 'no_college');
-    }
+    onClose();
   };
 
   // Smart preset options based on dynamic maxHours

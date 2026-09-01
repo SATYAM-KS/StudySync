@@ -154,31 +154,27 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   const getSavedTargetHours = (key: string): number | null => {
     try {
-      const userKey = user?.id ? `study_daily_target_hours_${user.id}_${key}` : null;
-      const genericKey = `study_daily_target_hours_${key}`;
-      const saved = (userKey && localStorage.getItem(userKey)) || localStorage.getItem(genericKey);
-      if (saved) {
-        const parsed = parseFloat(saved);
-        if (!isNaN(parsed) && parsed > 0) return parsed;
+      if (user?.id) {
+        const userKey = `study_daily_target_hours_${user.id}_${key}`;
+        const saved = localStorage.getItem(userKey);
+        if (saved) {
+          const parsed = parseFloat(saved);
+          if (!isNaN(parsed) && parsed > 0) return parsed;
+        }
       }
-      // Legacy fallback
-      const oldUserKey = user?.id ? `study_college_routine_${user.id}_${key}` : null;
-      const oldGenericKey = `study_college_routine_${key}`;
-      const oldSaved = (oldUserKey && localStorage.getItem(oldUserKey)) || localStorage.getItem(oldGenericKey);
-      if (oldSaved === 'college') return 4;
-      if (oldSaved === 'no_college') return 7;
       return null;
     } catch {
       return null;
     }
   };
 
-  const getSavedRoutine = (key: string): 'college' | 'no_college' | string | null => {
+  const getSavedRoutine = (key: string): string | null => {
     try {
-      const userKey = user?.id ? `study_college_routine_${user.id}_${key}` : null;
-      const genericKey = `study_college_routine_${key}`;
-      const saved = (userKey && localStorage.getItem(userKey)) || localStorage.getItem(genericKey);
-      if (saved) return saved;
+      if (user?.id) {
+        const userKey = `study_college_routine_${user.id}_${key}`;
+        const saved = localStorage.getItem(userKey);
+        if (saved) return saved;
+      }
       const target = getSavedTargetHours(key);
       if (target !== null) return `${target}h`;
       return null;
@@ -199,7 +195,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   const [showRoutineModal, setShowRoutineModal] = useState<boolean>(() => {
     const todayKey = getTodayKey();
-    return getSavedTargetHours(todayKey) === null && !getSavedRoutine(todayKey);
+    return getSavedTargetHours(todayKey) === null;
   });
 
   const lastKnownTodayKeyRef = useRef<string>(getTodayKey());
@@ -218,15 +214,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedHours = getSavedTargetHours(todayKey);
-    const savedRoutine = getSavedRoutine(todayKey);
 
-    if (savedHours !== null || savedRoutine) {
-      const finalHours = savedHours !== null ? savedHours : (savedRoutine === 'college' ? 4 : 7);
-      setDailyTargetHoursState(finalHours);
-      setCollegeRoutine(savedRoutine || `${finalHours}h`);
+    if (savedHours !== null) {
+      setDailyTargetHoursState(savedHours);
+      setCollegeRoutine(`${savedHours}h`);
       
       // Auto-sync saved routine to backend so other cohort members immediately see it
-      const syncKey = `study_routine_synced_${user.id}_${todayKey}_${finalHours}`;
+      const syncKey = `study_routine_synced_${user.id}_${todayKey}_${savedHours}`;
       if (!sessionStorage.getItem(syncKey)) {
         sessionStorage.setItem(syncKey, '1');
         const activeToken = tokenRef.current || token || localStorage.getItem('study_token');
@@ -238,8 +232,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
               Authorization: `Bearer ${activeToken}`
             },
             body: JSON.stringify({
-              targetHours: finalHours,
-              routine: savedRoutine || `${finalHours}h`,
+              targetHours: savedHours,
+              routine: `${savedHours}h`,
               dateKey: todayKey,
               tzOffset: new Date().getTimezoneOffset()
             })
@@ -279,10 +273,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     try {
       if (user?.id) {
         localStorage.setItem(`study_daily_target_hours_${user.id}_${todayKey}`, String(validHours));
-        localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, validHours <= 4 ? 'college' : 'no_college');
+        localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, `${validHours}h`);
       }
       localStorage.setItem(`study_daily_target_hours_${todayKey}`, String(validHours));
-      localStorage.setItem(`study_college_routine_${todayKey}`, validHours <= 4 ? 'college' : 'no_college');
+      localStorage.setItem(`study_college_routine_${todayKey}`, `${validHours}h`);
     } catch {}
 
     setDailyTargetHoursState(validHours);
@@ -320,14 +314,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     if (typeof routine === 'number') {
       return setDailyTargetHours(routine);
     }
-    const targetHours = routine === 'college' ? 4 : 7;
+    const targetHours = routine === 'college' ? 4 : (routine === 'no_college' ? 7 : 4);
     return setDailyTargetHours(targetHours);
   };
 
   // Today target hours dynamically resolved
   const todayTargetHours = dailyTargetHours !== null 
     ? dailyTargetHours 
-    : (collegeRoutine === 'college' ? 4 : (collegeRoutine === 'no_college' ? 7 : 4));
+    : 4;
 
   const isAnalyzingRef = useRef(false);
   const sessionStartedAtRef = useRef<number>(initialSession?.sessionStartedAt || Date.now());
