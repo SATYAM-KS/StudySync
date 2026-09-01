@@ -311,10 +311,6 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
               value={description}
               onChange={setDescription}
             />
-
-            <p className="text-[11px] text-zinc-400 mt-1.5">
-              Structure domains, headings, and topics/problems with optional study links. Cohort members will be able to tick progress and export to PDF.
-            </p>
           </div>
 
           {/* Daily Dynamic Routine Info Card */}
