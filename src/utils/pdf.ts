@@ -25,9 +25,9 @@ export function parseSyllabusContent(rawText?: string): Array<{
   }> = [];
 
   lines.forEach(line => {
-    const numMatch = line.match(/^(\d+[\.\)]|Module\s+\d+:?|Week\s+\d+:?|Unit\s+\d+:?)\s*(.*)/i);
+    const numMatch = line.match(/^(\d+[\.\)]|\d+\s+|Module\s+\d+:?|Week\s+\d+:?|Unit\s+\d+:?)\s*(.*)/i);
     if (numMatch) {
-      const numLabel = numMatch[1].replace(/[\.\)]$/, '');
+      const numLabel = numMatch[1].replace(/[\.\)\s]+$/, '').trim();
       const rest = numMatch[2].trim();
       const parts = rest.split(/\s*[-–—:]\s*/);
       if (parts.length > 1) {
