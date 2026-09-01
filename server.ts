@@ -3,6 +3,7 @@ import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
+import { User, Campaign, CampaignMembership, StudyBlock, LiveStudySession } from './src/types/index.ts';
 
 import {
   initDb,
@@ -293,27 +294,40 @@ app.put('/api/auth/profile', authMiddleware, async (req: AuthRequest, res) => {
 
 app.post('/api/user/daily-routine', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { routine, dateKey, tzOffset } = req.body;
-    if (routine !== 'college' && routine !== 'no_college') {
-      res.status(400).json({ error: 'Valid routine (college or no_college) is required' });
-      return;
+    const { routine, targetHours, dateKey, tzOffset } = req.body;
+    let finalTargetHours = 4;
+    let finalRoutine = typeof routine === 'string' ? routine : '';
+
+    if (typeof targetHours === 'number' && !isNaN(targetHours) && targetHours > 0) {
+      finalTargetHours = Math.max(1, Math.min(24, targetHours));
+      finalRoutine = finalRoutine || `${finalTargetHours}h`;
+    } else if (routine === 'college') {
+      finalTargetHours = 4;
+      finalRoutine = 'college';
+    } else if (routine === 'no_college') {
+      finalTargetHours = 7;
+      finalRoutine = 'no_college';
+    } else if (typeof routine === 'string' && parseFloat(routine)) {
+      finalTargetHours = Math.max(1, Math.min(24, parseFloat(routine)));
+      finalRoutine = `${finalTargetHours}h`;
     }
 
     const tz = typeof tzOffset === 'number' && !isNaN(tzOffset) ? tzOffset : -330;
     const finalDateKey = dateKey || get2AMAlignedDateKey(new Date(), tz);
 
-    await setUserDailyRoutine(req.user!.id, finalDateKey, routine);
+    await setUserDailyRoutine(req.user!.id, finalDateKey, finalTargetHours, finalRoutine);
 
     if (io) {
       io.emit('study:routine_updated', {
         userId: req.user!.id,
+        userName: req.user!.name,
         dateKey: finalDateKey,
-        routine,
-        targetHours: routine === 'college' ? 4 : 7
+        routine: finalRoutine,
+        targetHours: finalTargetHours
       });
     }
 
-    res.json({ success: true, dateKey: finalDateKey, routine, targetHours: routine === 'college' ? 4 : 7 });
+    res.json({ success: true, dateKey: finalDateKey, routine: finalRoutine, targetHours: finalTargetHours });
   } catch (err: any) {
     console.error('Failed to set daily routine:', err);
     res.status(500).json({ error: 'Failed to update daily routine' });

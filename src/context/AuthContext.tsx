@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const forgotPassword = async (email: string): Promise<{ success: boolean; previewCode?: string; emailDelivered?: boolean; message?: string; error?: string }> => {
+  const forgotPassword = async (email: string): Promise<{ success: boolean; code?: string; resetToken?: string; previewCode?: string; emailDelivered?: boolean; message?: string; error?: string }> => {
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',

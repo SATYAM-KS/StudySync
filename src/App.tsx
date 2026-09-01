@@ -30,8 +30,11 @@ const MainApp: React.FC = () => {
     sessionElapsedSeconds, 
     stopStudying,
     collegeRoutine,
+    todayTargetHours,
+    dailyTargetHours,
     showRoutineModal,
     setShowRoutineModal,
+    setDailyTargetHours,
     setDailyCollegeRoutine
   } = useStudy();
 
@@ -261,11 +264,13 @@ const MainApp: React.FC = () => {
         onClose={() => setIsProfileModalOpen(false)}
       />
 
-      {/* 12 AM Midnight Routine Check-in Modal */}
+      {/* 2 AM Cycle Daily Target Focus Check-in Modal */}
       <DailyRoutineModal
         isOpen={showRoutineModal}
         onClose={() => setShowRoutineModal(false)}
+        currentTargetHours={todayTargetHours}
         currentRoutine={collegeRoutine}
+        onSelectTargetHours={setDailyTargetHours}
         onSelectRoutine={setDailyCollegeRoutine}
       />
 

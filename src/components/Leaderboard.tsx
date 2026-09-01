@@ -212,17 +212,23 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     if (user && entry.userId === user.id && userDailyTarget) {
       return userDailyTarget;
     }
-    if (entry.targetDailyHours === 4 || entry.targetDailyHours === 7) {
+    if (entry.targetDailyHours && entry.targetDailyHours > 0) {
       return entry.targetDailyHours;
     }
     try {
       const todayKey = getTodayDateKey();
+      const customKey = `study_daily_target_hours_${entry.userId}_${todayKey}`;
+      const savedCustom = localStorage.getItem(customKey);
+      if (savedCustom) {
+        const p = parseFloat(savedCustom);
+        if (!isNaN(p) && p > 0) return p;
+      }
       const userKey = `study_college_routine_${entry.userId}_${todayKey}`;
       const saved = localStorage.getItem(userKey);
       if (saved === 'college') return 4;
       if (saved === 'no_college') return 7;
     } catch {}
-    return entry.targetDailyHours || targetDailyHours || 7;
+    return entry.targetDailyHours || targetDailyHours || 4;
   };
 
   const getTimeframeTargetHours = (dailyTarget: number | undefined, tf: Timeframe) => {

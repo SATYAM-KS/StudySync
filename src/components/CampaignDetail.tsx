@@ -293,16 +293,12 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
                   <span className="text-lg font-black text-zinc-950 dark:text-white font-mono">
                     {todayTargetHours}h Goal
                   </span>
-                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md ${
-                    collegeRoutine === 'college'
-                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                      : 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30'
-                  }`}>
-                    {collegeRoutine === 'college' ? 'College Day' : 'No College'}
+                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+                    {todayTargetHours <= 2 ? 'Light Target' : todayTargetHours <= 4 ? 'Standard Target' : todayTargetHours <= 7 ? 'Deep Work' : 'Elite Target'}
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 font-mono">
-                  {collegeRoutine === 'college' ? '4h flexible target anytime' : '7h deep work target anytime'}
+                  {todayTargetHours}h flexible focus target (2 AM reset)
                 </p>
               </div>
 

@@ -96,6 +96,8 @@ export interface Message {
   attachmentName?: string | null;
   attachmentType?: 'image' | 'file' | null;
   createdAt: string;
+  timestamp?: string;
+  type?: string;
   reactions?: MessageReaction[];
 }
 
@@ -146,8 +148,8 @@ export interface LiveStudySession {
   userAvatarUrl?: string;
   campaignId: string;
   campaignName: string;
-  subjectNote: string;
+  subjectNote?: string;
   startedAt: string;
   activeMinutes: number;
-  isScreenSharedLocally: boolean;
+  isScreenSharedLocally?: boolean;
 }

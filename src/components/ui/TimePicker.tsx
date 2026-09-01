@@ -38,7 +38,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
     const [hStr, mStr] = timeStr.split(':');
     let h = parseInt(hStr, 10);
     if (isNaN(h)) h = 7;
-    const period = h >= 12 ? 'PM' : 'AM';
+    const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
     let hour12 = h % 12;
     if (hour12 === 0) hour12 = 12;
     const minute = mStr || '00';

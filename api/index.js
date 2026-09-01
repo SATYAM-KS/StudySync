@@ -86,9 +86,27 @@ function extractCodingLinks(rawBio) {
   let dailyRoutine = void 0;
   const routineMatch = cleanBio.match(/\[routine:([^:]+):([^\]]+)\]/i);
   if (routineMatch) {
+    const dKey = routineMatch[1].trim();
+    const val = routineMatch[2].trim().toLowerCase();
+    let rName = val;
+    let targetHours = 4;
+    if (val === "college") {
+      targetHours = 4;
+      rName = "college";
+    } else if (val === "no_college") {
+      targetHours = 7;
+      rName = "no_college";
+    } else {
+      const num = parseFloat(val.replace(/h$/, ""));
+      if (!isNaN(num) && num > 0) {
+        targetHours = num;
+        rName = `${num}h`;
+      }
+    }
     dailyRoutine = {
-      dateKey: routineMatch[1].trim(),
-      routine: routineMatch[2].trim().toLowerCase() === "no_college" ? "no_college" : "college"
+      dateKey: dKey,
+      routine: rName,
+      targetHours
     };
     cleanBio = cleanBio.replace(routineMatch[0], "").trim();
   }
@@ -110,20 +128,41 @@ function packBioWithCodingLinks(bio, leetcodeUrl, hackerrankUrl, dailyRoutine) {
   const finalHr = (hackerrankUrl !== void 0 ? hackerrankUrl : existingHr).trim();
   const finalRoutine = dailyRoutine !== void 0 ? dailyRoutine : existingRoutine;
   let packed = cleanBio;
-  if (finalRoutine) packed += ` [routine:${finalRoutine.dateKey}:${finalRoutine.routine}]`;
+  if (finalRoutine) {
+    const routineVal = finalRoutine.targetHours ? `${finalRoutine.targetHours}h` : finalRoutine.routine || "4h";
+    packed += ` [routine:${finalRoutine.dateKey}:${routineVal}]`;
+  }
   if (finalLc) packed += ` [leetcode:${finalLc}]`;
   if (finalHr) packed += ` [hackerrank:${finalHr}]`;
   return packed.trim();
 }
-async function setUserDailyRoutine(userId, dateKey, routine) {
+async function setUserDailyRoutine(userId, dateKey, targetHoursOrRoutine, optionalRoutine) {
   const user = await getUserById(userId);
   if (!user) return;
+  let targetHours = 4;
+  let routine = typeof targetHoursOrRoutine === "string" ? targetHoursOrRoutine : `${targetHoursOrRoutine}h`;
+  if (typeof targetHoursOrRoutine === "number") {
+    targetHours = targetHoursOrRoutine;
+    routine = optionalRoutine || `${targetHours}h`;
+  } else if (targetHoursOrRoutine === "college") {
+    targetHours = 4;
+    routine = "college";
+  } else if (targetHoursOrRoutine === "no_college") {
+    targetHours = 7;
+    routine = "no_college";
+  } else {
+    const num = parseFloat(targetHoursOrRoutine.replace(/h$/, ""));
+    if (!isNaN(num) && num > 0) {
+      targetHours = num;
+      routine = `${num}h`;
+    }
+  }
   let rawBio = user.bio || "";
   if (supabase) {
     const { data } = await supabase.from("users").select("bio").eq("id", userId).single();
     if (data && data.bio) rawBio = data.bio;
   }
-  const updatedBio = packBioWithCodingLinks(rawBio, user.leetcodeUrl, user.hackerrankUrl, { dateKey, routine });
+  const updatedBio = packBioWithCodingLinks(rawBio, user.leetcodeUrl, user.hackerrankUrl, { dateKey, routine, targetHours });
   if (supabase) {
     await supabase.from("users").update({ bio: updatedBio }).eq("id", userId);
   }
@@ -133,7 +172,8 @@ async function setUserDailyRoutine(userId, dateKey, routine) {
     u.bio = updatedBio;
   }
   saveDb();
-  dbCache.clear();
+  invalidateCache("leaderboard");
+  invalidateCache("user");
 }
 function mapUserFromDb(row) {
   const extracted = extractCodingLinks(row.bio || "");
@@ -815,10 +855,12 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
     }
     let userTargetHours = 7;
     if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
-      userTargetHours = userProfile.dailyRoutine.routine === "college" ? 4 : 7;
+      userTargetHours = userProfile.dailyRoutine.targetHours || (userProfile.dailyRoutine.routine === "college" ? 4 : 7);
+    } else if (userProfile?.dailyRoutine?.targetHours) {
+      userTargetHours = userProfile.dailyRoutine.targetHours;
     } else if (userProfile?.dailyRoutine?.routine === "college") {
       userTargetHours = 4;
-    } else if (targetHours === 4 || targetHours === 7) {
+    } else if (targetHours) {
       userTargetHours = targetHours;
     }
     const todayHours = Number((todayMinutes / 60).toFixed(1));
@@ -1644,23 +1686,35 @@ app.put("/api/auth/profile", authMiddleware, async (req, res) => {
 });
 app.post("/api/user/daily-routine", authMiddleware, async (req, res) => {
   try {
-    const { routine, dateKey, tzOffset } = req.body;
-    if (routine !== "college" && routine !== "no_college") {
-      res.status(400).json({ error: "Valid routine (college or no_college) is required" });
-      return;
+    const { routine, targetHours, dateKey, tzOffset } = req.body;
+    let finalTargetHours = 4;
+    let finalRoutine = typeof routine === "string" ? routine : "";
+    if (typeof targetHours === "number" && !isNaN(targetHours) && targetHours > 0) {
+      finalTargetHours = Math.max(1, Math.min(24, targetHours));
+      finalRoutine = finalRoutine || `${finalTargetHours}h`;
+    } else if (routine === "college") {
+      finalTargetHours = 4;
+      finalRoutine = "college";
+    } else if (routine === "no_college") {
+      finalTargetHours = 7;
+      finalRoutine = "no_college";
+    } else if (typeof routine === "string" && parseFloat(routine)) {
+      finalTargetHours = Math.max(1, Math.min(24, parseFloat(routine)));
+      finalRoutine = `${finalTargetHours}h`;
     }
     const tz = typeof tzOffset === "number" && !isNaN(tzOffset) ? tzOffset : -330;
     const finalDateKey = dateKey || get2AMAlignedDateKey(/* @__PURE__ */ new Date(), tz);
-    await setUserDailyRoutine(req.user.id, finalDateKey, routine);
+    await setUserDailyRoutine(req.user.id, finalDateKey, finalTargetHours, finalRoutine);
     if (io) {
       io.emit("study:routine_updated", {
         userId: req.user.id,
+        userName: req.user.name,
         dateKey: finalDateKey,
-        routine,
-        targetHours: routine === "college" ? 4 : 7
+        routine: finalRoutine,
+        targetHours: finalTargetHours
       });
     }
-    res.json({ success: true, dateKey: finalDateKey, routine, targetHours: routine === "college" ? 4 : 7 });
+    res.json({ success: true, dateKey: finalDateKey, routine: finalRoutine, targetHours: finalTargetHours });
   } catch (err) {
     console.error("Failed to set daily routine:", err);
     res.status(500).json({ error: "Failed to update daily routine" });

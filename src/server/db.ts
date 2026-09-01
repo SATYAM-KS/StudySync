@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { User, Campaign, CampaignMembership, StudyBlock, LeaderboardEntry } from '../types/index.ts';
+import { User, Campaign, CampaignMembership, StudyBlock, LeaderboardEntry, Message } from '../types/index.ts';
 import { supabase } from './supabase.ts';
 
 interface DBData {
@@ -8,6 +8,7 @@ interface DBData {
   campaigns: Campaign[];
   memberships: CampaignMembership[];
   studyBlocks: StudyBlock[];
+  messages?: Message[];
 }
 
 const isVercel = Boolean(process.env.VERCEL);
@@ -66,18 +67,38 @@ export function extractCodingLinks(rawBio?: string): {
   cleanBio: string; 
   leetcodeUrl: string; 
   hackerrankUrl: string;
-  dailyRoutine?: { dateKey: string; routine: 'college' | 'no_college' };
+  dailyRoutine?: { dateKey: string; routine: string; targetHours: number };
 } {
   let cleanBio = rawBio || '';
   let leetcodeUrl = '';
   let hackerrankUrl = '';
-  let dailyRoutine: { dateKey: string; routine: 'college' | 'no_college' } | undefined = undefined;
+  let dailyRoutine: { dateKey: string; routine: string; targetHours: number } | undefined = undefined;
 
   const routineMatch = cleanBio.match(/\[routine:([^:]+):([^\]]+)\]/i);
   if (routineMatch) {
+    const dKey = routineMatch[1].trim();
+    const val = routineMatch[2].trim().toLowerCase();
+    let rName = val;
+    let targetHours = 4;
+
+    if (val === 'college') {
+      targetHours = 4;
+      rName = 'college';
+    } else if (val === 'no_college') {
+      targetHours = 7;
+      rName = 'no_college';
+    } else {
+      const num = parseFloat(val.replace(/h$/, ''));
+      if (!isNaN(num) && num > 0) {
+        targetHours = num;
+        rName = `${num}h`;
+      }
+    }
+
     dailyRoutine = {
-      dateKey: routineMatch[1].trim(),
-      routine: (routineMatch[2].trim().toLowerCase() === 'no_college' ? 'no_college' : 'college') as 'college' | 'no_college'
+      dateKey: dKey,
+      routine: rName,
+      targetHours
     };
     cleanBio = cleanBio.replace(routineMatch[0], '').trim();
   }
@@ -101,7 +122,7 @@ export function packBioWithCodingLinks(
   bio?: string, 
   leetcodeUrl?: string, 
   hackerrankUrl?: string,
-  dailyRoutine?: { dateKey: string; routine: 'college' | 'no_college' }
+  dailyRoutine?: { dateKey: string; routine?: string; targetHours?: number }
 ): string {
   const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || '');
   const finalLc = (leetcodeUrl !== undefined ? leetcodeUrl : existingLc).trim();
@@ -109,15 +130,43 @@ export function packBioWithCodingLinks(
   const finalRoutine = dailyRoutine !== undefined ? dailyRoutine : existingRoutine;
 
   let packed = cleanBio;
-  if (finalRoutine) packed += ` [routine:${finalRoutine.dateKey}:${finalRoutine.routine}]`;
+  if (finalRoutine) {
+    const routineVal = finalRoutine.targetHours ? `${finalRoutine.targetHours}h` : (finalRoutine.routine || '4h');
+    packed += ` [routine:${finalRoutine.dateKey}:${routineVal}]`;
+  }
   if (finalLc) packed += ` [leetcode:${finalLc}]`;
   if (finalHr) packed += ` [hackerrank:${finalHr}]`;
   return packed.trim();
 }
 
-export async function setUserDailyRoutine(userId: string, dateKey: string, routine: 'college' | 'no_college'): Promise<void> {
+export async function setUserDailyRoutine(
+  userId: string, 
+  dateKey: string, 
+  targetHoursOrRoutine: number | string,
+  optionalRoutine?: string
+): Promise<void> {
   const user = await getUserById(userId);
   if (!user) return;
+
+  let targetHours = 4;
+  let routine = typeof targetHoursOrRoutine === 'string' ? targetHoursOrRoutine : `${targetHoursOrRoutine}h`;
+
+  if (typeof targetHoursOrRoutine === 'number') {
+    targetHours = targetHoursOrRoutine;
+    routine = optionalRoutine || `${targetHours}h`;
+  } else if (targetHoursOrRoutine === 'college') {
+    targetHours = 4;
+    routine = 'college';
+  } else if (targetHoursOrRoutine === 'no_college') {
+    targetHours = 7;
+    routine = 'no_college';
+  } else {
+    const num = parseFloat(targetHoursOrRoutine.replace(/h$/, ''));
+    if (!isNaN(num) && num > 0) {
+      targetHours = num;
+      routine = `${num}h`;
+    }
+  }
 
   let rawBio = user.bio || '';
   if (supabase) {
@@ -125,7 +174,7 @@ export async function setUserDailyRoutine(userId: string, dateKey: string, routi
     if (data && data.bio) rawBio = data.bio;
   }
 
-  const updatedBio = packBioWithCodingLinks(rawBio, user.leetcodeUrl, user.hackerrankUrl, { dateKey, routine });
+  const updatedBio = packBioWithCodingLinks(rawBio, user.leetcodeUrl, user.hackerrankUrl, { dateKey, routine, targetHours });
 
   if (supabase) {
     await supabase.from('users').update({ bio: updatedBio }).eq('id', userId);
@@ -139,7 +188,8 @@ export async function setUserDailyRoutine(userId: string, dateKey: string, routi
   saveDb();
 
   // Invalidate cache
-  dbCache.clear();
+  invalidateCache('leaderboard');
+  invalidateCache('user');
 }
 
 function mapUserFromDb(row: any): User & { passwordHash: string } {
@@ -863,7 +913,12 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   let approvedMembers: CampaignMembership[] = [];
   let campaignBlocks: StudyBlock[] = [];
   let targetHours = 4;
-  let allUsers: Array<{ id: string; leetcodeUrl?: string; hackerrankUrl?: string }> = [];
+  let allUsers: Array<{ 
+    id: string; 
+    leetcodeUrl?: string; 
+    hackerrankUrl?: string;
+    dailyRoutine?: { dateKey: string; routine: string; targetHours: number };
+  }> = [];
 
   if (supabase) {
     const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
@@ -964,10 +1019,12 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
 
     let userTargetHours = 7;
     if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
-      userTargetHours = userProfile.dailyRoutine.routine === 'college' ? 4 : 7;
+      userTargetHours = userProfile.dailyRoutine.targetHours || (userProfile.dailyRoutine.routine === 'college' ? 4 : 7);
+    } else if (userProfile?.dailyRoutine?.targetHours) {
+      userTargetHours = userProfile.dailyRoutine.targetHours;
     } else if (userProfile?.dailyRoutine?.routine === 'college') {
       userTargetHours = 4;
-    } else if (targetHours === 4 || targetHours === 7) {
+    } else if (targetHours) {
       userTargetHours = targetHours;
     }
 

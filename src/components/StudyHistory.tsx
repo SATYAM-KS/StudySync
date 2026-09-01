@@ -452,12 +452,19 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       const dayShort = dayNames[targetDate.getDay()];
 
       // Per-day target and routine resolution:
-      // If user registered 'college' for this day -> 4h. If 'no_college' -> 7h.
-      let dayTargetHours = 7;
-      let routineLabel = 'No College (7h)';
+      let dayTargetHours = 4;
+      let routineLabel = '4h Goal';
 
+      const savedCustomHours = localStorage.getItem(`study_daily_target_hours_${dateKey}`);
       const savedRoutine = localStorage.getItem(`study_college_routine_${dateKey}`);
-      if (savedRoutine === 'college') {
+
+      if (savedCustomHours) {
+        const parsed = parseFloat(savedCustomHours);
+        if (!isNaN(parsed) && parsed > 0) {
+          dayTargetHours = parsed;
+          routineLabel = `${parsed}h Goal`;
+        }
+      } else if (savedRoutine === 'college') {
         dayTargetHours = 4;
         routineLabel = 'College Day (4h)';
       } else if (savedRoutine === 'no_college') {
@@ -465,8 +472,8 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
         routineLabel = 'No College (7h)';
       } else if (d === 0) {
         // Today
-        dayTargetHours = collegeRoutine === 'college' ? 4 : 7;
-        routineLabel = collegeRoutine === 'college' ? 'College Day (4h)' : 'No College (7h)';
+        dayTargetHours = todayTargetHours || (collegeRoutine === 'college' ? 4 : 7);
+        routineLabel = `${dayTargetHours}h Goal`;
       } else {
         // Past unrecorded day
         const dayOfWeek = targetDate.getDay();
@@ -475,7 +482,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
           routineLabel = 'Weekend (7h)';
         } else {
           dayTargetHours = 4;
-          routineLabel = 'College Day (4h)';
+          routineLabel = 'Standard (4h)';
         }
       }
 
