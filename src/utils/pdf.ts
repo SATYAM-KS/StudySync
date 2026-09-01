@@ -36,6 +36,51 @@ export function getSyllabusHeadline(rawText?: string): string {
   return 'Peer Accountability Cohort';
 }
 
+export function resolveItemLink(title: string, explicitLink?: string): string | undefined {
+  if (explicitLink && explicitLink.trim()) {
+    return explicitLink.trim();
+  }
+
+  const cleanTitle = title
+    .replace(/(?:\(|\[)?(?:LC|LeetCode)\s*#?\d+(?:\)|\])?/gi, '')
+    .replace(/^[-*•\d\.\s:]+/, '')
+    .trim();
+
+  // If there's an LC match (e.g. LC 412, (LC 412), LeetCode 191)
+  const lcMatch = title.match(/(?:\(|\[)?(?:LC|LeetCode)\s*#?(\d+)(?:\)|\])?/i);
+  if (lcMatch || /(?:LC\s*\d+|LeetCode|\(LC\s*\d+\))/i.test(title)) {
+    if (cleanTitle) {
+      const slug = cleanTitle
+        .toLowerCase()
+        .replace(/['’]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      if (slug) {
+        return `https://leetcode.com/problems/${slug}/`;
+      }
+    }
+    if (lcMatch) {
+      return `https://leetcode.com/problemset/?search=${lcMatch[1]}`;
+    }
+  }
+
+  // Common algorithm / data structure problem names
+  const commonProblemPattern = /^(?:Two Sum|Fizz Buzz|Reverse Integer|Palindrome Number|Valid Parentheses|Merge Two Sorted Lists|Best Time to Buy and Sell Stock|Valid Anagram|Binary Search|Maximum Subarray|Climbing Stairs|Contains Duplicate|Longest Substring|Container With Most Water|3Sum|Subsets|Combination Sum|Word Search|Course Schedule|Coin Change|House Robber|Trapping Rain Water|Word Ladder|Median of Two Sorted Arrays|Largest Perimeter Triangle|Number of 1 Bits)/i;
+  
+  if (commonProblemPattern.test(cleanTitle || title)) {
+    const target = cleanTitle || title;
+    const slug = target
+      .toLowerCase()
+      .replace(/['’]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return `https://leetcode.com/problems/${slug}/`;
+  }
+
+  return undefined;
+}
+
 export function parseSyllabusContent(rawText?: string): Array<{
   type: 'header' | 'numbered' | 'bullet' | 'text';
   number?: string;
@@ -55,30 +100,30 @@ export function parseSyllabusContent(rawText?: string): Array<{
   }> = [];
 
   lines.forEach(line => {
-    let link: string | undefined = undefined;
+    let rawLink: string | undefined = undefined;
     let cleanLine = line;
 
     // 1. Standard Markdown link: [Title](https://...)
     const mdLinkMatch = cleanLine.match(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/);
     if (mdLinkMatch) {
-      link = mdLinkMatch[2].trim();
+      rawLink = mdLinkMatch[2].trim();
       cleanLine = cleanLine.replace(mdLinkMatch[0], mdLinkMatch[1]).trim();
     }
 
     // 2. Bracketed or parenthesized URL: [https://...] or (https://...)
-    if (!link) {
+    if (!rawLink) {
       const bracketMatch = cleanLine.match(/[\[\(](https?:\/\/[^\s\]\)]+)[\]\)]/);
       if (bracketMatch) {
-        link = bracketMatch[1].trim();
+        rawLink = bracketMatch[1].trim();
         cleanLine = cleanLine.replace(/[\[\(]https?:\/\/[^\s\]\)]+[\]\)]/g, '').trim();
       }
     }
 
     // 3. Raw URL: https://...
-    if (!link) {
+    if (!rawLink) {
       const rawUrlMatch = cleanLine.match(/(https?:\/\/[^\s]+)/);
       if (rawUrlMatch) {
-        link = rawUrlMatch[1].trim();
+        rawLink = rawUrlMatch[1].trim();
         cleanLine = cleanLine.replace(/[-–—:]?\s*https?:\/\/[^\s]+/g, '').trim();
       }
     }
@@ -102,19 +147,20 @@ export function parseSyllabusContent(rawText?: string): Array<{
 
       const parts = rest.split(/\s*[-–—:]\s*/);
       if (parts.length > 1) {
+        const itemTitle = parts[0].trim();
         items.push({
           type: 'numbered',
           number: numLabel,
-          title: parts[0].trim(),
+          title: itemTitle,
           body: parts.slice(1).join(' – ').trim(),
-          link
+          link: resolveItemLink(itemTitle, rawLink)
         });
       } else {
         items.push({
           type: 'numbered',
           number: numLabel,
           title: rest,
-          link
+          link: resolveItemLink(rest, rawLink)
         });
       }
       return;
@@ -127,15 +173,16 @@ export function parseSyllabusContent(rawText?: string): Array<{
       items.push({
         type: 'bullet',
         title: bulletTitle,
-        link
+        link: resolveItemLink(bulletTitle, rawLink)
       });
       return;
     }
 
+    const textTitle = cleanLine.replace(/^\[([^\]]+)\]$/, '$1').trim();
     items.push({
       type: 'text',
-      title: cleanLine.replace(/^\[([^\]]+)\]$/, '$1').trim(),
-      link
+      title: textTitle,
+      link: resolveItemLink(textTitle, rawLink)
     });
   });
 

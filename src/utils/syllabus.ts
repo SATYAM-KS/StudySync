@@ -1,3 +1,5 @@
+import { resolveItemLink } from './pdf.ts';
+
 export interface SyllabusItem {
   id: string;
   title: string;
@@ -151,7 +153,7 @@ export function deserializeSyllabus(rawText?: string): SyllabusTrack[] {
     currentModule.items.push({
       id: generateId(),
       title: itemTitle,
-      link: itemLink
+      link: resolveItemLink(itemTitle, itemLink) || itemLink || undefined
     });
   });
 
