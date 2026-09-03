@@ -1427,25 +1427,28 @@ Respond ONLY with valid JSON in this exact structure:
   "reason": "One concise, clear sentence explaining specifically what is visible on screen and why it is categorized as off-task/distracted or genuine focused study."
 }`;
     const candidateModels = [
-      "gemini-3.5-flash-lite",
-      "gemini-3.7-flash",
-      "gemini-3.5-flash",
-      "gemini-3.6-flash",
-      "gemini-2.5-flash",
       "gemini-2.0-flash",
-      "gemini-1.5-flash"
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-1.5-pro"
     ];
     let lastError = null;
     for (const modelName of candidateModels) {
       try {
-        const res = await ai.interactions.create({
+        const res = await ai.models.generateContent({
           model: modelName,
-          input: [
-            { type: "text", text: prompt },
-            { type: "image", data, mime_type: mimeType }
+          contents: [
+            prompt,
+            {
+              inlineData: {
+                data,
+                mimeType
+              }
+            }
           ]
         });
-        const text = res.output_text || "";
+        const text = res.text || "";
         const cleanText = text.replace(/```json\s*/gi, "").replace(/```\s*$/gi, "").trim();
         const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
