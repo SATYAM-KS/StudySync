@@ -1328,7 +1328,6 @@ function setupSocketServer(httpServer) {
 }
 
 // src/server/ai.ts
-import { GoogleGenAI } from "@google/genai";
 import dotenv2 from "dotenv";
 dotenv2.config();
 var FALLBACK_KEY_ENCODED = "QVEuQWI4Uk42SXpVdDNDeEtTYkQxZjlIV3NXd1FsTkc4b1M0UkFEMUczZUl4eF8zQ1BNeXc=";
@@ -1338,7 +1337,7 @@ async function analyzeScreenSnapshot(base64Image, campaignName = "General Study"
     fallbackKey = typeof Buffer !== "undefined" ? Buffer.from(FALLBACK_KEY_ENCODED, "base64").toString("utf8") : atob(FALLBACK_KEY_ENCODED);
   } catch {
   }
-  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || fallbackKey;
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || fallbackKey).trim();
   if (!apiKey) {
     return {
       isProductiveWork: false,
@@ -1349,7 +1348,6 @@ async function analyzeScreenSnapshot(base64Image, campaignName = "General Study"
     };
   }
   try {
-    const ai = new GoogleGenAI({ apiKey });
     let mimeType = "image/jpeg";
     let data = base64Image ? base64Image.trim() : "";
     if (data.includes(";base64,")) {
@@ -1441,19 +1439,35 @@ Respond ONLY with valid JSON in this exact structure:
     let lastError = null;
     for (const modelName of candidateModels) {
       try {
-        const res = await ai.models.generateContent({
-          model: modelName,
-          contents: [
-            prompt,
-            {
-              inlineData: {
-                data,
-                mimeType
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType,
+                      data
+                    }
+                  }
+                ]
               }
-            }
-          ]
+            ]
+          })
         });
-        const text = res.text || res?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!response.ok) {
+          const errBody = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errBody.slice(0, 200)}`);
+        }
+        const resData = await response.json();
+        const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
         const cleanText = text.replace(/```json\s*/gi, "").replace(/```\s*$/gi, "").trim();
         const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -1482,7 +1496,7 @@ Respond ONLY with valid JSON in this exact structure:
         }
       } catch (modelErr) {
         lastError = modelErr;
-        console.warn(`[AI Proctor] Model ${modelName} unavailable/throttled, trying next fallback:`, modelErr?.message || modelErr);
+        console.warn(`[AI Proctor] Model ${modelName} failed:`, modelErr?.message || modelErr);
         continue;
       }
     }
