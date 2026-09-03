@@ -692,6 +692,9 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
       return;
     }
 
+    const snapshotSizeKB = Math.round((snapshotUrl?.length || 0) / 1024);
+    console.log(`[AI Proctor] verify-screen called: campaignId=${campaignId}, snapshotSize=${snapshotSizeKB}KB, hasGeminiKey=${Boolean(process.env.GEMINI_API_KEY)}`);
+
     let campaignName = 'Study Campaign';
     try {
       const campaign = await getCampaignById(campaignId);
@@ -714,8 +717,9 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
         campaignName, 
         subjectNote || 'Focus Study'
       );
+      console.log(`[AI Proctor] Analysis result: isProductive=${analysis.isProductiveWork}, category=${analysis.category}`);
     } catch (aErr: any) {
-      console.warn('AI analysis error, flagging block as idle:', aErr?.message || aErr);
+      console.error('[AI Proctor] AI analysis error:', aErr?.message || aErr);
       analysis = {
         isProductiveWork: false,
         confidence: 80,

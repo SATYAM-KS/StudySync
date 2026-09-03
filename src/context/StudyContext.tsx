@@ -440,15 +440,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       try {
         const vw = preferredVideoElement.videoWidth;
         const vh = preferredVideoElement.videoHeight;
-        const targetW = Math.min(vw, 960);
-        const targetH = Math.round(targetW * (vh / vw)) || 540;
+        const targetW = Math.min(vw, 640);
+        const targetH = Math.round(targetW * (vh / vw)) || 360;
         const canvas = document.createElement('canvas');
         canvas.width = targetW;
         canvas.height = targetH;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(preferredVideoElement, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
           if (dataUrl && dataUrl.length > 500) {
             return dataUrl;
           }
@@ -475,15 +475,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       if (activeVideo && activeVideo.videoWidth > 0) {
         const vw = activeVideo.videoWidth;
         const vh = activeVideo.videoHeight;
-        const targetW = Math.min(vw, 960);
-        const targetH = Math.round(targetW * (vh / vw)) || 540;
+        const targetW = Math.min(vw, 640);
+        const targetH = Math.round(targetW * (vh / vw)) || 360;
         const canvas = document.createElement('canvas');
         canvas.width = targetW;
         canvas.height = targetH;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(activeVideo, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
           if (dataUrl && dataUrl.length > 500) {
             return dataUrl;
           }
@@ -495,15 +495,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         try {
           const imageCapture = new (window as any).ImageCapture(track);
           const bitmap = await imageCapture.grabFrame();
-          const targetW = Math.min(bitmap.width || 960, 960);
-          const targetH = Math.round(targetW * ((bitmap.height || 540) / (bitmap.width || 960))) || 540;
+          const targetW = Math.min(bitmap.width || 640, 640);
+          const targetH = Math.round(targetW * ((bitmap.height || 360) / (bitmap.width || 640))) || 360;
           const canvas = document.createElement('canvas');
           canvas.width = targetW;
           canvas.height = targetH;
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
             return dataUrl;
           }
         } catch (icErr) {}
@@ -536,10 +536,10 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           setTimeout(done, 150);
         });
 
-        const vw = video.videoWidth > 0 ? video.videoWidth : 960;
-        const vh = video.videoHeight > 0 ? video.videoHeight : 540;
-        const targetW = Math.min(vw, 960);
-        const targetH = Math.round(targetW * (vh / vw)) || 540;
+        const vw = video.videoWidth > 0 ? video.videoWidth : 640;
+        const vh = video.videoHeight > 0 ? video.videoHeight : 360;
+        const targetW = Math.min(vw, 640);
+        const targetH = Math.round(targetW * (vh / vw)) || 360;
         const canvas = document.createElement('canvas');
         canvas.width = targetW;
         canvas.height = targetH;
@@ -547,7 +547,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         let dataUrl: string | null = null;
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+          dataUrl = canvas.toDataURL('image/jpeg', 0.50);
         }
         return dataUrl;
       } finally {
