@@ -1346,7 +1346,7 @@ async function analyzeScreenSnapshot(base64Image, campaignName = "General Study"
       confidence: 85,
       activitySummary: "Focus Session Active (Auto-Verified)",
       category: "studying",
-      reason: "Continuous active screen share verified. High traffic server grace granted."
+      reason: "Selected: Continuous active screen share verified. High traffic server grace granted."
     };
   }
   try {
@@ -1372,10 +1372,10 @@ async function analyzeScreenSnapshot(base64Image, campaignName = "General Study"
         confidence: 85,
         activitySummary: "No Screen Frame",
         category: "idle",
-        reason: "No screen capture frame was received."
+        reason: "Rejected: No valid screen capture frame was received from the display stream."
       };
     }
-    const prompt = `You are a strict, objective, and accurate AI study proctor.
+    const prompt = `You are an expert, objective, and accurate AI Screen Proctor for StudySync.
 Analyze the user's active screen snapshot during their focus study session.
 
 STUDY SESSION CONTEXT:
@@ -1396,7 +1396,7 @@ Mark isProductiveWork = false if ANY of the following are visible on ANY part of
 ============================================================
 GENUINE STUDY & PRODUCTIVE WORK CRITERIA (isProductiveWork = true):
 ============================================================
-ONLY mark isProductiveWork = true if 100% of the active/visible screen content is dedicated to focused study/work without any entertainment/music app visible:
+ONLY mark isProductiveWork = true if the visible screen content is dedicated to focused study/work without any entertainment/music app:
 1. CODING & TECHNICAL: Writing, editing, debugging code in IDEs (VS Code, Cursor, PyCharm, IntelliJ, Xcode, Eclipse, Sublime, Vim, Terminal, Shell, PowerShell, Jupyter, Colab, GitHub, LeetCode, HackerRank, Codeforces, NeetCode).
 2. ACADEMIC MATERIALS: Reading textbooks, research papers (arXiv, PubMed, IEEE), lecture slides, technical PDFs, formula sheets, documentation (MDN, Stack Overflow, DevDocs).
 3. NOTE-TAKING & ESSAYS: Notion, Obsidian, Google Docs, Word, OneNote, Markdown notes dedicated to study.
@@ -1404,15 +1404,18 @@ ONLY mark isProductiveWork = true if 100% of the active/visible screen content i
 5. EDUCATIONAL LECTURES: Video tutorials/lectures strictly showing code, math derivations, slides, textbook diagrams, or academic instructions.
 
 ============================================================
-OUTPUT FORMAT (Valid JSON ONLY):
+OUTPUT FORMAT (Valid JSON ONLY - NO INTRODUCTORY WORDS):
 ============================================================
-Respond ONLY with valid JSON in this exact structure:
+Respond ONLY with a complete, valid JSON object starting with { and ending with }.
+DO NOT write any intro words like "Here is" or "Below is".
+Provide a clear, detailed, full explanation in "reason" explaining exactly why the screen was Selected as study or Rejected as off-task.
+
 {
-  "isProductiveWork": false or true,
+  "isProductiveWork": true or false,
   "confidence": 90-100,
-  "activitySummary": "Brief 3 to 6 words summary (e.g. 'Spotify Music App Visible on Screen', 'Coding in VS Code', 'Entertainment Video / Ad Visible', 'Reading Physics Textbook', 'Split Screen with Music Player')",
+  "activitySummary": "Brief 3 to 6 words summary of visible apps (e.g. 'Coding in VS Code', 'YouTube Video Tab Visible', 'Reading PDF Syllabus', 'Spotify Music Player Open')",
   "category": "entertainment" | "social_media" | "gaming" | "coding" | "studying" | "reading" | "research" | "writing" | "idle" | "other",
-  "reason": "One concise, clear sentence explaining specifically what is visible on screen and why it is categorized as off-task/distracted or genuine focused study."
+  "reason": "Complete 1-2 sentence explanation. State clearly: 'Selected: [explanation]' if productive, or 'Rejected: [explanation]' if off-task."
 }`;
     const defaultModels = [
       ["gemini-3.5-flash-lite", "v1beta"],
@@ -1432,7 +1435,7 @@ Respond ONLY with valid JSON in this exact structure:
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey
           },
-          signal: AbortSignal.timeout(7e3),
+          signal: AbortSignal.timeout(7500),
           body: JSON.stringify({
             contents: [
               {
@@ -1448,7 +1451,7 @@ Respond ONLY with valid JSON in this exact structure:
               }
             ],
             generationConfig: {
-              maxOutputTokens: 100,
+              maxOutputTokens: 350,
               temperature: 0.1,
               responseMimeType: "application/json"
             }
@@ -1466,12 +1469,18 @@ Respond ONLY with valid JSON in this exact structure:
           try {
             const parsed = JSON.parse(jsonMatch[0]);
             cachedPreferredModel = [modelName, apiVersion];
+            const isProd = Boolean(parsed.isProductiveWork);
+            const summary = parsed.activitySummary || (isProd ? "Active Study Session" : "Off-Task Content Detected");
+            let reason = (parsed.reason || "").trim();
+            if (!reason || reason.toLowerCase().startsWith("here is") || reason.length < 12) {
+              reason = isProd ? `Selected: Verified focused study on screen (${summary}).` : `Rejected: Distraction or non-study content visible on screen (${summary}).`;
+            }
             return {
-              isProductiveWork: Boolean(parsed.isProductiveWork),
+              isProductiveWork: isProd,
               confidence: typeof parsed.confidence === "number" ? parsed.confidence : 90,
-              activitySummary: parsed.activitySummary || (parsed.isProductiveWork ? "Active Study Session" : "Entertainment/Distraction Detected"),
-              category: parsed.category || (parsed.isProductiveWork ? "studying" : "entertainment"),
-              reason: parsed.reason || (parsed.isProductiveWork ? "Study content verified on screen." : "Off-task/entertainment detected on screen.")
+              activitySummary: summary,
+              category: parsed.category || (isProd ? "studying" : "entertainment"),
+              reason
             };
           } catch (pErr) {
             console.warn("[AI Proctor] JSON parse warning:", pErr);
@@ -1480,12 +1489,14 @@ Respond ONLY with valid JSON in this exact structure:
         if (text) {
           const isPositive = /(?:isProductiveWork["']?\s*:\s*true|"category"\s*:\s*"(?:coding|studying|reading|research|writing)")/i.test(text);
           cachedPreferredModel = [modelName, apiVersion];
+          const summary = isPositive ? "Focused Study Verified" : "Distraction Detected";
+          const reason = isPositive ? "Selected: Legitimate study or coding activity verified on screen." : "Rejected: Non-study applications, browser tabs, or media content detected on screen.";
           return {
             isProductiveWork: isPositive,
             confidence: 85,
-            activitySummary: isPositive ? "Focused Study Verified" : "Distraction Detected",
+            activitySummary: summary,
             category: isPositive ? "studying" : "entertainment",
-            reason: cleanText.replace(/[{}"\\]/g, " ").trim().slice(0, 150) || (isPositive ? "Study content verified on screen." : "Off-task content visible on screen.")
+            reason
           };
         }
       } catch (modelErr) {
@@ -1502,7 +1513,7 @@ Respond ONLY with valid JSON in this exact structure:
       confidence: 85,
       activitySummary: "Focus Session Active (Auto-Verified)",
       category: "studying",
-      reason: "Active screen focus verified."
+      reason: "Selected: Continuous active screen share verified."
     };
   } catch (err) {
     console.error("[AI Proctor] High-traffic resilience fallback triggered:", err?.message || err);
@@ -1511,7 +1522,7 @@ Respond ONLY with valid JSON in this exact structure:
       confidence: 85,
       activitySummary: "Focus Session Active (Traffic Grace)",
       category: "studying",
-      reason: "Continuous active screen share verified. High traffic server grace granted."
+      reason: "Selected: Continuous active screen share verified. High traffic server grace granted."
     };
   }
 }

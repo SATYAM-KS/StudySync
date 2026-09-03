@@ -165,7 +165,7 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                   </span>
                   <span className="text-[10px] opacity-75 font-mono">{lastAIAnalysis.timestamp}</span>
                 </div>
-                <p className="text-[11px] opacity-85 mt-0.5">{lastAIAnalysis.reason}</p>
+                <p className="text-[11px] opacity-90 mt-1 leading-relaxed break-words">{lastAIAnalysis.reason}</p>
               </div>
             </div>
           )}
@@ -380,7 +380,7 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                                 {snap.isProductive ? '+5m' : '0m'}
                               </span>
                             </div>
-                            <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-0.5 leading-relaxed break-words" title={snap.reason}>
                               {snap.reason}
                             </p>
                           </div>
