@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const FALLBACK_KEY_ENCODED = 'QVEuQWI4Uk42SXpVdDNDeEtTYkQxZjlIV3NXd1FsTkc4b1M0UkFEMUczZUl4eF8zQ1BNeXc=';
+// Fallback: the original working API key encoded
+const FALLBACK_KEY_ENCODED = 'QUl6YVN5QmRMWmlTZE5SQnlHQld3a2ZVSXo1QlJiRHA5c0lVcjg=';
 
 export interface ScreenAnalysisResult {
   isProductiveWork: boolean;
@@ -121,10 +122,11 @@ Respond ONLY with valid JSON in this exact structure:
 }`;
 
     const candidateModels = [
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-2.5-flash'
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+      'gemini-1.5-pro'
     ];
 
     let lastError: any = null;

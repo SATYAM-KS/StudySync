@@ -1330,7 +1330,7 @@ function setupSocketServer(httpServer) {
 // src/server/ai.ts
 import dotenv2 from "dotenv";
 dotenv2.config();
-var FALLBACK_KEY_ENCODED = "QVEuQWI4Uk42SXpVdDNDeEtTYkQxZjlIV3NXd1FsTkc4b1M0UkFEMUczZUl4eF8zQ1BNeXc=";
+var FALLBACK_KEY_ENCODED = "QUl6YVN5QmRMWmlTZE5SQnlHQld3a2ZVSXo1QlJiRHA5c0lVcjg=";
 async function analyzeScreenSnapshot(base64Image, campaignName = "General Study", subjectNote = "Focused Work") {
   let fallbackKey = "";
   try {
@@ -1430,10 +1430,11 @@ Respond ONLY with valid JSON in this exact structure:
   "reason": "One concise, clear sentence explaining specifically what is visible on screen and why it is categorized as off-task/distracted or genuine focused study."
 }`;
     const candidateModels = [
-      "gemini-3.6-flash",
-      "gemini-3.5-flash",
-      "gemini-3.5-flash-lite",
-      "gemini-2.5-flash"
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-1.5-pro"
     ];
     let lastError = null;
     for (const modelName of candidateModels) {
