@@ -121,18 +121,23 @@ Respond ONLY with valid JSON in this exact structure:
   "reason": "One concise, clear sentence explaining specifically what is visible on screen and why it is categorized as off-task/distracted or genuine focused study."
 }`;
 
-    const candidateModels = [
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-1.5-flash',
-      'gemini-1.5-flash-8b',
-      'gemini-1.5-pro'
+    // Each entry: [modelName, apiVersion]
+    const candidateModels: [string, string][] = [
+      ['gemini-3.6-flash', 'v1beta'],
+      ['gemini-3.5-flash', 'v1beta'],
+      ['gemini-3.5-flash-lite', 'v1beta'],
+      ['gemini-2.0-flash', 'v1beta'],
+      ['gemini-2.0-flash', 'v1'],
+      ['gemini-2.0-flash-lite', 'v1beta'],
+      ['gemini-1.5-flash', 'v1'],
+      ['gemini-1.5-flash-8b', 'v1'],
+      ['gemini-1.5-pro', 'v1'],
     ];
 
     let lastError: any = null;
-    for (const modelName of candidateModels) {
+    for (const [modelName, apiVersion] of candidateModels) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -192,7 +197,7 @@ Respond ONLY with valid JSON in this exact structure:
         }
       } catch (modelErr: any) {
         lastError = modelErr;
-        console.warn(`[AI Proctor] Model ${modelName} failed:`, modelErr?.message || modelErr);
+        console.warn(`[AI Proctor] Model ${modelName}/${apiVersion} failed:`, modelErr?.message || modelErr);
         continue;
       }
     }
