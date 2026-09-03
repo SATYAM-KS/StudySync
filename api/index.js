@@ -1448,17 +1448,31 @@ Respond ONLY with valid JSON in this exact structure:
             }
           ]
         });
-        const text = res.text || "";
+        const text = res.text || res?.candidates?.[0]?.content?.parts?.[0]?.text || "";
         const cleanText = text.replace(/```json\s*/gi, "").replace(/```\s*$/gi, "").trim();
         const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            return {
+              isProductiveWork: Boolean(parsed.isProductiveWork),
+              confidence: typeof parsed.confidence === "number" ? parsed.confidence : 90,
+              activitySummary: parsed.activitySummary || (parsed.isProductiveWork ? "Active Study Session" : "Entertainment/Distraction Detected"),
+              category: parsed.category || (parsed.isProductiveWork ? "studying" : "entertainment"),
+              reason: parsed.reason || (parsed.isProductiveWork ? "Study content verified on screen." : "Off-task/entertainment detected on screen.")
+            };
+          } catch (pErr) {
+            console.warn("[AI Proctor] JSON parse error, evaluating text directly:", pErr);
+          }
+        }
+        if (text) {
+          const isPositive = /(?:isProductiveWork["']?\s*:\s*true|"category"\s*:\s*"(?:coding|studying|reading|research|writing)")/i.test(text);
           return {
-            isProductiveWork: Boolean(parsed.isProductiveWork),
-            confidence: typeof parsed.confidence === "number" ? parsed.confidence : 90,
-            activitySummary: parsed.activitySummary || (parsed.isProductiveWork ? "Active Study Session" : "Entertainment/Distraction Detected"),
-            category: parsed.category || (parsed.isProductiveWork ? "studying" : "entertainment"),
-            reason: parsed.reason || (parsed.isProductiveWork ? "Study content verified on screen." : "Off-task/entertainment detected on screen.")
+            isProductiveWork: isPositive,
+            confidence: 85,
+            activitySummary: isPositive ? "Focused Study Verified" : "Distraction Detected",
+            category: isPositive ? "studying" : "entertainment",
+            reason: cleanText.replace(/[{}"\\]/g, " ").trim().slice(0, 150) || (isPositive ? "Study content verified on screen." : "Off-task content visible on screen.")
           };
         }
       } catch (modelErr) {
