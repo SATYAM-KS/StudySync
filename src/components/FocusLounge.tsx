@@ -324,7 +324,7 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
             </div>
 
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              Unscheduled randomized AI screen inspections (1–2m intervals) ensure continuous, genuine focus throughout your session.
+              Unscheduled randomized AI screen inspections ensure continuous, genuine focus throughout your session.
             </p>
 
             {isScreenSharingEnabled ? (
