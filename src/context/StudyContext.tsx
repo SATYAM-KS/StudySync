@@ -15,6 +15,7 @@ export interface VerifiedSnapshot {
   activitySummary: string;
   reason: string;
   confidence: number;
+  durationMinutes?: number;
 }
 
 export interface LastAIAnalysis {
@@ -342,6 +343,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const screenStreamRef = useRef<MediaStream | null>(screenStream);
   screenStreamRef.current = screenStream;
   const lastAnalyzedMilestoneRef = useRef<number>(Math.floor(initialElapsed / BLOCK_DURATION_SECONDS));
+  const lastInspectionTimestampRef = useRef<number>(Date.now());
+  const nextRandomCheckSecondsRef = useRef<number>(Math.floor(Math.random() * (120 - 60 + 1)) + 60);
+  const lastCheckedElapsedSecondsRef = useRef<number>(initialElapsed);
 
   // Page Visibility API detection
   useEffect(() => {
@@ -562,7 +566,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Perform AI Screenshot Verification
-  const performAIAnalysis = async (videoElement?: HTMLVideoElement | null) => {
+  const performAIAnalysis = async (videoElement?: HTMLVideoElement | null, intervalMinutes?: number) => {
     if (isAnalyzingRef.current) {
       console.log('[performAIAnalysis] Already running, skipping duplicate call');
       return;
@@ -573,7 +577,15 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const cToken = tokenRef.current || token || localStorage.getItem('study_token');
     const sNote = subjectNoteRef.current;
 
-    console.log('[performAIAnalysis] Running check:', { cid, hasToken: Boolean(cToken), hasStream: Boolean(stream) });
+    const now = Date.now();
+    const lastCheck = lastInspectionTimestampRef.current || now;
+    const elapsedSec = Math.max(30, Math.floor((now - lastCheck) / 1000));
+    const effectiveMinutes = typeof intervalMinutes === 'number' && intervalMinutes > 0
+      ? intervalMinutes
+      : Math.max(1, Math.min(10, Math.round(elapsedSec / 60) || 1));
+    lastInspectionTimestampRef.current = now;
+
+    console.log('[performAIAnalysis] Running check:', { cid, effectiveMinutes, hasToken: Boolean(cToken), hasStream: Boolean(stream) });
 
     if (!cid || !cToken) {
       console.warn('[performAIAnalysis] Missing campaignId or token');
@@ -616,7 +628,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           campaignId: cid,
           subjectNote: sNote,
-          snapshotUrl: snapUrl
+          snapshotUrl: snapUrl,
+          durationMinutes: effectiveMinutes
         }),
         signal: controller.signal
       });
@@ -633,6 +646,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           imageUrl: snapUrl,
           blockNumber: (verifiedSnapshots.length || 0) + 1,
           isProductive,
+          durationMinutes: effectiveMinutes,
           activitySummary: analysis.activitySummary || (isProductive ? 'Technical Study Verified' : 'Non-Study Content Detected'),
           reason: analysis.reason || '',
           confidence: analysis.confidence || 85
@@ -680,6 +694,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           imageUrl: snapUrl,
           blockNumber: (verifiedSnapshots.length || 0) + 1,
           isProductive: true,
+          durationMinutes: effectiveMinutes,
           activitySummary: 'Focus Session Active (Traffic Grace)',
           reason: 'Continuous active screen share verified. High traffic server grace granted.',
           confidence: 85
@@ -702,7 +717,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
             campaignId: cid,
             campaignName: activeCampaignName,
             timestamp: new Date().toISOString(),
-            durationMinutes: 5,
+            durationMinutes: effectiveMinutes,
             status: 'studying' as const,
             subjectNote: sNote || 'Focus Study',
             snapshotUrl: snapUrl
@@ -726,6 +741,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         imageUrl: latestSnapshotUrl || '',
         blockNumber: (verifiedSnapshots.length || 0) + 1,
         isProductive: true,
+        durationMinutes: effectiveMinutes,
         activitySummary: 'Focus Session Active (Auto-Verified)',
         reason: 'Continuous active screen share verified. Network traffic grace credited.',
         confidence: 85
@@ -748,7 +764,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           campaignId: cid,
           campaignName: activeCampaignName,
           timestamp: new Date().toISOString(),
-          durationMinutes: 5,
+          durationMinutes: effectiveMinutes,
           status: 'studying' as const,
           subjectNote: sNote || 'Focus Study',
           snapshotUrl: latestSnapshotUrl
@@ -787,7 +803,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [isStudying, activeCampaignId, activeCampaignName, subjectNote, token]);
 
-  // Study timer loop - wall-clock accurate across background tabs and refresh
+  // Study timer loop - wall-clock accurate with randomized 1-2 min AI screen inspections
   useEffect(() => {
     let interval: any = null;
     if (isStudying) {
@@ -797,11 +813,18 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         setSessionElapsedSeconds(totalElapsed);
         setBlockElapsedSeconds(totalElapsed % BLOCK_DURATION_SECONDS);
 
-        const currentMilestone = Math.floor(totalElapsed / BLOCK_DURATION_SECONDS);
-        if (currentMilestone > 0 && currentMilestone > lastAnalyzedMilestoneRef.current && !isAnalyzingRef.current) {
-          lastAnalyzedMilestoneRef.current = currentMilestone;
-          console.log(`[StudyTimer] Automated 5-min milestone #${currentMilestone} reached at ${totalElapsed}s - triggering check`);
-          performAIAnalysis();
+        // Check if randomized inspection interval (60-120 seconds) has arrived
+        const elapsedSinceLastCheck = totalElapsed - lastCheckedElapsedSecondsRef.current;
+        if (
+          elapsedSinceLastCheck >= nextRandomCheckSecondsRef.current && 
+          !isAnalyzingRef.current
+        ) {
+          const checkDurationMinutes = Math.max(1, Math.min(10, Math.round(elapsedSinceLastCheck / 60) || 1));
+          lastCheckedElapsedSecondsRef.current = totalElapsed;
+          // Schedule next unpredictable random interval (60s to 120s)
+          nextRandomCheckSecondsRef.current = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
+          console.log(`[StudyTimer] Randomized AI inspection triggered at ${totalElapsed}s (interval: ${elapsedSinceLastCheck}s, next in: ${nextRandomCheckSecondsRef.current}s)`);
+          performAIAnalysis(null, checkDurationMinutes);
         }
       }, 1000);
     }
@@ -873,7 +896,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       setVerifiedSnapshots([]);
       setLastAIAnalysis(null);
       sessionStartedAtRef.current = Date.now();
-      lastAnalyzedMilestoneRef.current = 0;
+      lastInspectionTimestampRef.current = Date.now();
+      lastCheckedElapsedSecondsRef.current = 0;
+      nextRandomCheckSecondsRef.current = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
       isAnalyzingRef.current = false;
 
       // Save to localStorage for refresh persistence

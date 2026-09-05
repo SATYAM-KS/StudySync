@@ -686,14 +686,15 @@ app.get('/api/study/sessions', (_req, res) => {
 // Automatic AI Screen Focus Verification (Every 5 mins)
 app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { campaignId, subjectNote, snapshotUrl } = req.body;
+    const { campaignId, subjectNote, snapshotUrl, durationMinutes: reqDuration } = req.body;
     if (!campaignId || !snapshotUrl) {
       res.status(400).json({ error: 'campaignId and snapshotUrl are required' });
       return;
     }
 
+    const calculatedDuration = Math.max(1, Math.min(10, Math.round(Number(reqDuration)) || 2));
     const snapshotSizeKB = Math.round((snapshotUrl?.length || 0) / 1024);
-    console.log(`[AI Proctor] verify-screen called: campaignId=${campaignId}, snapshotSize=${snapshotSizeKB}KB, hasGeminiKey=${Boolean(process.env.GEMINI_API_KEY)}`);
+    console.log(`[AI Proctor] verify-screen called: campaignId=${campaignId}, duration=${calculatedDuration}m, snapshotSize=${snapshotSizeKB}KB, hasGeminiKey=${Boolean(process.env.GEMINI_API_KEY)}`);
 
     let campaignName = 'Study Campaign';
     try {
@@ -738,7 +739,7 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
       campaignId,
       campaignName,
       timestamp: new Date().toISOString(),
-      durationMinutes: 5,
+      durationMinutes: calculatedDuration,
       status: isProductive ? 'active' : 'idle',
       subjectNote: subjectNote || analysis.activitySummary || (isProductive ? 'Focus Study' : 'Non-Study Activity Detected'),
       snapshotUrl
