@@ -209,24 +209,28 @@ function mapUserFromDb(row: any): User & { passwordHash: string } {
 }
 
 function mapCampaignFromDb(row: any): Campaign {
+  const todayKey = get2AMAlignedDateKey(new Date());
+  const endDate = row.end_date || row.endDate || '';
+  const isExpired = Boolean(endDate && endDate < todayKey);
   return {
     id: row.id,
     name: row.name,
     description: row.description || '',
     category: row.category || 'General Study',
-    adminId: row.admin_id,
-    adminName: row.admin_name,
-    startDate: row.start_date,
-    endDate: row.end_date,
-    dailyStartTime: row.daily_start_time || '19:00',
-    dailyEndTime: row.daily_end_time || '23:00',
-    targetDailyHours: Number(row.target_daily_hours) || 4,
+    adminId: row.admin_id || row.adminId,
+    adminName: row.admin_name || row.adminName,
+    startDate: row.start_date || row.startDate,
+    endDate,
+    dailyStartTime: row.daily_start_time || row.dailyStartTime || '19:00',
+    dailyEndTime: row.daily_end_time || row.dailyEndTime || '23:00',
+    targetDailyHours: Number(row.target_daily_hours ?? row.targetDailyHours) || 4,
     schedule: Array.isArray(row.schedule) ? row.schedule : [],
-    maxMembers: Number(row.max_members) || 20,
-    isPublic: row.is_public ?? true,
+    maxMembers: Number(row.max_members ?? row.maxMembers) || 20,
+    isPublic: row.is_public ?? row.isPublic ?? true,
     tags: Array.isArray(row.tags) ? row.tags : [],
-    bannerColor: row.banner_color || '#3b82f6',
-    createdAt: row.created_at
+    bannerColor: row.banner_color || row.bannerColor || '#3b82f6',
+    createdAt: row.created_at || row.createdAt,
+    isExpired
   };
 }
 
@@ -527,15 +531,18 @@ export async function getCampaigns(userId?: string): Promise<Campaign[]> {
 
       const allMembers = (members || []).map(mapMembershipFromDb);
 
+      const todayKey = get2AMAlignedDateKey(new Date());
       const result = camps.map(mapCampaignFromDb).map(c => {
         const approved = allMembers.filter(m => m.campaignId === c.id && m.status === 'approved');
         const userMem = userId ? allMembers.find(m => m.campaignId === c.id && m.userId === userId) : undefined;
         const isCreator = Boolean(userId && c.adminId === userId);
+        const isExpired = Boolean(c.endDate && c.endDate < todayKey);
         return {
           ...c,
           memberCount: approved.length,
           userStatus: isCreator ? 'approved' : (userMem ? userMem.status : undefined),
-          userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined)
+          userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined),
+          isExpired
         };
       });
 
@@ -544,15 +551,18 @@ export async function getCampaigns(userId?: string): Promise<Campaign[]> {
   }
 
   const db = await initDb();
+  const todayKey = get2AMAlignedDateKey(new Date());
   const result = db.campaigns.map(c => {
     const approvedMembers = db.memberships.filter(m => m.campaignId === c.id && m.status === 'approved');
     let userMembership = userId ? db.memberships.find(m => m.campaignId === c.id && m.userId === userId) : undefined;
     const isCreator = Boolean(userId && c.adminId === userId);
+    const isExpired = Boolean(c.endDate && c.endDate < todayKey);
     return {
       ...c,
       memberCount: approvedMembers.length,
       userStatus: isCreator ? 'approved' : (userMembership ? userMembership.status : undefined),
-      userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined)
+      userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined),
+      isExpired
     };
   });
   return setToCache(cacheKey, result, 4000);
@@ -562,6 +572,8 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
   const cacheKey = `camp_${id}_${userId || 'all'}`;
   const cached = getFromCache<Campaign | null>(cacheKey);
   if (cached !== null) return cached;
+
+  const todayKey = get2AMAlignedDateKey(new Date());
 
   if (supabase) {
     const { data: camp, error } = await supabase
@@ -581,11 +593,13 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
       const userMem = userId ? allMembers.find(m => m.userId === userId) : undefined;
       const c = mapCampaignFromDb(camp);
       const isCreator = Boolean(userId && c.adminId === userId);
+      const isExpired = Boolean(c.endDate && c.endDate < todayKey);
       const result: Campaign = {
         ...c,
         memberCount: approved.length,
         userStatus: isCreator ? 'approved' : (userMem ? userMem.status : undefined),
-        userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined)
+        userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined),
+        isExpired
       };
       return setToCache(cacheKey, result, 4000);
     }
@@ -597,13 +611,23 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
   const approvedMembers = db.memberships.filter(m => m.campaignId === campaign.id && m.status === 'approved');
   let userMembership = userId ? db.memberships.find(m => m.campaignId === campaign.id && m.userId === userId) : undefined;
   const isCreator = Boolean(userId && campaign.adminId === userId);
+  const isExpired = Boolean(campaign.endDate && campaign.endDate < todayKey);
   const result: Campaign = {
     ...campaign,
     memberCount: approvedMembers.length,
     userStatus: isCreator ? 'approved' : (userMembership ? userMembership.status : undefined),
-    userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined)
+    userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined),
+    isExpired
   };
   return setToCache(cacheKey, result, 4000);
+}
+
+export function isCampaignExpiredInDb(campaign?: Partial<Campaign> | null): boolean {
+  if (!campaign) return false;
+  if (campaign.isExpired === true) return true;
+  if (!campaign.endDate || !campaign.endDate.trim()) return false;
+  const todayKey = get2AMAlignedDateKey(new Date());
+  return campaign.endDate < todayKey;
 }
 
 export async function createCampaign(campaign: Campaign, creator: User): Promise<Campaign> {

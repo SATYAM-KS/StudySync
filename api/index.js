@@ -191,24 +191,28 @@ function mapUserFromDb(row) {
   };
 }
 function mapCampaignFromDb(row) {
+  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
+  const endDate = row.end_date || row.endDate || "";
+  const isExpired = Boolean(endDate && endDate < todayKey);
   return {
     id: row.id,
     name: row.name,
     description: row.description || "",
     category: row.category || "General Study",
-    adminId: row.admin_id,
-    adminName: row.admin_name,
-    startDate: row.start_date,
-    endDate: row.end_date,
-    dailyStartTime: row.daily_start_time || "19:00",
-    dailyEndTime: row.daily_end_time || "23:00",
-    targetDailyHours: Number(row.target_daily_hours) || 4,
+    adminId: row.admin_id || row.adminId,
+    adminName: row.admin_name || row.adminName,
+    startDate: row.start_date || row.startDate,
+    endDate,
+    dailyStartTime: row.daily_start_time || row.dailyStartTime || "19:00",
+    dailyEndTime: row.daily_end_time || row.dailyEndTime || "23:00",
+    targetDailyHours: Number(row.target_daily_hours ?? row.targetDailyHours) || 4,
     schedule: Array.isArray(row.schedule) ? row.schedule : [],
-    maxMembers: Number(row.max_members) || 20,
-    isPublic: row.is_public ?? true,
+    maxMembers: Number(row.max_members ?? row.maxMembers) || 20,
+    isPublic: row.is_public ?? row.isPublic ?? true,
     tags: Array.isArray(row.tags) ? row.tags : [],
-    bannerColor: row.banner_color || "#3b82f6",
-    createdAt: row.created_at
+    bannerColor: row.banner_color || row.bannerColor || "#3b82f6",
+    createdAt: row.created_at || row.createdAt,
+    isExpired
   };
 }
 function mapMembershipFromDb(row) {
@@ -439,30 +443,36 @@ async function getCampaigns(userId) {
     if (!error && camps) {
       const { data: members } = await supabase.from("memberships").select("campaign_id, user_id, role, status");
       const allMembers = (members || []).map(mapMembershipFromDb);
+      const todayKey2 = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
       const result2 = camps.map(mapCampaignFromDb).map((c) => {
         const approved = allMembers.filter((m) => m.campaignId === c.id && m.status === "approved");
         const userMem = userId ? allMembers.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
         const isCreator = Boolean(userId && c.adminId === userId);
+        const isExpired = Boolean(c.endDate && c.endDate < todayKey2);
         return {
           ...c,
           memberCount: approved.length,
           userStatus: isCreator ? "approved" : userMem ? userMem.status : void 0,
-          userRole: isCreator ? "admin" : userMem ? userMem.role : void 0
+          userRole: isCreator ? "admin" : userMem ? userMem.role : void 0,
+          isExpired
         };
       });
       return setToCache(cacheKey, result2, 4e3);
     }
   }
   const db = await initDb();
+  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
   const result = db.campaigns.map((c) => {
     const approvedMembers = db.memberships.filter((m) => m.campaignId === c.id && m.status === "approved");
     let userMembership = userId ? db.memberships.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
     const isCreator = Boolean(userId && c.adminId === userId);
+    const isExpired = Boolean(c.endDate && c.endDate < todayKey);
     return {
       ...c,
       memberCount: approvedMembers.length,
       userStatus: isCreator ? "approved" : userMembership ? userMembership.status : void 0,
-      userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0
+      userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0,
+      isExpired
     };
   });
   return setToCache(cacheKey, result, 4e3);
@@ -471,6 +481,7 @@ async function getCampaignById(id, userId) {
   const cacheKey = `camp_${id}_${userId || "all"}`;
   const cached = getFromCache(cacheKey);
   if (cached !== null) return cached;
+  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
   if (supabase) {
     const { data: camp, error } = await supabase.from("campaigns").select("id, name, description, category, admin_id, admin_name, start_date, end_date, daily_start_time, daily_end_time, target_daily_hours, schedule, max_members, is_public, banner_color, tags, created_at").eq("id", id).single();
     if (!error && camp) {
@@ -480,11 +491,13 @@ async function getCampaignById(id, userId) {
       const userMem = userId ? allMembers.find((m) => m.userId === userId) : void 0;
       const c = mapCampaignFromDb(camp);
       const isCreator2 = Boolean(userId && c.adminId === userId);
+      const isExpired2 = Boolean(c.endDate && c.endDate < todayKey);
       const result2 = {
         ...c,
         memberCount: approved.length,
         userStatus: isCreator2 ? "approved" : userMem ? userMem.status : void 0,
-        userRole: isCreator2 ? "admin" : userMem ? userMem.role : void 0
+        userRole: isCreator2 ? "admin" : userMem ? userMem.role : void 0,
+        isExpired: isExpired2
       };
       return setToCache(cacheKey, result2, 4e3);
     }
@@ -495,13 +508,22 @@ async function getCampaignById(id, userId) {
   const approvedMembers = db.memberships.filter((m) => m.campaignId === campaign.id && m.status === "approved");
   let userMembership = userId ? db.memberships.find((m) => m.campaignId === campaign.id && m.userId === userId) : void 0;
   const isCreator = Boolean(userId && campaign.adminId === userId);
+  const isExpired = Boolean(campaign.endDate && campaign.endDate < todayKey);
   const result = {
     ...campaign,
     memberCount: approvedMembers.length,
     userStatus: isCreator ? "approved" : userMembership ? userMembership.status : void 0,
-    userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0
+    userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0,
+    isExpired
   };
   return setToCache(cacheKey, result, 4e3);
+}
+function isCampaignExpiredInDb(campaign) {
+  if (!campaign) return false;
+  if (campaign.isExpired === true) return true;
+  if (!campaign.endDate || !campaign.endDate.trim()) return false;
+  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
+  return campaign.endDate < todayKey;
 }
 async function createCampaign(campaign, creator) {
   invalidateCache("camp");
@@ -1891,6 +1913,10 @@ app.post("/api/campaigns/:id/join", authMiddleware, async (req, res) => {
       res.status(404).json({ error: "Campaign not found" });
       return;
     }
+    if (isCampaignExpiredInDb(campaign)) {
+      res.status(400).json({ error: "This cohort has ended and is closed to new join requests." });
+      return;
+    }
     const existing = await getMembership(req.user.id, req.params.id);
     if (existing) {
       if (existing.status === "approved") {
@@ -2009,6 +2035,14 @@ app.post("/api/study/block", authMiddleware, async (req, res) => {
       return;
     }
     const campaign = await getCampaignById(campaignId);
+    if (!campaign) {
+      res.status(404).json({ error: "Campaign not found" });
+      return;
+    }
+    if (isCampaignExpiredInDb(campaign)) {
+      res.status(400).json({ error: "This cohort has concluded and is now in read-only archive mode." });
+      return;
+    }
     const block = {
       id: `blk_${req.user.id}_${Date.now()}`,
       userId: req.user.id,
@@ -2033,10 +2067,16 @@ app.post("/api/study/block", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to log study block" });
   }
 });
-app.post("/api/study/session/heartbeat", authMiddleware, (req, res) => {
+app.post("/api/study/session/heartbeat", authMiddleware, async (req, res) => {
   const { campaignId, campaignName, subjectNote, startedAt } = req.body;
   if (!campaignId) {
     res.status(400).json({ error: "campaignId required" });
+    return;
+  }
+  const campaign = await getCampaignById(campaignId);
+  if (campaign && isCampaignExpiredInDb(campaign)) {
+    removeStudySession(req.user.id);
+    res.status(400).json({ error: "This cohort has concluded. Live study sessions are closed." });
     return;
   }
   touchStudySession({
@@ -2069,12 +2109,16 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
     const snapshotSizeKB = Math.round((snapshotUrl?.length || 0) / 1024);
     console.log(`[AI Proctor] verify-screen called: campaignId=${campaignId}, duration=${calculatedDuration}m, snapshotSize=${snapshotSizeKB}KB, hasGeminiKey=${Boolean(process.env.GEMINI_API_KEY)}`);
     let campaignName = "Study Campaign";
-    try {
-      const campaign = await getCampaignById(campaignId);
-      if (campaign?.name) campaignName = campaign.name;
-    } catch (cErr) {
-      console.warn("Could not fetch campaign name for proctor:", cErr);
+    const campaign = await getCampaignById(campaignId);
+    if (!campaign) {
+      res.status(404).json({ error: "Campaign not found" });
+      return;
     }
+    if (isCampaignExpiredInDb(campaign)) {
+      res.status(400).json({ error: "This cohort has concluded and is now in read-only archive mode." });
+      return;
+    }
+    campaignName = campaign.name;
     let analysis = {
       isProductiveWork: false,
       confidence: 85,

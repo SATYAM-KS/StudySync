@@ -1,4 +1,4 @@
-import { DayKey, DaySchedule, TimeSlot } from '../types/index.ts';
+import { DayKey, DaySchedule, TimeSlot, Campaign } from '../types/index.ts';
 
 export const DAYS_OF_WEEK: { key: DayKey; label: string; shortLabel: string }[] = [
   { key: 'mon', label: 'Monday', shortLabel: 'M' },
@@ -175,5 +175,24 @@ export function checkScheduleStatus(
     todayHours,
     todaySlotsText: slotsText
   };
+}
+
+/**
+ * Helper to determine if a cohort is expired.
+ * A cohort is expired if explicit isExpired is true, or if its endDate has passed (adjusted to 2 AM boundary).
+ */
+export function isCampaignExpired(campaign?: Partial<Campaign> | null): boolean {
+  if (!campaign) return false;
+  if (campaign.isExpired === true) return true;
+  if (!campaign.endDate || !campaign.endDate.trim()) return false;
+
+  const now = new Date();
+  const adjusted = new Date(now.getTime() - 2 * 3600 * 1000);
+  const year = adjusted.getFullYear();
+  const month = String(adjusted.getMonth() + 1).padStart(2, '0');
+  const day = String(adjusted.getDate()).padStart(2, '0');
+  const currentStudyDate = `${year}-${month}-${day}`;
+
+  return campaign.endDate < currentStudyDate;
 }
 

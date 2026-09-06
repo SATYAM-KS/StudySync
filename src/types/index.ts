@@ -51,6 +51,7 @@ export interface Campaign {
   memberCount?: number;
   userStatus?: MembershipStatus;
   userRole?: Role;
+  isExpired?: boolean;
 }
 
 

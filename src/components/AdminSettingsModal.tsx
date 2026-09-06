@@ -6,6 +6,7 @@ import { UserAvatar } from './UserAvatar.tsx';
 import { CustomSelect } from './ui/CustomSelect.tsx';
 import { NumberStepper } from './ui/NumberStepper.tsx';
 import { SyllabusBuilder } from './SyllabusBuilder.tsx';
+import { isCampaignExpired } from '../utils/schedule.ts';
 import { 
   X, 
   Shield, 
@@ -17,7 +18,10 @@ import {
   Target, 
   Check, 
   Crown,
-  Users
+  Users,
+  Calendar,
+  Archive,
+  AlertCircle
 } from 'lucide-react';
 
 interface AdminSettingsModalProps {
@@ -41,6 +45,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const [name, setName] = useState(campaign.name);
   const [description, setDescription] = useState(campaign.description);
   const [maxMembers, setMaxMembers] = useState(campaign.maxMembers);
+  const [endDate, setEndDate] = useState(campaign.endDate || '');
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'members' | 'requests' | 'settings'>('requests');
   const [statusMessage, setStatusMessage] = useState('');
@@ -66,6 +71,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       setName(campaign.name);
       setDescription(campaign.description);
       setMaxMembers(campaign.maxMembers);
+      setEndDate(campaign.endDate || '');
     }
   }, [isOpen, campaign.id]);
 
@@ -170,7 +176,8 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),
-          maxMembers: Number(maxMembers)
+          maxMembers: Number(maxMembers),
+          endDate: endDate.trim()
         })
       });
 
@@ -289,6 +296,14 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
         {/* Tab 1: Pending Join Requests */}
         {activeTab === 'requests' && (
           <div className="space-y-4">
+            {isCampaignExpired(campaign) && (
+              <div className="p-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 text-xs flex items-start gap-2.5">
+                <Archive className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  This cohort concluded on {campaign.endDate}. It is closed to new member approvals unless reactivated with a future End Date in Settings.
+                </p>
+              </div>
+            )}
             {pendingMembers.length === 0 ? (
               <div className="text-center py-12 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
                 <UserCheck className="w-8 h-8 text-zinc-400 mx-auto mb-2" />
@@ -427,6 +442,30 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
             </div>
 
 
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                  <span>Cohort End Date</span>
+                </span>
+                {isCampaignExpired({ endDate }) && (
+                  <span className="text-[10px] font-mono text-rose-500 dark:text-rose-400 font-bold flex items-center gap-1">
+                    <Archive className="w-3 h-3" /> Concluded
+                  </span>
+                )}
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                required
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white cursor-pointer"
+              />
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                Extending the end date into the future reactivates this cohort and allows active focus sessions again.
+              </p>
+            </div>
 
             <div>
               <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
