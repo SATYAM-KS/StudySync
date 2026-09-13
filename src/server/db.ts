@@ -9,6 +9,7 @@ interface DBData {
   memberships: CampaignMembership[];
   studyBlocks: StudyBlock[];
   messages?: Message[];
+  leaderboards?: Record<string, LeaderboardEntry[]>;
 }
 
 const isVercel = Boolean(process.env.VERCEL);
@@ -33,6 +34,7 @@ export async function initDb(): Promise<DBData> {
         if (!Array.isArray(memoryDb.campaigns)) memoryDb.campaigns = [];
         if (!Array.isArray(memoryDb.memberships)) memoryDb.memberships = [];
         if (!Array.isArray(memoryDb.studyBlocks)) memoryDb.studyBlocks = [];
+        if (!memoryDb.leaderboards || typeof memoryDb.leaderboards !== 'object') memoryDb.leaderboards = {};
         return memoryDb;
       }
     } catch (e) {
@@ -44,7 +46,8 @@ export async function initDb(): Promise<DBData> {
     users: [],
     campaigns: [],
     memberships: [],
-    studyBlocks: []
+    studyBlocks: [],
+    leaderboards: {}
   };
   saveDb();
   return memoryDb;
@@ -899,6 +902,12 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
   const db = await initDb();
   db.studyBlocks.push(block);
   saveDb();
+
+  // Recalculate and store updated leaderboard in database
+  if (block.campaignId) {
+    getCampaignLeaderboard(block.campaignId).catch(() => {});
+  }
+
   return block;
 }
 
@@ -972,15 +981,13 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   }>();
 
   if (supabase) {
-    const [campRes, memsRes, blksRes] = await Promise.all([
+    const [campRes, memsRes] = await Promise.all([
       supabase.from('campaigns').select('target_daily_hours, admin_id, admin_name').eq('id', campaignId).single(),
-      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId),
-      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(25000)
+      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId)
     ]);
 
     if (campRes.error) console.warn('[getCampaignLeaderboard] campRes error:', campRes.error);
     if (memsRes.error) console.warn('[getCampaignLeaderboard] memsRes error:', memsRes.error);
-    if (blksRes.error) console.error('[getCampaignLeaderboard] blksRes error:', blksRes.error);
 
     if (campRes.data) {
       targetHours = Number(campRes.data.target_daily_hours) || 4;
@@ -1013,7 +1020,23 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       });
     }
 
-    // 3. Include any scholar who logged study blocks in this campaign
+    // 3. Fetch study hours directly from study_blocks in DB for all cohort members & campaign
+    const initialCohortUserIds = Array.from(candidateMembersMap.keys());
+    let blksQuery = supabase
+      .from('study_blocks')
+      .select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status')
+      .eq('status', 'active')
+      .limit(25000);
+
+    if (initialCohortUserIds.length > 0) {
+      blksQuery = blksQuery.or(`campaign_id.eq.${campaignId},user_id.in.(${initialCohortUserIds.join(',')})`);
+    } else {
+      blksQuery = blksQuery.eq('campaign_id', campaignId);
+    }
+    const blksRes = await blksQuery;
+    if (blksRes.error) console.error('[getCampaignLeaderboard] blksRes error:', blksRes.error);
+
+    // 4. Include any scholar who logged study blocks in this campaign
     if (blksRes.data) {
       campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
       for (const b of campaignBlocks) {
@@ -1086,7 +1109,8 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       });
     }
 
-    campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
+    const localMemberIds = new Set(candidateMembersMap.keys());
+    campaignBlocks = db.studyBlocks.filter(b => (b.campaignId === campaignId || localMemberIds.has(b.userId)) && b.status === 'active');
     for (const b of campaignBlocks) {
       if (b.userId && !candidateMembersMap.has(b.userId)) {
         const resolvedRole: Role = b.userId === campaignAdminId ? 'admin' : 'member';
@@ -1212,6 +1236,30 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   });
 
   const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
+
+  // 1. Store computed leaderboard directly in database (local resilient store)
+  try {
+    const db = await initDb();
+    if (!db.leaderboards) db.leaderboards = {};
+    db.leaderboards[campaignId] = sorted;
+    saveDb();
+  } catch (err) {
+    console.warn('[db] Failed to save leaderboard to local db:', err);
+  }
+
+  // 2. Store computed leaderboard snapshot in Supabase PostgreSQL
+  if (supabase) {
+    try {
+      await supabase.from('leaderboards').upsert({
+        campaign_id: campaignId,
+        data: sorted,
+        updated_at: new Date().toISOString()
+      });
+    } catch (lbErr) {
+      console.warn('[db] Leaderboard snapshot storage in Supabase:', lbErr);
+    }
+  }
+
   return setToCache(cacheKey, sorted, 1500);
 }
 

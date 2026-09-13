@@ -14,9 +14,7 @@ import {
   Medal,
   Sparkles,
   TrendingUp,
-  RotateCw,
-  Clock,
-  Info
+  RotateCw
 } from 'lucide-react';
 
 interface LeaderboardProps {
@@ -420,20 +418,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-500' : ''}`} />
           </button>
         </div>
-      </div>
-
-      {/* Study Day & Reset Notice */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-        <div className="flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Study Day resets daily at 2:00 AM local time</span>
-        </div>
-        {timeframe === 'today' && entries.length > 0 && entries.every(e => e.todayMinutes === 0) && (
-          <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 text-xs">
-            <Info className="w-3.5 h-3.5 shrink-0" />
-            <span>New study day started at 2:00 AM. Click "This Week" to view yesterday's study hours!</span>
-          </div>
-        )}
       </div>
 
       {isLoading && sortedEntries.length === 0 ? (

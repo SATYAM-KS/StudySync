@@ -53,6 +53,7 @@ async function initDb() {
         if (!Array.isArray(memoryDb.campaigns)) memoryDb.campaigns = [];
         if (!Array.isArray(memoryDb.memberships)) memoryDb.memberships = [];
         if (!Array.isArray(memoryDb.studyBlocks)) memoryDb.studyBlocks = [];
+        if (!memoryDb.leaderboards || typeof memoryDb.leaderboards !== "object") memoryDb.leaderboards = {};
         return memoryDb;
       }
     } catch (e) {
@@ -63,7 +64,8 @@ async function initDb() {
     users: [],
     campaigns: [],
     memberships: [],
-    studyBlocks: []
+    studyBlocks: [],
+    leaderboards: {}
   };
   saveDb();
   return memoryDb;
@@ -756,6 +758,10 @@ async function logStudyBlock(block) {
   const db = await initDb();
   db.studyBlocks.push(block);
   saveDb();
+  if (block.campaignId) {
+    getCampaignLeaderboard(block.campaignId).catch(() => {
+    });
+  }
   return block;
 }
 async function getStudyBlocksForUser(userId, campaignId) {
@@ -800,14 +806,12 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
   let campaignBlocks = [];
   let userProfilesMap = /* @__PURE__ */ new Map();
   if (supabase) {
-    const [campRes, memsRes, blksRes] = await Promise.all([
+    const [campRes, memsRes] = await Promise.all([
       supabase.from("campaigns").select("target_daily_hours, admin_id, admin_name").eq("id", campaignId).single(),
-      supabase.from("memberships").select("id, campaign_id, user_id, user_name, user_avatar_url, role, status").eq("campaign_id", campaignId),
-      supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").eq("campaign_id", campaignId).eq("status", "active").limit(25e3)
+      supabase.from("memberships").select("id, campaign_id, user_id, user_name, user_avatar_url, role, status").eq("campaign_id", campaignId)
     ]);
     if (campRes.error) console.warn("[getCampaignLeaderboard] campRes error:", campRes.error);
     if (memsRes.error) console.warn("[getCampaignLeaderboard] memsRes error:", memsRes.error);
-    if (blksRes.error) console.error("[getCampaignLeaderboard] blksRes error:", blksRes.error);
     if (campRes.data) {
       targetHours = Number(campRes.data.target_daily_hours) || 4;
       campaignAdminId = campRes.data.admin_id;
@@ -834,6 +838,15 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
         role: "admin"
       });
     }
+    const initialCohortUserIds = Array.from(candidateMembersMap.keys());
+    let blksQuery = supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").eq("status", "active").limit(25e3);
+    if (initialCohortUserIds.length > 0) {
+      blksQuery = blksQuery.or(`campaign_id.eq.${campaignId},user_id.in.(${initialCohortUserIds.join(",")})`);
+    } else {
+      blksQuery = blksQuery.eq("campaign_id", campaignId);
+    }
+    const blksRes = await blksQuery;
+    if (blksRes.error) console.error("[getCampaignLeaderboard] blksRes error:", blksRes.error);
     if (blksRes.data) {
       campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
       for (const b of campaignBlocks) {
@@ -896,7 +909,8 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
         role: "admin"
       });
     }
-    campaignBlocks = db.studyBlocks.filter((b) => b.campaignId === campaignId && b.status === "active");
+    const localMemberIds = new Set(candidateMembersMap.keys());
+    campaignBlocks = db.studyBlocks.filter((b) => (b.campaignId === campaignId || localMemberIds.has(b.userId)) && b.status === "active");
     for (const b of campaignBlocks) {
       if (b.userId && !candidateMembersMap.has(b.userId)) {
         const resolvedRole = b.userId === campaignAdminId ? "admin" : "member";
@@ -1004,6 +1018,25 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
     };
   });
   const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
+  try {
+    const db = await initDb();
+    if (!db.leaderboards) db.leaderboards = {};
+    db.leaderboards[campaignId] = sorted;
+    saveDb();
+  } catch (err) {
+    console.warn("[db] Failed to save leaderboard to local db:", err);
+  }
+  if (supabase) {
+    try {
+      await supabase.from("leaderboards").upsert({
+        campaign_id: campaignId,
+        data: sorted,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (lbErr) {
+      console.warn("[db] Leaderboard snapshot storage in Supabase:", lbErr);
+    }
+  }
   return setToCache(cacheKey, sorted, 1500);
 }
 
