@@ -217,6 +217,21 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // 1. Cross-device sync: Check if remote user profile has already set today's routine in database
+    if (user.dailyRoutine && user.dailyRoutine.dateKey === todayKey && user.dailyRoutine.targetHours) {
+      const remoteHours = user.dailyRoutine.targetHours;
+      const remoteRoutine = user.dailyRoutine.routine || `${remoteHours}h`;
+      setDailyTargetHoursState(remoteHours);
+      setCollegeRoutine(remoteRoutine);
+      setShowRoutineModal(false);
+      try {
+        localStorage.setItem(`study_daily_target_hours_${user.id}_${todayKey}`, String(remoteHours));
+        localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, remoteRoutine);
+      } catch {}
+      return;
+    }
+
+    // 2. Check local storage
     const savedHours = getSavedTargetHours(todayKey);
 
     if (savedHours !== null) {
@@ -246,7 +261,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } else {
-      // Prompt once per day if target is not set
+      // Prompt once per day if target is not set on server or locally
       if (hasPromptedTodayRef.current !== todayKey) {
         hasPromptedTodayRef.current = todayKey;
         setDailyTargetHoursState(null);
@@ -269,12 +284,34 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
 
+    const handleRemoteRoutine = (data: any) => {
+      if (data && data.userId === user?.id && data.targetHours) {
+        const todayKey = getTodayKey();
+        if (!data.dateKey || data.dateKey === todayKey) {
+          setDailyTargetHoursState(data.targetHours);
+          setCollegeRoutine(data.routine || `${data.targetHours}h`);
+          setShowRoutineModal(false);
+          try {
+            localStorage.setItem(`study_daily_target_hours_${user.id}_${todayKey}`, String(data.targetHours));
+            localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, data.routine || `${data.targetHours}h`);
+          } catch {}
+        }
+      }
+    };
+
+    if (socket) {
+      socket.on('study:routine_updated', handleRemoteRoutine);
+    }
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
+      if (socket) {
+        socket.off('study:routine_updated', handleRemoteRoutine);
+      }
     };
-  }, [user?.id]);
+  }, [user?.id, user?.dailyRoutine?.dateKey, user?.dailyRoutine?.targetHours, socket]);
 
   const setDailyTargetHours = async (hours: number) => {
     const todayKey = getTodayKey();
@@ -330,7 +367,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   // Today target hours dynamically resolved
   const todayTargetHours = dailyTargetHours !== null 
     ? dailyTargetHours 
-    : 4;
+    : (user?.dailyRoutine?.dateKey === getTodayKey() && user.dailyRoutine.targetHours ? user.dailyRoutine.targetHours : 4);
 
   const isAnalyzingRef = useRef(false);
   const sessionStartedAtRef = useRef<number>(initialSession?.sessionStartedAt || Date.now());

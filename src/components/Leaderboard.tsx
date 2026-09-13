@@ -98,43 +98,75 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   useEffect(() => {
     fetchLeaderboard();
 
-    const handleDayReset = () => {
-      fetchLeaderboard();
-    };
-    window.addEventListener('study:day_reset', handleDayReset);
+    // 20-second polling to ensure zero data drift even on serverless or disconnected websockets
+    const interval = setInterval(fetchLeaderboard, 20000);
 
-    if (!socket) {
-      return () => {
-        window.removeEventListener('study:day_reset', handleDayReset);
-      };
-    }
-    const handleBlockLogged = (data?: any) => {
-      const block = data?.block;
+    const handleFocus = () => fetchLeaderboard();
+    const handleVisibility = () => {
+      if (!document.hidden) fetchLeaderboard();
+    };
+    const handleDayReset = () => fetchLeaderboard();
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('study:day_reset', handleDayReset);
+    window.addEventListener('study:history_changed', handleFocus);
+
+    const handleIncomingBlock = (block: any) => {
       if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
         const mins = Number(block.durationMinutes) || 5;
-        setEntries(prev => prev.map(entry => {
-          if (entry.userId === block.userId) {
-            const newToday = entry.todayMinutes + mins;
-            const newWeek = entry.thisWeekMinutes + mins;
-            const newMonth = entry.thisMonthMinutes + mins;
-            const newTotal = entry.totalMinutes + mins;
-            return {
-              ...entry,
-              todayMinutes: newToday,
-              todayHours: Number((newToday / 60).toFixed(1)),
-              thisWeekMinutes: newWeek,
-              thisWeekHours: Number((newWeek / 60).toFixed(1)),
-              thisMonthMinutes: newMonth,
-              thisMonthHours: Number((newMonth / 60).toFixed(1)),
-              totalMinutes: newTotal,
-              totalHours: Number((newTotal / 60).toFixed(1)),
+        setEntries(prev => {
+          const exists = prev.some(e => e.userId === block.userId);
+          if (exists) {
+            return prev.map(entry => {
+              if (entry.userId === block.userId) {
+                const newToday = entry.todayMinutes + mins;
+                const newWeek = entry.thisWeekMinutes + mins;
+                const newMonth = entry.thisMonthMinutes + mins;
+                const newTotal = entry.totalMinutes + mins;
+                return {
+                  ...entry,
+                  todayMinutes: newToday,
+                  todayHours: Number((newToday / 60).toFixed(1)),
+                  thisWeekMinutes: newWeek,
+                  thisWeekHours: Number((newWeek / 60).toFixed(1)),
+                  thisMonthMinutes: newMonth,
+                  thisMonthHours: Number((newMonth / 60).toFixed(1)),
+                  totalMinutes: newTotal,
+                  totalHours: Number((newTotal / 60).toFixed(1)),
+                  lastActive: new Date().toISOString()
+                };
+              }
+              return entry;
+            });
+          } else {
+            const newEntry: LeaderboardEntry = {
+              userId: block.userId,
+              userName: block.userName || 'Scholar',
+              userAvatarUrl: block.userAvatarUrl,
+              role: 'member',
+              todayMinutes: mins,
+              thisWeekMinutes: mins,
+              thisMonthMinutes: mins,
+              totalMinutes: mins,
+              activeStreakDays: 1,
+              targetDailyHours: 4,
+              todayTargetMet: (mins / 60) >= 4,
               lastActive: new Date().toISOString()
             };
+            return [newEntry, ...prev];
           }
-          return entry;
-        }));
+        });
       }
-      fetchLeaderboard();
+      setTimeout(fetchLeaderboard, 400);
+    };
+
+    const handleSocketBlock = (data?: any) => {
+      handleIncomingBlock(data?.block);
+    };
+
+    const handleLocalBlockEvent = (e: any) => {
+      handleIncomingBlock(e?.detail?.block);
     };
 
     const handleRoutineUpdate = () => {
@@ -145,63 +177,35 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       fetchLeaderboard();
     };
 
-    socket.on('study:block_logged', handleBlockLogged);
-    socket.on('study:routine_updated', handleRoutineUpdate);
-    socket.on('campaign:member_joined', handleMemberUpdate);
-    socket.on('campaign:membership_updated', handleMemberUpdate);
-    socket.on('campaign:member_left', handleMemberUpdate);
+    window.addEventListener('study:block_logged', handleLocalBlockEvent);
+    window.addEventListener('study:routine_updated', handleRoutineUpdate);
+
+    if (socket) {
+      socket.on('study:block_logged', handleSocketBlock);
+      socket.on('study:routine_updated', handleRoutineUpdate);
+      socket.on('campaign:member_joined', handleMemberUpdate);
+      socket.on('campaign:membership_updated', handleMemberUpdate);
+      socket.on('campaign:member_left', handleMemberUpdate);
+    }
 
     return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('study:day_reset', handleDayReset);
-      socket.off('study:block_logged', handleBlockLogged);
-      socket.off('study:routine_updated', handleRoutineUpdate);
-      socket.off('campaign:member_joined', handleMemberUpdate);
-      socket.off('campaign:membership_updated', handleMemberUpdate);
-      socket.off('campaign:member_left', handleMemberUpdate);
+      window.removeEventListener('study:history_changed', handleFocus);
+      window.removeEventListener('study:block_logged', handleLocalBlockEvent);
+      window.removeEventListener('study:routine_updated', handleRoutineUpdate);
+
+      if (socket) {
+        socket.off('study:block_logged', handleSocketBlock);
+        socket.off('study:routine_updated', handleRoutineUpdate);
+        socket.off('campaign:member_joined', handleMemberUpdate);
+        socket.off('campaign:membership_updated', handleMemberUpdate);
+        socket.off('campaign:member_left', handleMemberUpdate);
+      }
     };
   }, [campaignId, socket]);
-
-  useEffect(() => {
-    const handleLocalEvent = (e: any) => {
-      const block = e?.detail?.block;
-      if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
-        const mins = Number(block.durationMinutes) || 5;
-        setEntries(prev => prev.map(entry => {
-          if (entry.userId === block.userId) {
-            const newToday = entry.todayMinutes + mins;
-            const newWeek = entry.thisWeekMinutes + mins;
-            const newMonth = entry.thisMonthMinutes + mins;
-            const newTotal = entry.totalMinutes + mins;
-            return {
-              ...entry,
-              todayMinutes: newToday,
-              todayHours: Number((newToday / 60).toFixed(1)),
-              thisWeekMinutes: newWeek,
-              thisWeekHours: Number((newWeek / 60).toFixed(1)),
-              thisMonthMinutes: newMonth,
-              thisMonthHours: Number((newMonth / 60).toFixed(1)),
-              totalMinutes: newTotal,
-              totalHours: Number((newTotal / 60).toFixed(1)),
-              lastActive: new Date().toISOString()
-            };
-          }
-          return entry;
-        }));
-      }
-      fetchLeaderboard();
-    };
-
-    const handleLocalRoutine = () => {
-      fetchLeaderboard();
-    };
-
-    window.addEventListener('study:block_logged', handleLocalEvent);
-    window.addEventListener('study:routine_updated', handleLocalRoutine);
-    return () => {
-      window.removeEventListener('study:block_logged', handleLocalEvent);
-      window.removeEventListener('study:routine_updated', handleLocalRoutine);
-    };
-  }, [campaignId]);
 
   const getDaysInCurrentMonth = () => {
     const now = new Date();
@@ -427,6 +431,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                 <div className="text-2xl font-black text-zinc-950 dark:text-white font-mono mt-3">
                   {hrs.toFixed(1)} <span className="text-xs font-normal text-zinc-400">hrs</span>
                 </div>
+                <div className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500 font-semibold">
+                  {mins} min{mins === 1 ? '' : 's'}
+                </div>
                 <div className="mt-1 text-xs text-zinc-500 font-mono">
                   <span className="font-bold text-zinc-900 dark:text-zinc-100">{pct}%</span> of target ({targetHrs.toFixed(1)}h)
                 </div>
@@ -475,6 +482,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                 <div className="text-3xl font-black text-zinc-950 dark:text-white font-mono mt-3">
                   {hrs.toFixed(1)} <span className="text-sm font-normal text-zinc-400">hrs</span>
                 </div>
+                <div className="text-xs font-mono text-amber-600/80 dark:text-amber-400/80 font-bold">
+                  {mins} min{mins === 1 ? '' : 's'}
+                </div>
                 <div className="mt-1 text-xs text-zinc-500 font-mono">
                   <span className="font-bold text-zinc-950 dark:text-white">{pct}%</span> of target ({targetHrs.toFixed(1)}h)
                 </div>
@@ -516,6 +526,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
 
                 <div className="text-2xl font-black text-zinc-950 dark:text-white font-mono mt-3">
                   {hrs.toFixed(1)} <span className="text-xs font-normal text-zinc-400">hrs</span>
+                </div>
+                <div className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500 font-semibold">
+                  {mins} min{mins === 1 ? '' : 's'}
                 </div>
                 <div className="mt-1 text-xs text-zinc-500 font-mono">
                   <span className="font-bold text-zinc-900 dark:text-zinc-100">{pct}%</span> of target ({targetHrs.toFixed(1)}h)
@@ -643,7 +656,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                       </td>
 
                       <td className="py-3.5 px-4 text-right font-mono font-black text-zinc-950 dark:text-white text-sm">
-                        {hours.toFixed(1)}h
+                        <div>{hours.toFixed(1)}h</div>
+                        <div className="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 font-mono">
+                          {minutes} min{minutes === 1 ? '' : 's'}
+                        </div>
                       </td>
 
                     </tr>

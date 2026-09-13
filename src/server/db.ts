@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { User, Campaign, CampaignMembership, StudyBlock, LeaderboardEntry, Message } from '../types/index.ts';
+import { User, Campaign, CampaignMembership, StudyBlock, LeaderboardEntry, Message, Role } from '../types/index.ts';
 import { supabase } from './supabase.ts';
 
 interface DBData {
@@ -63,7 +63,7 @@ export function saveDb() {
 }
 
 // Helper transformers
-export function extractCodingLinks(rawBio?: string): { 
+export function extractCodingLinks(rawBio?: string, targetDateKey?: string): { 
   cleanBio: string; 
   leetcodeUrl: string; 
   hackerrankUrl: string;
@@ -74,10 +74,21 @@ export function extractCodingLinks(rawBio?: string): {
   let hackerrankUrl = '';
   let dailyRoutine: { dateKey: string; routine: string; targetHours: number } | undefined = undefined;
 
-  const routineMatch = cleanBio.match(/\[routine:([^:]+):([^\]]+)\]/i);
-  if (routineMatch) {
-    const dKey = routineMatch[1].trim();
-    const val = routineMatch[2].trim().toLowerCase();
+  // Extract all routine tags
+  const routineMatches = Array.from(cleanBio.matchAll(/\[routine:([^:]+):([^\]]+)\]/gi));
+  if (routineMatches.length > 0) {
+    // If targetDateKey is specified, search for that exact date first
+    let selectedMatch = targetDateKey
+      ? routineMatches.find(m => m[1].trim() === targetDateKey)
+      : undefined;
+
+    // If not found or targetDateKey not passed, pick the last (most recent) tag
+    if (!selectedMatch) {
+      selectedMatch = routineMatches[routineMatches.length - 1];
+    }
+
+    const dKey = selectedMatch[1].trim();
+    const val = selectedMatch[2].trim().toLowerCase();
     let rName = val;
     let targetHours = 4;
 
@@ -100,20 +111,26 @@ export function extractCodingLinks(rawBio?: string): {
       routine: rName,
       targetHours
     };
-    cleanBio = cleanBio.replace(routineMatch[0], '').trim();
   }
 
-  const lcMatch = cleanBio.match(/\[leetcode:([^\]]+)\]/i);
-  if (lcMatch) {
-    leetcodeUrl = lcMatch[1].trim();
-    cleanBio = cleanBio.replace(lcMatch[0], '').trim();
+  // Extract LeetCode URL (last match)
+  const lcMatches = Array.from(cleanBio.matchAll(/\[leetcode:([^\]]+)\]/gi));
+  if (lcMatches.length > 0) {
+    leetcodeUrl = lcMatches[lcMatches.length - 1][1].trim();
   }
 
-  const hrMatch = cleanBio.match(/\[hackerrank:([^\]]+)\]/i);
-  if (hrMatch) {
-    hackerrankUrl = hrMatch[1].trim();
-    cleanBio = cleanBio.replace(hrMatch[0], '').trim();
+  // Extract HackerRank URL (last match)
+  const hrMatches = Array.from(cleanBio.matchAll(/\[hackerrank:([^\]]+)\]/gi));
+  if (hrMatches.length > 0) {
+    hackerrankUrl = hrMatches[hrMatches.length - 1][1].trim();
   }
+
+  // Globally remove all tags from cleanBio so tags never accumulate
+  cleanBio = cleanBio
+    .replace(/\[routine:[^\]]+\]/gi, '')
+    .replace(/\[leetcode:[^\]]+\]/gi, '')
+    .replace(/\[hackerrank:[^\]]+\]/gi, '')
+    .trim();
 
   return { cleanBio, leetcodeUrl, hackerrankUrl, dailyRoutine };
 }
@@ -124,7 +141,7 @@ export function packBioWithCodingLinks(
   hackerrankUrl?: string,
   dailyRoutine?: { dateKey: string; routine?: string; targetHours?: number }
 ): string {
-  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || '');
+  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || '', dailyRoutine?.dateKey);
   const finalLc = (leetcodeUrl !== undefined ? leetcodeUrl : existingLc).trim();
   const finalHr = (hackerrankUrl !== undefined ? hackerrankUrl : existingHr).trim();
   const finalRoutine = dailyRoutine !== undefined ? dailyRoutine : existingRoutine;
@@ -444,7 +461,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     const targetBio = updates.bio !== undefined ? updates.bio : existingExtracted.cleanBio;
     const targetLc = updates.leetcodeUrl !== undefined ? updates.leetcodeUrl : (existingRow?.leetcode_url || existingExtracted.leetcodeUrl);
     const targetHr = updates.hackerrankUrl !== undefined ? updates.hackerrankUrl : (existingRow?.hackerrank_url || existingExtracted.hackerrankUrl);
-    const packedBio = packBioWithCodingLinks(targetBio, targetLc, targetHr);
+    const packedBio = packBioWithCodingLinks(targetBio, targetLc, targetHr, existingExtracted.dailyRoutine);
 
     const payload: any = { bio: packedBio };
     if (updates.name !== undefined) payload.name = updates.name;
@@ -934,52 +951,158 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   const cached = getFromCache<LeaderboardEntry[]>(cacheKey);
   if (cached) return cached;
 
-  let approvedMembers: CampaignMembership[] = [];
-  let campaignBlocks: StudyBlock[] = [];
   let targetHours = 4;
-  let allUsers: Array<{ 
-    id: string; 
-    leetcodeUrl?: string; 
+  let campaignAdminId: string | undefined = undefined;
+  let campaignAdminName: string | undefined = undefined;
+  let candidateMembersMap = new Map<string, {
+    userId: string;
+    userName: string;
+    userAvatarUrl?: string;
+    role: Role;
+  }>();
+  let campaignBlocks: StudyBlock[] = [];
+  let userProfilesMap = new Map<string, {
+    id: string;
+    leetcodeUrl?: string;
     hackerrankUrl?: string;
     dailyRoutine?: { dateKey: string; routine: string; targetHours: number };
-  }> = [];
+  }>();
 
   if (supabase) {
-    const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
-      supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
-      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId).eq('status', 'approved'),
-      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(25000),
-      supabase.from('users').select('id, bio').limit(200)
+    const [campRes, memsRes, blksRes] = await Promise.all([
+      supabase.from('campaigns').select('target_daily_hours, admin_id, admin_name').eq('id', campaignId).single(),
+      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId),
+      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(25000)
     ]);
-    if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
-    if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
-    if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
-    if (usersRes.data) {
-      allUsers = usersRes.data.map(u => {
-        const extracted = extractCodingLinks(u.bio || '');
-        return {
-          id: u.id,
-          leetcodeUrl: extracted.leetcodeUrl,
-          hackerrankUrl: extracted.hackerrankUrl,
-          dailyRoutine: extracted.dailyRoutine
-        };
+
+    if (campRes.data) {
+      targetHours = Number(campRes.data.target_daily_hours) || 4;
+      campaignAdminId = campRes.data.admin_id;
+      campaignAdminName = campRes.data.admin_name;
+    }
+
+    // 1. Add approved & existing memberships
+    if (memsRes.data) {
+      for (const m of memsRes.data) {
+        if (m.status === 'approved' || m.role === 'admin' || m.user_id === campaignAdminId) {
+          const resolvedRole: Role = (m.role === 'admin' || m.role === 'co-admin') ? m.role : (m.user_id === campaignAdminId ? 'admin' : 'member');
+          candidateMembersMap.set(m.user_id, {
+            userId: m.user_id,
+            userName: m.user_name || 'Scholar',
+            userAvatarUrl: m.user_avatar_url || '',
+            role: resolvedRole
+          });
+        }
+      }
+    }
+
+    // 2. Add campaign creator if not present
+    if (campaignAdminId && !candidateMembersMap.has(campaignAdminId)) {
+      candidateMembersMap.set(campaignAdminId, {
+        userId: campaignAdminId,
+        userName: campaignAdminName || 'Cohort Leader',
+        userAvatarUrl: '',
+        role: 'admin'
       });
+    }
+
+    // 3. Include any scholar who logged study blocks in this campaign
+    if (blksRes.data) {
+      campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
+      for (const b of campaignBlocks) {
+        if (b.userId && !candidateMembersMap.has(b.userId)) {
+          const resolvedRole: Role = b.userId === campaignAdminId ? 'admin' : 'member';
+          candidateMembersMap.set(b.userId, {
+            userId: b.userId,
+            userName: b.userName || 'Scholar',
+            userAvatarUrl: b.userAvatarUrl || '',
+            role: resolvedRole
+          });
+        }
+      }
+    }
+
+    // 4. Targeted fetch of user profiles for everyone in this cohort
+    const cohortUserIds = Array.from(candidateMembersMap.keys());
+    if (cohortUserIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, name, avatar_url, bio, leetcode_url, hackerrank_url')
+        .in('id', cohortUserIds);
+
+      if (usersData) {
+        for (const u of usersData) {
+          const extracted = extractCodingLinks(u.bio || '', todayKey);
+          userProfilesMap.set(u.id, {
+            id: u.id,
+            leetcodeUrl: u.leetcode_url || extracted.leetcodeUrl,
+            hackerrankUrl: u.hackerrank_url || extracted.hackerrankUrl,
+            dailyRoutine: extracted.dailyRoutine
+          });
+
+          const currentMem = candidateMembersMap.get(u.id);
+          if (currentMem) {
+            if (u.name && (!currentMem.userName || currentMem.userName === 'Scholar')) {
+              currentMem.userName = u.name;
+            }
+            if (u.avatar_url && !currentMem.userAvatarUrl) {
+              currentMem.userAvatarUrl = u.avatar_url;
+            }
+          }
+        }
+      }
     }
   } else {
     const db = await initDb();
     const campaign = db.campaigns.find(c => c.id === campaignId);
     targetHours = campaign?.targetDailyHours || 4;
-    approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && m.status === 'approved');
+    campaignAdminId = campaign?.adminId;
+    campaignAdminName = campaign?.adminName;
+
+    const approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && (m.status === 'approved' || m.role === 'admin' || m.userId === campaignAdminId));
+    for (const m of approvedMembers) {
+      const resolvedRole: Role = (m.role === 'admin' || m.role === 'co-admin') ? m.role : (m.userId === campaignAdminId ? 'admin' : 'member');
+      candidateMembersMap.set(m.userId, {
+        userId: m.userId,
+        userName: m.userName,
+        userAvatarUrl: m.userAvatarUrl || '',
+        role: resolvedRole
+      });
+    }
+
+    if (campaignAdminId && !candidateMembersMap.has(campaignAdminId)) {
+      candidateMembersMap.set(campaignAdminId, {
+        userId: campaignAdminId,
+        userName: campaignAdminName || 'Cohort Leader',
+        userAvatarUrl: '',
+        role: 'admin'
+      });
+    }
+
     campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
-    allUsers = db.users.map(u => {
-      const extracted = extractCodingLinks(u.bio || '');
-      return {
-        id: u.id,
-        leetcodeUrl: extracted.leetcodeUrl,
-        hackerrankUrl: extracted.hackerrankUrl,
-        dailyRoutine: extracted.dailyRoutine
-      };
-    });
+    for (const b of campaignBlocks) {
+      if (b.userId && !candidateMembersMap.has(b.userId)) {
+        const resolvedRole: Role = b.userId === campaignAdminId ? 'admin' : 'member';
+        candidateMembersMap.set(b.userId, {
+          userId: b.userId,
+          userName: b.userName || 'Scholar',
+          userAvatarUrl: b.userAvatarUrl || '',
+          role: resolvedRole
+        });
+      }
+    }
+
+    for (const u of db.users) {
+      if (candidateMembersMap.has(u.id)) {
+        const extracted = extractCodingLinks(u.bio || '', todayKey);
+        userProfilesMap.set(u.id, {
+          id: u.id,
+          leetcodeUrl: u.leetcodeUrl || extracted.leetcodeUrl,
+          hackerrankUrl: u.hackerrankUrl || extracted.hackerrankUrl,
+          dailyRoutine: extracted.dailyRoutine
+        });
+      }
+    }
   }
 
   // 7-day keys set (past 7 study days)
@@ -994,9 +1117,9 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   // Month prefix: YYYY-MM based on todayKey
   const currentMonthPrefix = todayKey.substring(0, 7);
 
-  const entries: LeaderboardEntry[] = approvedMembers.map(member => {
+  const entries: LeaderboardEntry[] = Array.from(candidateMembersMap.values()).map(member => {
     const userBlocks = campaignBlocks.filter(b => b.userId === member.userId);
-    const userProfile = allUsers.find(u => u.id === member.userId);
+    const userProfile = userProfilesMap.get(member.userId);
 
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
@@ -1041,15 +1164,15 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       }
     }
 
-    let userTargetHours = 7;
+    let userTargetHours = targetHours || 4;
     if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
       userTargetHours = userProfile.dailyRoutine.targetHours || (userProfile.dailyRoutine.routine === 'college' ? 4 : 7);
     } else if (userProfile?.dailyRoutine?.targetHours) {
       userTargetHours = userProfile.dailyRoutine.targetHours;
     } else if (userProfile?.dailyRoutine?.routine === 'college') {
       userTargetHours = 4;
-    } else if (targetHours) {
-      userTargetHours = targetHours;
+    } else if (userProfile?.dailyRoutine?.routine === 'no_college') {
+      userTargetHours = 7;
     }
 
     const todayHours = Number((todayMinutes / 60).toFixed(1));
@@ -1082,5 +1205,6 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   });
 
   const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
-  return setToCache(cacheKey, sorted, 4000);
+  return setToCache(cacheKey, sorted, 1500);
 }
+
