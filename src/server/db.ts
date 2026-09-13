@@ -1020,41 +1020,35 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       });
     }
 
-    // 3. Fetch study hours directly from study_blocks in DB for this campaign & cohort members
+    // 3. Fetch study hours using getStudyBlocksForUser (exact same source that powers Study History)
     const initialCohortUserIds = Array.from(candidateMembersMap.keys());
-    const [campBlksRes, userBlksRes] = await Promise.all([
-      supabase
-        .from('study_blocks')
-        .select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status')
-        .eq('campaign_id', campaignId)
-        .neq('status', 'idle')
-        .limit(25000),
-      initialCohortUserIds.length > 0
+    const memberBlocksPromises = initialCohortUserIds.map(uid => getStudyBlocksForUser(uid));
+    const [campaignDirectBlocks, ...memberBlocksArrays] = await Promise.all([
+      supabase 
         ? supabase
             .from('study_blocks')
-            .select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status')
-            .in('user_id', initialCohortUserIds)
+            .select('id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note')
+            .eq('campaign_id', campaignId)
             .neq('status', 'idle')
-            .limit(25000)
-        : Promise.resolve({ data: [], error: null })
+            .limit(10000)
+            .then(r => (r.data || []).map(mapStudyBlockFromDb))
+        : Promise.resolve([]),
+      ...memberBlocksPromises
     ]);
 
-    if (campBlksRes.error) console.warn('[getCampaignLeaderboard] campBlksRes error:', campBlksRes.error);
-    if (userBlksRes.error) console.warn('[getCampaignLeaderboard] userBlksRes error:', userBlksRes.error);
-
-    const blocksMap = new Map<string, any>();
-    if (campBlksRes.data && Array.isArray(campBlksRes.data)) {
-      for (const b of campBlksRes.data) {
-        if (b && b.id) blocksMap.set(b.id, b);
-      }
+    const blocksMap = new Map<string, StudyBlock>();
+    for (const b of campaignDirectBlocks) {
+      if (b && b.id) blocksMap.set(b.id, b);
     }
-    if (userBlksRes.data && Array.isArray(userBlksRes.data)) {
-      for (const b of userBlksRes.data) {
-        if (b && b.id) blocksMap.set(b.id, b);
+    for (const userBlks of memberBlocksArrays) {
+      if (Array.isArray(userBlks)) {
+        for (const b of userBlks) {
+          if (b && b.id) blocksMap.set(b.id, b);
+        }
       }
     }
 
-    campaignBlocks = Array.from(blocksMap.values()).map(mapStudyBlockFromDb);
+    campaignBlocks = Array.from(blocksMap.values());
 
     // 4. Include any scholar who logged study blocks in this campaign
     for (const b of campaignBlocks) {

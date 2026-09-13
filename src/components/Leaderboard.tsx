@@ -46,7 +46,7 @@ export function normalizeHackerrankUrl(val?: string | null): string {
 export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours, isActive = true }) => {
   const { user } = useAuth();
   const { socket } = useSocket();
-  const { todayTargetHours: userDailyTarget } = useStudy();
+  const { todayTargetHours: userDailyTarget, stats, refreshStats } = useStudy();
   const cacheKey = `study_leaderboard_cache_${campaignId}`;
 
   const getTodayDateKey = () => {
@@ -100,6 +100,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           } catch {}
         }
       }
+      refreshStats().catch(() => {});
     } catch (e) {
       console.error('Failed to load leaderboard:', e);
     } finally {
@@ -282,7 +283,78 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     return "Monthly Focus Target";
   };
 
-  const sortedEntries = [...entries].sort((a, b) => {
+  // Merge each entry with live Study History & StudyContext stats if matching current user
+  const resolvedEntries = (() => {
+    let historyToday = 0;
+    let historyWeek = 0;
+    let historyMonth = 0;
+    let historyTotal = 0;
+    try {
+      const rawHistory = localStorage.getItem(`study_history_cache_${campaignId}`);
+      if (rawHistory) {
+        const parsed = JSON.parse(rawHistory);
+        if (parsed?.data) {
+          historyToday = Number(parsed.data.todayMinutes) || 0;
+          historyWeek = Number(parsed.data.thisWeekMinutes) || 0;
+          historyMonth = Number(parsed.data.thisMonthMinutes) || 0;
+          historyTotal = Number(parsed.data.totalMinutes) || 0;
+        }
+      }
+    } catch {}
+
+    const list = entries.map(entry => {
+      const isCurrentUser = Boolean(user && (entry.userId === user.id || (user.name && entry.userName.toLowerCase() === user.name.toLowerCase())));
+      if (isCurrentUser) {
+        const today = Math.max(entry.todayMinutes || 0, stats?.todayMinutes || 0, historyToday);
+        const week = Math.max(entry.thisWeekMinutes || 0, stats?.thisWeekMinutes || 0, historyWeek);
+        const month = Math.max(entry.thisMonthMinutes || 0, stats?.thisMonthMinutes || 0, historyMonth);
+        const total = Math.max(entry.totalMinutes || 0, stats?.totalMinutes || 0, historyTotal);
+        return {
+          ...entry,
+          todayMinutes: today,
+          todayHours: Number((today / 60).toFixed(1)),
+          thisWeekMinutes: week,
+          thisWeekHours: Number((week / 60).toFixed(1)),
+          thisMonthMinutes: month,
+          thisMonthHours: Number((month / 60).toFixed(1)),
+          totalMinutes: total,
+          totalHours: Number((total / 60).toFixed(1)),
+          activeStreakDays: Math.max(entry.activeStreakDays || 0, stats?.activeStreakDays || stats?.streakDays || 0),
+          streakDays: Math.max(entry.streakDays || 0, stats?.streakDays || stats?.activeStreakDays || 0)
+        };
+      }
+      return entry;
+    });
+
+    if (user && !list.some(e => e.userId === user.id || (user.name && e.userName.toLowerCase() === user.name.toLowerCase()))) {
+      const today = Math.max(stats?.todayMinutes || 0, historyToday);
+      const week = Math.max(stats?.thisWeekMinutes || 0, historyWeek);
+      const month = Math.max(stats?.thisMonthMinutes || 0, historyMonth);
+      const total = Math.max(stats?.totalMinutes || 0, historyTotal);
+      list.push({
+        userId: user.id,
+        userName: user.name || 'Scholar',
+        userAvatarUrl: user.avatarUrl || '',
+        role: 'member',
+        todayMinutes: today,
+        todayHours: Number((today / 60).toFixed(1)),
+        thisWeekMinutes: week,
+        thisWeekHours: Number((week / 60).toFixed(1)),
+        thisMonthMinutes: month,
+        thisMonthHours: Number((month / 60).toFixed(1)),
+        totalMinutes: total,
+        totalHours: Number((total / 60).toFixed(1)),
+        activeStreakDays: stats?.activeStreakDays || stats?.streakDays || 0,
+        streakDays: stats?.streakDays || stats?.activeStreakDays || 0,
+        targetDailyHours: userDailyTarget || targetDailyHours || 4,
+        todayTargetMet: (today / 60) >= (userDailyTarget || targetDailyHours || 4)
+      });
+    }
+
+    return list;
+  })();
+
+  const sortedEntries = [...resolvedEntries].sort((a, b) => {
     return getMinutesForTimeframe(b, timeframe) - getMinutesForTimeframe(a, timeframe);
   });
 

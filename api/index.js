@@ -839,24 +839,23 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
       });
     }
     const initialCohortUserIds = Array.from(candidateMembersMap.keys());
-    const [campBlksRes, userBlksRes] = await Promise.all([
-      supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").eq("campaign_id", campaignId).neq("status", "idle").limit(25e3),
-      initialCohortUserIds.length > 0 ? supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").in("user_id", initialCohortUserIds).neq("status", "idle").limit(25e3) : Promise.resolve({ data: [], error: null })
+    const memberBlocksPromises = initialCohortUserIds.map((uid) => getStudyBlocksForUser(uid));
+    const [campaignDirectBlocks, ...memberBlocksArrays] = await Promise.all([
+      supabase ? supabase.from("study_blocks").select("id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note").eq("campaign_id", campaignId).neq("status", "idle").limit(1e4).then((r) => (r.data || []).map(mapStudyBlockFromDb)) : Promise.resolve([]),
+      ...memberBlocksPromises
     ]);
-    if (campBlksRes.error) console.warn("[getCampaignLeaderboard] campBlksRes error:", campBlksRes.error);
-    if (userBlksRes.error) console.warn("[getCampaignLeaderboard] userBlksRes error:", userBlksRes.error);
     const blocksMap = /* @__PURE__ */ new Map();
-    if (campBlksRes.data && Array.isArray(campBlksRes.data)) {
-      for (const b of campBlksRes.data) {
-        if (b && b.id) blocksMap.set(b.id, b);
+    for (const b of campaignDirectBlocks) {
+      if (b && b.id) blocksMap.set(b.id, b);
+    }
+    for (const userBlks of memberBlocksArrays) {
+      if (Array.isArray(userBlks)) {
+        for (const b of userBlks) {
+          if (b && b.id) blocksMap.set(b.id, b);
+        }
       }
     }
-    if (userBlksRes.data && Array.isArray(userBlksRes.data)) {
-      for (const b of userBlksRes.data) {
-        if (b && b.id) blocksMap.set(b.id, b);
-      }
-    }
-    campaignBlocks = Array.from(blocksMap.values()).map(mapStudyBlockFromDb);
+    campaignBlocks = Array.from(blocksMap.values());
     for (const b of campaignBlocks) {
       if (b.userId && !candidateMembersMap.has(b.userId)) {
         const resolvedRole = b.userId === campaignAdminId ? "admin" : "member";
