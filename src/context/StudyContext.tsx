@@ -935,7 +935,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       sessionStartedAtRef.current = Date.now();
       lastInspectionTimestampRef.current = Date.now();
       lastCheckedElapsedSecondsRef.current = 0;
-      nextRandomCheckSecondsRef.current = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
+      // First inspection occurs earlier (45-60s) for rapid feedback, subsequent checks randomized (60-120s)
+      nextRandomCheckSecondsRef.current = Math.floor(Math.random() * (60 - 45 + 1)) + 45;
       isAnalyzingRef.current = false;
 
       // Save to localStorage for refresh persistence
@@ -1040,6 +1041,40 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const stopStudying = () => {
+    // If scholar studied for >= 30 seconds since last inspection, flush a final verified study block before teardown!
+    const uninspectedSec = sessionElapsedSeconds - lastCheckedElapsedSecondsRef.current;
+    const cid = activeCampaignIdRef.current;
+    const sNote = subjectNoteRef.current;
+    const cToken = tokenRef.current || token || localStorage.getItem('study_token');
+    const stream = screenStreamRef.current;
+
+    if (uninspectedSec >= 30 && stream && cid && cToken) {
+      const flushMins = Math.max(1, Math.round(uninspectedSec / 60) || 1);
+      captureScreenSnapshot(null).then(snapUrl => {
+        if (snapUrl) {
+          fetch('/api/study/verify-screen', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${cToken}`
+            },
+            body: JSON.stringify({
+              campaignId: cid,
+              subjectNote: sNote,
+              snapshotUrl: snapUrl,
+              durationMinutes: flushMins
+            })
+          }).then(res => res.json()).then(data => {
+            if (data?.block) {
+              window.dispatchEvent(new CustomEvent('study:block_logged', {
+                detail: { block: data.block, campaignId: cid, userId: user?.id }
+              }));
+            }
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+
     setIsStudying(false);
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach(track => track.stop());

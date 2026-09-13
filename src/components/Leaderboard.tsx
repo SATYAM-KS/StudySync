@@ -13,12 +13,16 @@ import {
   ExternalLink,
   Medal,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  RotateCw,
+  Clock,
+  Info
 } from 'lucide-react';
 
 interface LeaderboardProps {
   campaignId: string;
   targetDailyHours: number;
+  isActive?: boolean;
 }
 
 type Timeframe = 'today' | 'week' | 'month';
@@ -41,7 +45,7 @@ export function normalizeHackerrankUrl(val?: string | null): string {
   return `https://www.hackerrank.com/profile/${username}`;
 }
 
-export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours }) => {
+export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours, isActive = true }) => {
   const { user } = useAuth();
   const { socket } = useSocket();
   const { todayTargetHours: userDailyTarget } = useStudy();
@@ -57,25 +61,30 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       const raw = localStorage.getItem(cacheKey);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.dateKey === getTodayDateKey() && Array.isArray(parsed.data)) {
+        if (parsed?.dateKey === getTodayDateKey() && Array.isArray(parsed?.data)) {
           return parsed.data;
-        } else if (Array.isArray(parsed)) {
-          return parsed;
         }
       }
     } catch {}
     return [];
   });
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(() => {
     try {
-      return !localStorage.getItem(cacheKey);
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return !(parsed?.dateKey === getTodayDateKey() && Array.isArray(parsed?.data));
+      }
+      return true;
     } catch {
       return true;
     }
   });
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (showSpinner = false) => {
+    if (showSpinner) setIsRefreshing(true);
     try {
       const tzOffset = new Date().getTimezoneOffset();
       const res = await fetch(`/api/campaigns/${campaignId}/leaderboard?tzOffset=${tzOffset}`, {
@@ -92,18 +101,34 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       console.error('Failed to load leaderboard:', e);
     } finally {
       setIsLoading(false);
+      if (showSpinner) {
+        setTimeout(() => setIsRefreshing(false), 350);
+      }
     }
   };
+
+  // Immediate refresh when tab becomes active
+  useEffect(() => {
+    if (isActive) {
+      fetchLeaderboard();
+    }
+  }, [isActive]);
 
   useEffect(() => {
     fetchLeaderboard();
 
-    // 20-second polling to ensure zero data drift even on serverless or disconnected websockets
-    const interval = setInterval(fetchLeaderboard, 20000);
+    // 15-second polling to ensure zero data drift even on serverless or disconnected websockets
+    const interval = setInterval(() => {
+      if (isActive && !document.hidden) {
+        fetchLeaderboard();
+      }
+    }, 15000);
 
-    const handleFocus = () => fetchLeaderboard();
+    const handleFocus = () => {
+      if (isActive) fetchLeaderboard();
+    };
     const handleVisibility = () => {
-      if (!document.hidden) fetchLeaderboard();
+      if (isActive && !document.hidden) fetchLeaderboard();
     };
     const handleDayReset = () => fetchLeaderboard();
 
@@ -352,38 +377,63 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           </div>
         </div>
 
-        <div className="flex items-center space-x-1 glass-pill p-1 rounded-xl w-full sm:w-auto">
+        <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <div className="flex items-center space-x-1 glass-pill p-1 rounded-xl flex-1 sm:flex-initial">
+            <button
+              onClick={() => setTimeframe('today')}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                timeframe === 'today'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setTimeframe('week')}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                timeframe === 'week'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => setTimeframe('month')}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                timeframe === 'month'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+              }`}
+            >
+              This Month
+            </button>
+          </div>
+
           <button
-            onClick={() => setTimeframe('today')}
-            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              timeframe === 'today'
-                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-            }`}
+            onClick={() => fetchLeaderboard(true)}
+            disabled={isRefreshing}
+            className="p-2 rounded-xl glass-pill hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition cursor-pointer active:scale-95 border border-zinc-200/80 dark:border-white/[0.08]"
+            title="Refresh Leaderboard"
           >
-            Today
-          </button>
-          <button
-            onClick={() => setTimeframe('week')}
-            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              timeframe === 'week'
-                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-            }`}
-          >
-            This Week
-          </button>
-          <button
-            onClick={() => setTimeframe('month')}
-            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              timeframe === 'month'
-                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-            }`}
-          >
-            This Month
+            <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-500' : ''}`} />
           </button>
         </div>
+      </div>
+
+      {/* Study Day & Reset Notice */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-zinc-400" />
+          <span>Study Day resets daily at 2:00 AM local time</span>
+        </div>
+        {timeframe === 'today' && entries.length > 0 && entries.every(e => e.todayMinutes === 0) && (
+          <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 text-xs">
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            <span>New study day started at 2:00 AM. Click "This Week" to view yesterday's study hours!</span>
+          </div>
+        )}
       </div>
 
       {isLoading && sortedEntries.length === 0 ? (

@@ -879,7 +879,7 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
   invalidateCache('study_blocks');
   invalidateCache('leaderboard');
   if (supabase) {
-    await supabase.from('study_blocks').insert({
+    const { error } = await supabase.from('study_blocks').insert({
       id: block.id,
       user_id: block.userId,
       user_name: block.userName,
@@ -892,6 +892,9 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
       subject_note: block.subjectNote || 'Focus Study',
       snapshot_url: block.snapshotUrl && !block.snapshotUrl.startsWith('data:') ? block.snapshotUrl : null
     });
+    if (error) {
+      console.error('[db] Error inserting study_block into Supabase:', error);
+    }
   }
   const db = await initDb();
   db.studyBlocks.push(block);
@@ -974,6 +977,10 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId),
       supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(25000)
     ]);
+
+    if (campRes.error) console.warn('[getCampaignLeaderboard] campRes error:', campRes.error);
+    if (memsRes.error) console.warn('[getCampaignLeaderboard] memsRes error:', memsRes.error);
+    if (blksRes.error) console.error('[getCampaignLeaderboard] blksRes error:', blksRes.error);
 
     if (campRes.data) {
       targetHours = Number(campRes.data.target_daily_hours) || 4;

@@ -28,6 +28,7 @@ interface StudyHistoryProps {
   campaignName: string;
   targetDailyHours: number;
   campaignCreatedAt?: string;
+  isActive?: boolean;
 }
 
 type Timeframe = 'today' | 'week' | 'month';
@@ -63,12 +64,18 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
   campaignId,
   campaignName,
   targetDailyHours,
-  campaignCreatedAt
+  campaignCreatedAt,
+  isActive = true
 }) => {
   const { token, user } = useAuth();
   const { socket } = useSocket();
   const { collegeRoutine, todayTargetHours, setShowRoutineModal } = useStudy();
   const cacheKey = `study_history_cache_${campaignId}_${user?.id || 'anon'}`;
+
+  const getTodayDateKey = () => {
+    const adjusted = new Date(Date.now() - 2 * 3600 * 1000);
+    return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
+  };
 
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
   const [historyData, setHistoryData] = useState<HistoryResponse>(() => {
@@ -76,8 +83,9 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        const actual = parsed?.data && Array.isArray(parsed.data.blocks) ? parsed.data : (Array.isArray(parsed?.blocks) ? parsed : null);
-        if (actual) return actual;
+        if (parsed?.dateKey === getTodayDateKey() && parsed?.data && Array.isArray(parsed.data.blocks)) {
+          return parsed.data;
+        }
       }
     } catch {}
     return {
@@ -91,7 +99,12 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
   const [isLoading, setIsLoading] = useState(() => {
     try {
-      return !localStorage.getItem(cacheKey);
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return !(parsed?.dateKey === getTodayDateKey() && parsed?.data && Array.isArray(parsed.data.blocks));
+      }
+      return true;
     } catch {
       return true;
     }
@@ -120,11 +133,6 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
 
   const collapseAllSessions = () => {
     setExpandedSessionIds(new Set());
-  };
-
-  const getTodayDateKey = () => {
-    const adjusted = new Date(Date.now() - 2 * 3600 * 1000);
-    return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
   };
 
   const fetchHistory = async () => {
@@ -189,6 +197,13 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     }, 400);
   };
 
+  // Immediate refresh when tab becomes active
+  useEffect(() => {
+    if (isActive) {
+      fetchHistory();
+    }
+  }, [isActive]);
+
   useEffect(() => {
     fetchHistory();
 
@@ -197,12 +212,17 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
     };
     window.addEventListener('study:day_reset', handleDayReset);
 
-    const interval = setInterval(fetchHistory, 60000);
+    const interval = setInterval(() => {
+      if (isActive && !document.hidden) {
+        fetchHistory();
+      }
+    }, 20000);
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('study:day_reset', handleDayReset);
     };
-  }, [campaignId, token]);
+  }, [campaignId, token, isActive]);
 
   // Real-time local events
   useEffect(() => {
