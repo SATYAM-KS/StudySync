@@ -120,11 +120,24 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.active_calls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leaderboards ENABLE ROW LEVEL SECURITY;
 
--- Allow full access for backend service / anon API calls
+-- Allow full access for backend service / anon API calls (Safe to re-run multiple times)
+DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.users;
 CREATE POLICY "Allow all operations for service backend" ON public.users FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.campaigns;
 CREATE POLICY "Allow all operations for service backend" ON public.campaigns FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.memberships;
 CREATE POLICY "Allow all operations for service backend" ON public.memberships FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.study_blocks;
 CREATE POLICY "Allow all operations for service backend" ON public.study_blocks FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.messages;
 CREATE POLICY "Allow all operations for service backend" ON public.messages FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.active_calls;
 CREATE POLICY "Allow all operations for service backend" ON public.active_calls FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.leaderboards;
 CREATE POLICY "Allow all operations for service backend" ON public.leaderboards FOR ALL USING (true) WITH CHECK (true);
