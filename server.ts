@@ -612,6 +612,7 @@ app.get('/api/campaigns/:id/leaderboard', async (req, res) => {
     const tzOffset = !isNaN(tzOffsetQuery as number) ? tzOffsetQuery : (!isNaN(tzHeader as number) ? tzHeader : -330);
 
     const leaderboard = await getCampaignLeaderboard(req.params.id, tzOffset);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(leaderboard);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to compute leaderboard' });

@@ -839,38 +839,46 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
       });
     }
     const initialCohortUserIds = Array.from(candidateMembersMap.keys());
-    let blksQuery = supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").eq("status", "active").limit(25e3);
-    if (initialCohortUserIds.length > 0) {
-      blksQuery = blksQuery.or(`campaign_id.eq.${campaignId},user_id.in.(${initialCohortUserIds.join(",")})`);
-    } else {
-      blksQuery = blksQuery.eq("campaign_id", campaignId);
-    }
-    const blksRes = await blksQuery;
-    if (blksRes.error) console.error("[getCampaignLeaderboard] blksRes error:", blksRes.error);
-    if (blksRes.data) {
-      campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
-      for (const b of campaignBlocks) {
-        if (b.userId && !candidateMembersMap.has(b.userId)) {
-          const resolvedRole = b.userId === campaignAdminId ? "admin" : "member";
-          candidateMembersMap.set(b.userId, {
-            userId: b.userId,
-            userName: b.userName || "Scholar",
-            userAvatarUrl: b.userAvatarUrl || "",
-            role: resolvedRole
-          });
-        }
+    const [campBlksRes, userBlksRes] = await Promise.all([
+      supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").eq("campaign_id", campaignId).neq("status", "idle").limit(25e3),
+      initialCohortUserIds.length > 0 ? supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").in("user_id", initialCohortUserIds).neq("status", "idle").limit(25e3) : Promise.resolve({ data: [], error: null })
+    ]);
+    if (campBlksRes.error) console.warn("[getCampaignLeaderboard] campBlksRes error:", campBlksRes.error);
+    if (userBlksRes.error) console.warn("[getCampaignLeaderboard] userBlksRes error:", userBlksRes.error);
+    const blocksMap = /* @__PURE__ */ new Map();
+    if (campBlksRes.data && Array.isArray(campBlksRes.data)) {
+      for (const b of campBlksRes.data) {
+        if (b && b.id) blocksMap.set(b.id, b);
       }
     }
-    const cohortUserIds = Array.from(candidateMembersMap.keys());
-    if (cohortUserIds.length > 0) {
-      const { data: usersData } = await supabase.from("users").select("id, name, avatar_url, bio, leetcode_url, hackerrank_url").in("id", cohortUserIds);
+    if (userBlksRes.data && Array.isArray(userBlksRes.data)) {
+      for (const b of userBlksRes.data) {
+        if (b && b.id) blocksMap.set(b.id, b);
+      }
+    }
+    campaignBlocks = Array.from(blocksMap.values()).map(mapStudyBlockFromDb);
+    for (const b of campaignBlocks) {
+      if (b.userId && !candidateMembersMap.has(b.userId)) {
+        const resolvedRole = b.userId === campaignAdminId ? "admin" : "member";
+        candidateMembersMap.set(b.userId, {
+          userId: b.userId,
+          userName: b.userName || "Scholar",
+          userAvatarUrl: b.userAvatarUrl || "",
+          role: resolvedRole
+        });
+      }
+    }
+    const allCohortUserIds = Array.from(candidateMembersMap.keys());
+    if (allCohortUserIds.length > 0) {
+      const { data: usersData, error: usersErr } = await supabase.from("users").select("id, name, avatar_url, bio").in("id", allCohortUserIds);
+      if (usersErr) console.warn("[getCampaignLeaderboard] usersErr:", usersErr);
       if (usersData) {
         for (const u of usersData) {
           const extracted = extractCodingLinks(u.bio || "", todayKey);
           userProfilesMap.set(u.id, {
             id: u.id,
-            leetcodeUrl: u.leetcode_url || extracted.leetcodeUrl,
-            hackerrankUrl: u.hackerrank_url || extracted.hackerrankUrl,
+            leetcodeUrl: extracted.leetcodeUrl,
+            hackerrankUrl: extracted.hackerrankUrl,
             dailyRoutine: extracted.dailyRoutine
           });
           const currentMem = candidateMembersMap.get(u.id);
@@ -910,7 +918,7 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
       });
     }
     const localMemberIds = new Set(candidateMembersMap.keys());
-    campaignBlocks = db.studyBlocks.filter((b) => (b.campaignId === campaignId || localMemberIds.has(b.userId)) && b.status === "active");
+    campaignBlocks = db.studyBlocks.filter((b) => (b.campaignId === campaignId || localMemberIds.has(b.userId)) && b.status !== "idle");
     for (const b of campaignBlocks) {
       if (b.userId && !candidateMembersMap.has(b.userId)) {
         const resolvedRole = b.userId === campaignAdminId ? "admin" : "member";
@@ -2146,6 +2154,7 @@ app.get("/api/campaigns/:id/leaderboard", async (req, res) => {
     const tzHeader = req.headers["x-timezone-offset"] ? parseInt(req.headers["x-timezone-offset"], 10) : void 0;
     const tzOffset = !isNaN(tzOffsetQuery) ? tzOffsetQuery : !isNaN(tzHeader) ? tzHeader : -330;
     const leaderboard = await getCampaignLeaderboard(req.params.id, tzOffset);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.json(leaderboard);
   } catch (err) {
     res.status(500).json({ error: "Failed to compute leaderboard" });

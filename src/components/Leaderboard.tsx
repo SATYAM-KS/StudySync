@@ -85,15 +85,20 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     if (showSpinner) setIsRefreshing(true);
     try {
       const tzOffset = new Date().getTimezoneOffset();
-      const res = await fetch(`/api/campaigns/${campaignId}/leaderboard?tzOffset=${tzOffset}`, {
-        headers: { 'x-timezone-offset': String(tzOffset) }
+      const res = await fetch(`/api/campaigns/${campaignId}/leaderboard?tzOffset=${tzOffset}&_t=${Date.now()}`, {
+        headers: { 
+          'x-timezone-offset': String(tzOffset),
+          'Cache-Control': 'no-cache'
+        }
       });
       if (res.ok) {
         const data = await res.json();
-        setEntries(data);
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
-        } catch {}
+        if (Array.isArray(data)) {
+          setEntries(data);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
+          } catch {}
+        }
       }
     } catch (e) {
       console.error('Failed to load leaderboard:', e);
@@ -136,7 +141,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     window.addEventListener('study:history_changed', handleFocus);
 
     const handleIncomingBlock = (block: any) => {
-      if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
+      if (block && (block.status === 'active' || block.status === 'studying') && (!block.campaignId || block.campaignId === campaignId)) {
         const mins = Number(block.durationMinutes) || 5;
         setEntries(prev => {
           const exists = prev.some(e => e.userId === block.userId);
