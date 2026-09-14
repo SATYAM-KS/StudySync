@@ -22,7 +22,8 @@ import {
   Camera,
   ArrowUpRight,
   Zap,
-  Target
+  Target,
+  Lock
 } from 'lucide-react';
 
 interface FocusLoungeProps {
@@ -220,15 +221,13 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
               return (
                 <div className="mt-6 flex flex-col items-center space-y-2 w-full max-w-sm">
                   <div className="flex items-center justify-between w-full text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setShowRoutineModal(true)}
-                      className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white text-[11px] font-semibold uppercase tracking-wider transition cursor-pointer flex items-center gap-1 group"
-                      title="Adjust daily study target goal"
-                    >
+                    <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500 text-[11px] font-semibold uppercase tracking-wider">
                       <span>Today's Target</span>
-                      <Target className="w-3 h-3 text-emerald-500 group-hover:scale-110 transition-transform" />
-                    </button>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800/80 text-[10px] font-mono text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xs" title="Daily study target is locked until 2:00 AM reset">
+                        <Lock className="w-2.5 h-2.5 text-amber-500" />
+                        <span>Locked</span>
+                      </span>
+                    </div>
                     <span className="font-extrabold text-zinc-950 dark:text-white font-mono text-xs">
                       {todayCompletedMins}m / {todayTargetMins}m ({progressPct}%)
                     </span>

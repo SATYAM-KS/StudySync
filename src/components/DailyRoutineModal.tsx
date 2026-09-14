@@ -169,7 +169,65 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
         <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {step === 'select' ? (
+        {Boolean(currentTargetHours) ? (
+          /* ─── LOCKED STATE: Target is already set and cannot be changed ─── */
+          <div className="relative z-10 flex flex-col items-center text-center space-y-4 py-2">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+              <Lock className="w-7 h-7" />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-center gap-2">
+                <h2 className="text-lg font-bold text-white tracking-tight">
+                  Today's Target Locked
+                </h2>
+                <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Fixed
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400 mt-1">
+                {todayFormatted} · 2 AM Study Cycle
+              </p>
+            </div>
+
+            {/* Target Display Box */}
+            <div className="w-full p-5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between">
+              <div className="flex items-center space-x-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-white">
+                    {currentTargetHours} Hours Target
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {Number(currentTargetHours) * 12} verified focus intervals
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-black px-2.5 py-1 rounded-lg bg-emerald-500 text-black">
+                {currentTargetHours}h Goal
+              </span>
+            </div>
+
+            {/* Locked Notice */}
+            <div className="w-full p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2.5 text-left">
+              <Lock className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+              <span>
+                Your target was locked at 2:00 AM (or on your first login) and cannot be changed until the next 2:00 AM cycle reset.
+              </span>
+            </div>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition cursor-pointer shadow-lg active:scale-95"
+            >
+              Close & Return to Studio
+            </button>
+          </div>
+        ) : step === 'select' ? (
           /* ─── STEP 1: Interactive Target Selection ─── */
           <>
             {/* Top Header */}
@@ -301,7 +359,7 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="relative z-10 pt-1 flex flex-col gap-2">
+            <div className="relative z-10 pt-1">
               <button
                 type="button"
                 onClick={() => setStep('confirm')}
@@ -310,16 +368,6 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
                 <span>Proceed with {selectedHours}h Goal</span>
                 <Target className="w-4 h-4 text-emerald-600" />
               </button>
-
-              {Boolean(currentTargetHours) && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full py-2 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-semibold transition cursor-pointer border border-white/5"
-                >
-                  Keep Current Target ({currentTargetHours}h)
-                </button>
-              )}
             </div>
 
             {/* Footer Notice */}

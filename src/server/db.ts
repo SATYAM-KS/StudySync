@@ -190,6 +190,7 @@ export async function setUserDailyRoutine(
   // Invalidate cache
   invalidateCache('leaderboard');
   invalidateCache('user');
+  invalidateCache('all_users');
 }
 
 function mapUserFromDb(row: any): User & { passwordHash: string } {
@@ -334,7 +335,11 @@ export async function getUsers(): Promise<User[]> {
     }
   }
   const db = await initDb();
-  const mapped = db.users.map(({ passwordHash, ...user }) => user);
+  const mapped = db.users.map(u => {
+    const m = mapUserFromDb(u);
+    const { passwordHash, ...clean } = m;
+    return clean;
+  });
   return setToCache('all_users', mapped, 5000);
 }
 
@@ -352,8 +357,12 @@ export async function getUserById(id: string): Promise<(User & { passwordHash: s
   }
   const db = await initDb();
   const local = db.users.find(u => u.id === id);
-  if (local) setToCache(cacheKey, local, 5000);
-  return local;
+  if (local) {
+    const mapped = mapUserFromDb(local);
+    setToCache(cacheKey, mapped, 5000);
+    return mapped;
+  }
+  return undefined;
 }
 
 export async function getUserByEmail(email: string): Promise<(User & { passwordHash: string }) | undefined> {
@@ -371,8 +380,12 @@ export async function getUserByEmail(email: string): Promise<(User & { passwordH
   }
   const db = await initDb();
   const local = db.users.find(u => u.email.toLowerCase() === cleanEmail);
-  if (local) setToCache(cacheKey, local, 5000);
-  return local;
+  if (local) {
+    const mapped = mapUserFromDb(local);
+    setToCache(cacheKey, mapped, 5000);
+    return mapped;
+  }
+  return undefined;
 }
 
 export async function createUser(userData: User & { passwordHash: string }): Promise<User> {

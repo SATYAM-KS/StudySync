@@ -223,6 +223,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   const lastKnownTodayKeyRef = useRef<string>(getTodayKey());
   const hasPromptedTodayRef = useRef<string>('');
+  const isCheckingServerRoutineRef = useRef<boolean>(false);
 
   // Verify and trigger 2:00 AM check-in & automated day reset
   const checkDailyRoutineStatus = () => {
@@ -245,10 +246,19 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const savedHours = getSavedTargetHours(todayKey);
+    let savedHours = getSavedTargetHours(todayKey);
+
+    // If not in localStorage, check user.dailyRoutine from auth object
+    if (savedHours === null && user.dailyRoutine && user.dailyRoutine.dateKey === todayKey && user.dailyRoutine.targetHours > 0) {
+      savedHours = user.dailyRoutine.targetHours;
+      try {
+        localStorage.setItem(`study_daily_target_hours_${user.id}_${todayKey}`, String(savedHours));
+        localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, user.dailyRoutine.routine || `${savedHours}h`);
+      } catch {}
+    }
 
     if (savedHours !== null) {
-      // User has already set their target for today's 2 AM cycle
+      // User has already set and locked their target for today's 2 AM cycle
       setDailyTargetHoursState(savedHours);
       setCollegeRoutine(`${savedHours}h`);
       setShowRoutineModal(false);
@@ -275,11 +285,41 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } else {
-      // Case 2: Target is not yet set for today's 2 AM cycle
-      // Automatically pop up when user logs in for the first time after 2 AM
-      setDailyTargetHoursState(null);
-      setCollegeRoutine(null);
-      setShowRoutineModal(true);
+      // Check server before showing popup to avoid showing to user who already set on another device
+      const activeToken = tokenRef.current || token || localStorage.getItem('study_token');
+      if (activeToken && !isCheckingServerRoutineRef.current) {
+        isCheckingServerRoutineRef.current = true;
+        fetch(`/api/user/daily-routine?dateKey=${todayKey}&tzOffset=${new Date().getTimezoneOffset()}`, {
+          headers: { Authorization: `Bearer ${activeToken}` }
+        })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            isCheckingServerRoutineRef.current = false;
+            if (data && data.isSet && data.targetHours > 0) {
+              try {
+                localStorage.setItem(`study_daily_target_hours_${user.id}_${todayKey}`, String(data.targetHours));
+                localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, data.routine || `${data.targetHours}h`);
+              } catch {}
+              setDailyTargetHoursState(data.targetHours);
+              setCollegeRoutine(data.routine || `${data.targetHours}h`);
+              setShowRoutineModal(false);
+            } else {
+              setDailyTargetHoursState(null);
+              setCollegeRoutine(null);
+              setShowRoutineModal(true);
+            }
+          })
+          .catch(() => {
+            isCheckingServerRoutineRef.current = false;
+            setDailyTargetHoursState(null);
+            setCollegeRoutine(null);
+            setShowRoutineModal(true);
+          });
+      } else if (!activeToken) {
+        setDailyTargetHoursState(null);
+        setCollegeRoutine(null);
+        setShowRoutineModal(true);
+      }
     }
   };
 
@@ -333,6 +373,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   const setDailyTargetHours = async (hours: number) => {
     const todayKey = getTodayKey();
+    // Once locked for today's 2 AM cycle, target cannot be modified
+    const existing = getSavedTargetHours(todayKey);
+    if (existing !== null && dailyTargetHours !== null) {
+      console.warn('Target is locked for today and cannot be modified until the 2:00 AM reset.');
+      setShowRoutineModal(false);
+      return;
+    }
+
     const validHours = Math.max(1, Math.min(24, Math.round(hours * 10) / 10));
     try {
       if (user?.id) {

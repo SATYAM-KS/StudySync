@@ -292,6 +292,38 @@ app.put('/api/auth/profile', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+app.get('/api/user/daily-routine', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const user = await getUserById(req.user!.id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    const tz = typeof req.query.tzOffset === 'string' ? parseInt(req.query.tzOffset, 10) : -330;
+    const todayKey = (req.query.dateKey as string) || get2AMAlignedDateKey(new Date(), tz);
+
+    if (user.dailyRoutine && user.dailyRoutine.dateKey === todayKey && user.dailyRoutine.targetHours > 0) {
+      res.json({
+        isSet: true,
+        dateKey: todayKey,
+        targetHours: user.dailyRoutine.targetHours,
+        routine: user.dailyRoutine.routine
+      });
+      return;
+    }
+
+    res.json({
+      isSet: false,
+      dateKey: todayKey,
+      targetHours: null,
+      routine: null
+    });
+  } catch (err: any) {
+    console.error('Failed to get daily routine:', err);
+    res.status(500).json({ error: 'Failed to fetch daily routine' });
+  }
+});
+
 app.post('/api/user/daily-routine', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { routine, targetHours, dateKey, tzOffset } = req.body;
@@ -314,6 +346,19 @@ app.post('/api/user/daily-routine', authMiddleware, async (req: AuthRequest, res
 
     const tz = typeof tzOffset === 'number' && !isNaN(tzOffset) ? tzOffset : -330;
     const finalDateKey = dateKey || get2AMAlignedDateKey(new Date(), tz);
+
+    // Check if target is already locked for this dateKey
+    const user = await getUserById(req.user!.id);
+    if (user && user.dailyRoutine && user.dailyRoutine.dateKey === finalDateKey && user.dailyRoutine.targetHours > 0) {
+      res.json({ 
+        success: true, 
+        locked: true, 
+        dateKey: finalDateKey, 
+        routine: user.dailyRoutine.routine, 
+        targetHours: user.dailyRoutine.targetHours 
+      });
+      return;
+    }
 
     await setUserDailyRoutine(req.user!.id, finalDateKey, finalTargetHours, finalRoutine);
 

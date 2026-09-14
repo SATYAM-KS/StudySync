@@ -174,6 +174,7 @@ async function setUserDailyRoutine(userId, dateKey, targetHoursOrRoutine, option
   saveDb();
   invalidateCache("leaderboard");
   invalidateCache("user");
+  invalidateCache("all_users");
 }
 function mapUserFromDb(row) {
   const extracted = extractCodingLinks(row.bio || "");
@@ -278,7 +279,11 @@ async function getUsers() {
     }
   }
   const db = await initDb();
-  const mapped = db.users.map(({ passwordHash, ...user }) => user);
+  const mapped = db.users.map((u) => {
+    const m = mapUserFromDb(u);
+    const { passwordHash, ...clean } = m;
+    return clean;
+  });
   return setToCache("all_users", mapped, 5e3);
 }
 async function getUserById(id) {
@@ -294,8 +299,12 @@ async function getUserById(id) {
   }
   const db = await initDb();
   const local = db.users.find((u) => u.id === id);
-  if (local) setToCache(cacheKey, local, 5e3);
-  return local;
+  if (local) {
+    const mapped = mapUserFromDb(local);
+    setToCache(cacheKey, mapped, 5e3);
+    return mapped;
+  }
+  return void 0;
 }
 async function getUserByEmail(email) {
   const cleanEmail = email.trim().toLowerCase();
@@ -311,8 +320,12 @@ async function getUserByEmail(email) {
   }
   const db = await initDb();
   const local = db.users.find((u) => u.email.toLowerCase() === cleanEmail);
-  if (local) setToCache(cacheKey, local, 5e3);
-  return local;
+  if (local) {
+    const mapped = mapUserFromDb(local);
+    setToCache(cacheKey, mapped, 5e3);
+    return mapped;
+  }
+  return void 0;
 }
 async function createUser(userData) {
   invalidateCache("user");
@@ -1786,6 +1799,35 @@ app.put("/api/auth/profile", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to update profile" });
   }
 });
+app.get("/api/user/daily-routine", authMiddleware, async (req, res) => {
+  try {
+    const user = await getUserById(req.user.id);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const tz = typeof req.query.tzOffset === "string" ? parseInt(req.query.tzOffset, 10) : -330;
+    const todayKey = req.query.dateKey || get2AMAlignedDateKey(/* @__PURE__ */ new Date(), tz);
+    if (user.dailyRoutine && user.dailyRoutine.dateKey === todayKey && user.dailyRoutine.targetHours > 0) {
+      res.json({
+        isSet: true,
+        dateKey: todayKey,
+        targetHours: user.dailyRoutine.targetHours,
+        routine: user.dailyRoutine.routine
+      });
+      return;
+    }
+    res.json({
+      isSet: false,
+      dateKey: todayKey,
+      targetHours: null,
+      routine: null
+    });
+  } catch (err) {
+    console.error("Failed to get daily routine:", err);
+    res.status(500).json({ error: "Failed to fetch daily routine" });
+  }
+});
 app.post("/api/user/daily-routine", authMiddleware, async (req, res) => {
   try {
     const { routine, targetHours, dateKey, tzOffset } = req.body;
@@ -1806,6 +1848,17 @@ app.post("/api/user/daily-routine", authMiddleware, async (req, res) => {
     }
     const tz = typeof tzOffset === "number" && !isNaN(tzOffset) ? tzOffset : -330;
     const finalDateKey = dateKey || get2AMAlignedDateKey(/* @__PURE__ */ new Date(), tz);
+    const user = await getUserById(req.user.id);
+    if (user && user.dailyRoutine && user.dailyRoutine.dateKey === finalDateKey && user.dailyRoutine.targetHours > 0) {
+      res.json({
+        success: true,
+        locked: true,
+        dateKey: finalDateKey,
+        routine: user.dailyRoutine.routine,
+        targetHours: user.dailyRoutine.targetHours
+      });
+      return;
+    }
     await setUserDailyRoutine(req.user.id, finalDateKey, finalTargetHours, finalRoutine);
     if (io) {
       io.emit("study:routine_updated", {
