@@ -913,6 +913,8 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   let approvedMembers: CampaignMembership[] = [];
   let campaignBlocks: StudyBlock[] = [];
   let targetHours = 4;
+  let campaignAdminId: string | undefined = undefined;
+  let campaignAdminName: string | undefined = undefined;
   let allUsers: Array<{ 
     id: string; 
     leetcodeUrl?: string; 
@@ -921,33 +923,111 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   }> = [];
 
   if (supabase) {
-    const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
-      supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
-      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId).eq('status', 'approved'),
-      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(25000),
-      supabase.from('users').select('id, bio').limit(200)
+    const [campRes, memsRes] = await Promise.all([
+      supabase.from('campaigns').select('target_daily_hours, admin_id, admin_name').eq('id', campaignId).single(),
+      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId)
     ]);
-    if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
-    if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
-    if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
-    if (usersRes.data) {
-      allUsers = usersRes.data.map(u => {
-        const extracted = extractCodingLinks(u.bio || '');
-        return {
-          id: u.id,
-          leetcodeUrl: extracted.leetcodeUrl,
-          hackerrankUrl: extracted.hackerrankUrl,
-          dailyRoutine: extracted.dailyRoutine
-        };
+
+    if (campRes.data) {
+      targetHours = Number(campRes.data.target_daily_hours) || 4;
+      campaignAdminId = campRes.data.admin_id;
+      campaignAdminName = campRes.data.admin_name;
+    }
+
+    if (memsRes.data) {
+      for (const m of memsRes.data) {
+        if (m.status === 'approved' || m.role === 'admin' || m.role === 'co-admin' || m.user_id === campaignAdminId) {
+          approvedMembers.push(mapMembershipFromDb(m));
+        }
+      }
+    }
+
+    // Ensure creator/admin is included even if separate membership row is pending
+    if (campaignAdminId && !approvedMembers.some(m => m.userId === campaignAdminId)) {
+      approvedMembers.push({
+        id: `mem_${campaignAdminId}_${campaignId}`,
+        campaignId,
+        userId: campaignAdminId,
+        userName: campaignAdminName || 'Cohort Leader',
+        userEmail: '',
+        role: 'admin',
+        status: 'approved',
+        joinedAt: new Date().toISOString()
       });
+    }
+
+    const memberUserIds = approvedMembers.map(m => m.userId);
+
+    // Fetch study hours using getStudyBlocksForUser (exact same function that powers Study History & Focus Studio)
+    const memberBlocksPromises = memberUserIds.map(uid => getStudyBlocksForUser(uid));
+    const [directCampBlocksRes, ...memberBlocksArrays] = await Promise.all([
+      supabase
+        .from('study_blocks')
+        .select('id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note')
+        .eq('campaign_id', campaignId)
+        .neq('status', 'idle')
+        .limit(10000),
+      ...memberBlocksPromises
+    ]);
+
+    const blocksMap = new Map<string, StudyBlock>();
+    if (directCampBlocksRes?.data) {
+      for (const b of directCampBlocksRes.data) {
+        if (b && b.id) blocksMap.set(b.id, mapStudyBlockFromDb(b));
+      }
+    }
+    for (const uBlocks of memberBlocksArrays) {
+      if (Array.isArray(uBlocks)) {
+        for (const b of uBlocks) {
+          if (b && b.id) blocksMap.set(b.id, b);
+        }
+      }
+    }
+    campaignBlocks = Array.from(blocksMap.values());
+
+    // Targeted fetch of users
+    if (memberUserIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, bio')
+        .in('id', memberUserIds);
+
+      if (usersData) {
+        allUsers = usersData.map(u => {
+          const extracted = extractCodingLinks(u.bio || '');
+          return {
+            id: u.id,
+            leetcodeUrl: extracted.leetcodeUrl,
+            hackerrankUrl: extracted.hackerrankUrl,
+            dailyRoutine: extracted.dailyRoutine
+          };
+        });
+      }
     }
   } else {
     const db = await initDb();
     const campaign = db.campaigns.find(c => c.id === campaignId);
     targetHours = campaign?.targetDailyHours || 4;
-    approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && m.status === 'approved');
-    campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
-    allUsers = db.users.map(u => {
+    campaignAdminId = campaign?.adminId;
+    campaignAdminName = campaign?.adminName;
+
+    approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && (m.status === 'approved' || m.role === 'admin' || m.userId === campaignAdminId));
+    if (campaignAdminId && !approvedMembers.some(m => m.userId === campaignAdminId)) {
+      approvedMembers.push({
+        id: `mem_${campaignAdminId}_${campaignId}`,
+        campaignId,
+        userId: campaignAdminId,
+        userName: campaignAdminName || 'Cohort Leader',
+        userEmail: '',
+        role: 'admin',
+        status: 'approved',
+        joinedAt: new Date().toISOString()
+      });
+    }
+
+    const memberIdsSet = new Set(approvedMembers.map(m => m.userId));
+    campaignBlocks = db.studyBlocks.filter(b => (b.campaignId === campaignId || memberIdsSet.has(b.userId)) && b.status !== 'idle');
+    allUsers = db.users.filter(u => memberIdsSet.has(u.id)).map(u => {
       const extracted = extractCodingLinks(u.bio || '');
       return {
         id: u.id,
@@ -1058,5 +1138,5 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   });
 
   const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
-  return setToCache(cacheKey, sorted, 4000);
+  return setToCache(cacheKey, sorted, 1500);
 }

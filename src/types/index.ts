@@ -133,13 +133,20 @@ export interface LeaderboardEntry {
   hackerrankUrl?: string;
   role: Role;
   todayMinutes: number;
+  todayHours?: number;
   thisWeekMinutes: number;
+  thisWeekHours?: number;
   thisMonthMinutes?: number;
+  thisMonthHours?: number;
   totalMinutes: number;
+  totalHours?: number;
   activeStreakDays: number;
+  streakDays?: number;
   lastActive?: string;
   targetDailyHours: number;
   todayTargetMet: boolean;
+  targetCompleted?: boolean;
+  progressPercentage?: number;
   rank?: number;
 }
 

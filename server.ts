@@ -601,6 +601,10 @@ app.delete('/api/campaigns/:id/members/:memberId', authMiddleware, async (req: A
 // Campaign Leaderboard
 app.get('/api/campaigns/:id/leaderboard', async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset as string, 10) : undefined;
     const tzHeader = req.headers['x-timezone-offset'] ? parseInt(req.headers['x-timezone-offset'] as string, 10) : undefined;
     const tzOffset = !isNaN(tzOffsetQuery as number) ? tzOffsetQuery : (!isNaN(tzHeader as number) ? tzHeader : -330);

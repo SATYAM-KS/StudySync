@@ -410,7 +410,11 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               display: activeTab === 'leaderboard' ? 'block' : 'none'
             }}
           >
-            <Leaderboard campaignId={campaign.id} targetDailyHours={campaign.targetDailyHours} />
+            <Leaderboard 
+              campaignId={campaign.id} 
+              targetDailyHours={campaign.targetDailyHours} 
+              isActive={activeTab === 'leaderboard'} 
+            />
           </div>
 
           <div

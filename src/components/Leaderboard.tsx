@@ -13,12 +13,14 @@ import {
   ExternalLink,
   Medal,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  RefreshCw
 } from 'lucide-react';
 
 interface LeaderboardProps {
   campaignId: string;
   targetDailyHours: number;
+  isActive?: boolean;
 }
 
 type Timeframe = 'today' | 'week' | 'month';
@@ -41,11 +43,12 @@ export function normalizeHackerrankUrl(val?: string | null): string {
   return `https://www.hackerrank.com/profile/${username}`;
 }
 
-export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours }) => {
+export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours, isActive = true }) => {
   const { user } = useAuth();
   const { socket } = useSocket();
-  const { todayTargetHours: userDailyTarget } = useStudy();
+  const { todayTargetHours: userDailyTarget, stats } = useStudy();
   const cacheKey = `study_leaderboard_cache_${campaignId}`;
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const getTodayDateKey = () => {
     const adjusted = new Date(Date.now() - 2 * 3600 * 1000);
@@ -75,42 +78,125 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     }
   });
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (isManual = false) => {
+    if (isManual) setIsRefreshing(true);
     try {
       const tzOffset = new Date().getTimezoneOffset();
-      const res = await fetch(`/api/campaigns/${campaignId}/leaderboard?tzOffset=${tzOffset}`, {
-        headers: { 'x-timezone-offset': String(tzOffset) }
+      const res = await fetch(`/api/campaigns/${campaignId}/leaderboard?tzOffset=${tzOffset}&_t=${Date.now()}`, {
+        headers: { 
+          'x-timezone-offset': String(tzOffset),
+          'Cache-Control': 'no-cache'
+        }
       });
       if (res.ok) {
         const data = await res.json();
-        setEntries(data);
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
-        } catch {}
+        if (Array.isArray(data)) {
+          setEntries(data);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ data, dateKey: getTodayDateKey() }));
+          } catch {}
+        }
       }
     } catch (e) {
       console.error('Failed to load leaderboard:', e);
     } finally {
       setIsLoading(false);
+      if (isManual) {
+        setTimeout(() => setIsRefreshing(false), 500);
+      }
     }
   };
 
+  // Fetch immediately on mount or when tab becomes active
   useEffect(() => {
-    fetchLeaderboard();
+    if (isActive) {
+      fetchLeaderboard();
+    }
+  }, [campaignId, isActive]);
 
+  // 15-second polling interval while active & tab visible
+  useEffect(() => {
+    if (!isActive) return;
+    const timer = setInterval(() => {
+      if (!document.hidden) {
+        fetchLeaderboard();
+      }
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [campaignId, isActive]);
+
+  // Refresh when browser tab regains focus or becomes visible
+  useEffect(() => {
+    const handleVisibilityOrFocus = () => {
+      if (isActive && !document.hidden) {
+        fetchLeaderboard();
+      }
+    };
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    return () => {
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, [campaignId, isActive]);
+
+  // Day reset and local event listeners
+  useEffect(() => {
     const handleDayReset = () => {
       fetchLeaderboard();
     };
-    window.addEventListener('study:day_reset', handleDayReset);
 
-    if (!socket) {
-      return () => {
-        window.removeEventListener('study:day_reset', handleDayReset);
-      };
-    }
+    const handleLocalEvent = (e: any) => {
+      const block = e?.detail?.block;
+      if (block && block.status === 'active') {
+        const mins = Number(block.durationMinutes) || 5;
+        setEntries(prev => prev.map(entry => {
+          if (entry.userId === block.userId) {
+            const newToday = entry.todayMinutes + mins;
+            const newWeek = entry.thisWeekMinutes + mins;
+            const newMonth = entry.thisMonthMinutes + mins;
+            const newTotal = entry.totalMinutes + mins;
+            return {
+              ...entry,
+              todayMinutes: newToday,
+              todayHours: Number((newToday / 60).toFixed(1)),
+              thisWeekMinutes: newWeek,
+              thisWeekHours: Number((newWeek / 60).toFixed(1)),
+              thisMonthMinutes: newMonth,
+              thisMonthHours: Number((newMonth / 60).toFixed(1)),
+              totalMinutes: newTotal,
+              totalHours: Number((newTotal / 60).toFixed(1)),
+              lastActive: new Date().toISOString()
+            };
+          }
+          return entry;
+        }));
+      }
+      fetchLeaderboard();
+    };
+
+    const handleLocalRoutine = () => {
+      fetchLeaderboard();
+    };
+
+    window.addEventListener('study:day_reset', handleDayReset);
+    window.addEventListener('study:block_logged', handleLocalEvent);
+    window.addEventListener('study:routine_updated', handleLocalRoutine);
+
+    return () => {
+      window.removeEventListener('study:day_reset', handleDayReset);
+      window.removeEventListener('study:block_logged', handleLocalEvent);
+      window.removeEventListener('study:routine_updated', handleLocalRoutine);
+    };
+  }, [campaignId]);
+
+  // Socket event listeners
+  useEffect(() => {
+    if (!socket) return;
+
     const handleBlockLogged = (data?: any) => {
       const block = data?.block;
-      if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
+      if (block && block.status === 'active') {
         const mins = Number(block.durationMinutes) || 5;
         setEntries(prev => prev.map(entry => {
           if (entry.userId === block.userId) {
@@ -152,7 +238,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     socket.on('campaign:member_left', handleMemberUpdate);
 
     return () => {
-      window.removeEventListener('study:day_reset', handleDayReset);
       socket.off('study:block_logged', handleBlockLogged);
       socket.off('study:routine_updated', handleRoutineUpdate);
       socket.off('campaign:member_joined', handleMemberUpdate);
@@ -160,48 +245,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       socket.off('campaign:member_left', handleMemberUpdate);
     };
   }, [campaignId, socket]);
-
-  useEffect(() => {
-    const handleLocalEvent = (e: any) => {
-      const block = e?.detail?.block;
-      if (block && block.status === 'active' && (!block.campaignId || block.campaignId === campaignId)) {
-        const mins = Number(block.durationMinutes) || 5;
-        setEntries(prev => prev.map(entry => {
-          if (entry.userId === block.userId) {
-            const newToday = entry.todayMinutes + mins;
-            const newWeek = entry.thisWeekMinutes + mins;
-            const newMonth = entry.thisMonthMinutes + mins;
-            const newTotal = entry.totalMinutes + mins;
-            return {
-              ...entry,
-              todayMinutes: newToday,
-              todayHours: Number((newToday / 60).toFixed(1)),
-              thisWeekMinutes: newWeek,
-              thisWeekHours: Number((newWeek / 60).toFixed(1)),
-              thisMonthMinutes: newMonth,
-              thisMonthHours: Number((newMonth / 60).toFixed(1)),
-              totalMinutes: newTotal,
-              totalHours: Number((newTotal / 60).toFixed(1)),
-              lastActive: new Date().toISOString()
-            };
-          }
-          return entry;
-        }));
-      }
-      fetchLeaderboard();
-    };
-
-    const handleLocalRoutine = () => {
-      fetchLeaderboard();
-    };
-
-    window.addEventListener('study:block_logged', handleLocalEvent);
-    window.addEventListener('study:routine_updated', handleLocalRoutine);
-    return () => {
-      window.removeEventListener('study:block_logged', handleLocalEvent);
-      window.removeEventListener('study:routine_updated', handleLocalRoutine);
-    };
-  }, [campaignId]);
 
   const getDaysInCurrentMonth = () => {
     const now = new Date();
@@ -250,7 +293,42 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     return "Monthly Focus Target";
   };
 
-  const sortedEntries = [...entries].sort((a, b) => {
+  const getHarmonizedEntry = (entry: LeaderboardEntry): LeaderboardEntry => {
+    if (user && entry.userId === user.id && stats) {
+      const todayMinutes = Math.max(entry.todayMinutes, stats.todayMinutes || 0);
+      const thisWeekMinutes = Math.max(entry.thisWeekMinutes, stats.thisWeekMinutes || 0);
+      const thisMonthMinutes = Math.max(entry.thisMonthMinutes, stats.thisMonthMinutes || stats.todayMinutes || 0);
+      const totalMinutes = Math.max(entry.totalMinutes, stats.totalMinutes || 0);
+      const activeStreakDays = Math.max(entry.activeStreakDays, stats.activeStreakDays || stats.streakDays || 0);
+      const streakDays = Math.max(entry.streakDays, stats.streakDays || stats.activeStreakDays || 0);
+      const dailyTarget = getEntryDailyTarget(entry);
+      const todayHours = Number((todayMinutes / 60).toFixed(1));
+      const targetCompleted = todayHours >= dailyTarget;
+      const progressPercentage = dailyTarget > 0 ? Math.min(100, Math.round((todayHours / dailyTarget) * 100)) : 0;
+
+      return {
+        ...entry,
+        todayMinutes,
+        todayHours,
+        thisWeekMinutes,
+        thisWeekHours: Number((thisWeekMinutes / 60).toFixed(1)),
+        thisMonthMinutes,
+        thisMonthHours: Number((thisMonthMinutes / 60).toFixed(1)),
+        totalMinutes,
+        totalHours: Number((totalMinutes / 60).toFixed(1)),
+        activeStreakDays,
+        streakDays,
+        todayTargetMet: targetCompleted,
+        targetCompleted,
+        progressPercentage
+      };
+    }
+    return entry;
+  };
+
+  const harmonizedEntries = entries.map(getHarmonizedEntry);
+
+  const sortedEntries = [...harmonizedEntries].sort((a, b) => {
     return getMinutesForTimeframe(b, timeframe) - getMinutesForTimeframe(a, timeframe);
   });
 
@@ -348,36 +426,47 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           </div>
         </div>
 
-        <div className="flex items-center space-x-1 glass-pill p-1 rounded-xl w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <div className="flex items-center space-x-1 glass-pill p-1 rounded-xl flex-1 sm:flex-initial">
+            <button
+              onClick={() => setTimeframe('today')}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                timeframe === 'today'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setTimeframe('week')}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                timeframe === 'week'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => setTimeframe('month')}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                timeframe === 'month'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+              }`}
+            >
+              This Month
+            </button>
+          </div>
+
           <button
-            onClick={() => setTimeframe('today')}
-            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              timeframe === 'today'
-                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-            }`}
+            onClick={() => fetchLeaderboard(true)}
+            disabled={isRefreshing}
+            title="Refresh Leaderboard"
+            className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition cursor-pointer flex items-center justify-center shadow-xs shrink-0"
           >
-            Today
-          </button>
-          <button
-            onClick={() => setTimeframe('week')}
-            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              timeframe === 'week'
-                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-            }`}
-          >
-            This Week
-          </button>
-          <button
-            onClick={() => setTimeframe('month')}
-            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              timeframe === 'month'
-                ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
-            }`}
-          >
-            This Month
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-amber-500' : ''}`} />
           </button>
         </div>
       </div>
