@@ -94,13 +94,6 @@ CREATE TABLE IF NOT EXISTS public.active_calls (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. Cohort Leaderboards Table (Stored Leaderboard Snapshots)
-CREATE TABLE IF NOT EXISTS public.leaderboards (
-  campaign_id TEXT PRIMARY KEY REFERENCES public.campaigns(id) ON DELETE CASCADE,
-  data JSONB NOT NULL DEFAULT '[]'::jsonb,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 -- Create helpful query indexes
 CREATE INDEX IF NOT EXISTS idx_memberships_campaign ON public.memberships(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_user ON public.memberships(user_id);
@@ -109,7 +102,6 @@ CREATE INDEX IF NOT EXISTS idx_study_blocks_campaign ON public.study_blocks(camp
 CREATE INDEX IF NOT EXISTS idx_study_blocks_time ON public.study_blocks(timestamp);
 CREATE INDEX IF NOT EXISTS idx_messages_campaign ON public.messages(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_messages_time ON public.messages(timestamp);
-CREATE INDEX IF NOT EXISTS idx_leaderboards_campaign ON public.leaderboards(campaign_id);
 
 -- Enable Row Level Security (RLS) & allow backend service access
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -118,26 +110,11 @@ ALTER TABLE public.memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.study_blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.active_calls ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.leaderboards ENABLE ROW LEVEL SECURITY;
 
--- Allow full access for backend service / anon API calls (Safe to re-run multiple times)
-DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.users;
+-- Allow full access for backend service / anon API calls
 CREATE POLICY "Allow all operations for service backend" ON public.users FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.campaigns;
 CREATE POLICY "Allow all operations for service backend" ON public.campaigns FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.memberships;
 CREATE POLICY "Allow all operations for service backend" ON public.memberships FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.study_blocks;
 CREATE POLICY "Allow all operations for service backend" ON public.study_blocks FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.messages;
 CREATE POLICY "Allow all operations for service backend" ON public.messages FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.active_calls;
 CREATE POLICY "Allow all operations for service backend" ON public.active_calls FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow all operations for service backend" ON public.leaderboards;
-CREATE POLICY "Allow all operations for service backend" ON public.leaderboards FOR ALL USING (true) WITH CHECK (true);

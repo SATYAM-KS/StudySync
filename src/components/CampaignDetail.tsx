@@ -23,10 +23,9 @@ import {
   Hourglass,
   BookOpen,
   Download,
-  FileText,
-  Archive
+  FileText
 } from 'lucide-react';
-import { checkScheduleStatus, sortSlotsChronologically, formatTimeTo12h, calculateSlotHours, isCampaignExpired } from '../utils/schedule.ts';
+import { checkScheduleStatus, sortSlotsChronologically, formatTimeTo12h, calculateSlotHours } from '../utils/schedule.ts';
 
 interface CampaignDetailProps {
   campaignId: string;
@@ -203,12 +202,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
             </div>
 
             <div className="pt-2">
-              {isCampaignExpired(campaign) ? (
-                <div className="p-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-semibold flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700">
-                  <Archive className="w-4 h-4 text-zinc-400" />
-                  <span>Concluded on {campaign.endDate}. Closed to new members.</span>
-                </div>
-              ) : campaign.userStatus !== 'pending' ? (
+              {campaign.userStatus !== 'pending' ? (
                 <button
                   onClick={handleRequestJoin}
                   disabled={isRequestingJoin}
@@ -230,7 +224,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
     );
   }
 
-  const isExpired = isCampaignExpired(campaign);
   const isAdminOrCoAdmin = campaign.adminId === user?.id || campaign.userRole === 'admin' || campaign.userRole === 'co-admin';
   const activeInThisCamp = activeStudySessions.filter(s => s.campaignId === campaign.id);
 
@@ -264,19 +257,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
         </div>
 
         <div className="p-5 space-y-5 flex-1">
-
-          {/* Expired / Concluded Notice */}
-          {isExpired && (
-            <div className="p-3.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-white/[0.08] space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-950 dark:text-white">
-                <Archive className="w-3.5 h-3.5 text-zinc-500" />
-                <span>Concluded Cohort</span>
-              </div>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Concluded on {campaign.endDate}. Historical logs, checkpoints, and leaderboards are in read-only archive mode.
-              </p>
-            </div>
-          )}
 
           {/* Tags */}
           <div className="flex flex-wrap gap-1.5">
@@ -394,24 +374,17 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               </>
             )}
 
-            {/* Live Presence Status (Online & Focus) or Expired Notice */}
+            {/* Live Presence Status (Online & Focus) */}
             <div className="h-px bg-zinc-200/60 dark:border-white/[0.06]" />
-            {isExpired ? (
-              <div className="flex items-center justify-center space-x-2 text-xs text-zinc-500 dark:text-zinc-400 glass-pill px-3.5 py-2 rounded-full border border-zinc-200/80 dark:border-white/[0.08]">
-                <Archive className="w-3.5 h-3.5 text-zinc-400" />
-                <span className="font-semibold">Concluded · Read-Only Archive</span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center space-x-2.5 text-xs text-zinc-600 dark:text-zinc-300 glass-pill px-3.5 py-2 rounded-full shadow-2xs border border-zinc-200/80 dark:border-white/[0.08]">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
-                <span className="font-semibold">{onlineUserIds.length} online</span>
-                {activeStudySessions.length > 0 && (
-                  <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                    · {activeStudySessions.length} focus
-                  </span>
-                )}
-              </div>
-            )}
+            <div className="flex items-center justify-center space-x-2.5 text-xs text-zinc-600 dark:text-zinc-300 glass-pill px-3.5 py-2 rounded-full shadow-2xs border border-zinc-200/80 dark:border-white/[0.08]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+              <span className="font-semibold">{onlineUserIds.length} online</span>
+              {activeStudySessions.length > 0 && (
+                <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                  · {activeStudySessions.length} focus
+                </span>
+              )}
+            </div>
           </div>
       </div>
 
@@ -437,11 +410,7 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               display: activeTab === 'leaderboard' ? 'block' : 'none'
             }}
           >
-            <Leaderboard 
-              campaignId={campaign.id} 
-              targetDailyHours={campaign.targetDailyHours} 
-              isActive={activeTab === 'leaderboard'} 
-            />
+            <Leaderboard campaignId={campaign.id} targetDailyHours={campaign.targetDailyHours} />
           </div>
 
           <div
@@ -456,7 +425,6 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({
               campaignName={campaign.name}
               targetDailyHours={campaign.targetDailyHours} 
               campaignCreatedAt={campaign.createdAt || campaign.startDate}
-              isActive={activeTab === 'history'}
             />
           </div>
         </div>

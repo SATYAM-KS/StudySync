@@ -53,7 +53,6 @@ async function initDb() {
         if (!Array.isArray(memoryDb.campaigns)) memoryDb.campaigns = [];
         if (!Array.isArray(memoryDb.memberships)) memoryDb.memberships = [];
         if (!Array.isArray(memoryDb.studyBlocks)) memoryDb.studyBlocks = [];
-        if (!memoryDb.leaderboards || typeof memoryDb.leaderboards !== "object") memoryDb.leaderboards = {};
         return memoryDb;
       }
     } catch (e) {
@@ -64,8 +63,7 @@ async function initDb() {
     users: [],
     campaigns: [],
     memberships: [],
-    studyBlocks: [],
-    leaderboards: {}
+    studyBlocks: []
   };
   saveDb();
   return memoryDb;
@@ -81,19 +79,15 @@ function saveDb() {
     console.error("Error saving local db to disk:", err);
   }
 }
-function extractCodingLinks(rawBio, targetDateKey) {
+function extractCodingLinks(rawBio) {
   let cleanBio = rawBio || "";
   let leetcodeUrl = "";
   let hackerrankUrl = "";
   let dailyRoutine = void 0;
-  const routineMatches = Array.from(cleanBio.matchAll(/\[routine:([^:]+):([^\]]+)\]/gi));
-  if (routineMatches.length > 0) {
-    let selectedMatch = targetDateKey ? routineMatches.find((m) => m[1].trim() === targetDateKey) : void 0;
-    if (!selectedMatch) {
-      selectedMatch = routineMatches[routineMatches.length - 1];
-    }
-    const dKey = selectedMatch[1].trim();
-    const val = selectedMatch[2].trim().toLowerCase();
+  const routineMatch = cleanBio.match(/\[routine:([^:]+):([^\]]+)\]/i);
+  if (routineMatch) {
+    const dKey = routineMatch[1].trim();
+    const val = routineMatch[2].trim().toLowerCase();
     let rName = val;
     let targetHours = 4;
     if (val === "college") {
@@ -114,20 +108,22 @@ function extractCodingLinks(rawBio, targetDateKey) {
       routine: rName,
       targetHours
     };
+    cleanBio = cleanBio.replace(routineMatch[0], "").trim();
   }
-  const lcMatches = Array.from(cleanBio.matchAll(/\[leetcode:([^\]]+)\]/gi));
-  if (lcMatches.length > 0) {
-    leetcodeUrl = lcMatches[lcMatches.length - 1][1].trim();
+  const lcMatch = cleanBio.match(/\[leetcode:([^\]]+)\]/i);
+  if (lcMatch) {
+    leetcodeUrl = lcMatch[1].trim();
+    cleanBio = cleanBio.replace(lcMatch[0], "").trim();
   }
-  const hrMatches = Array.from(cleanBio.matchAll(/\[hackerrank:([^\]]+)\]/gi));
-  if (hrMatches.length > 0) {
-    hackerrankUrl = hrMatches[hrMatches.length - 1][1].trim();
+  const hrMatch = cleanBio.match(/\[hackerrank:([^\]]+)\]/i);
+  if (hrMatch) {
+    hackerrankUrl = hrMatch[1].trim();
+    cleanBio = cleanBio.replace(hrMatch[0], "").trim();
   }
-  cleanBio = cleanBio.replace(/\[routine:[^\]]+\]/gi, "").replace(/\[leetcode:[^\]]+\]/gi, "").replace(/\[hackerrank:[^\]]+\]/gi, "").trim();
   return { cleanBio, leetcodeUrl, hackerrankUrl, dailyRoutine };
 }
 function packBioWithCodingLinks(bio, leetcodeUrl, hackerrankUrl, dailyRoutine) {
-  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || "", dailyRoutine?.dateKey);
+  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || "");
   const finalLc = (leetcodeUrl !== void 0 ? leetcodeUrl : existingLc).trim();
   const finalHr = (hackerrankUrl !== void 0 ? hackerrankUrl : existingHr).trim();
   const finalRoutine = dailyRoutine !== void 0 ? dailyRoutine : existingRoutine;
@@ -195,28 +191,24 @@ function mapUserFromDb(row) {
   };
 }
 function mapCampaignFromDb(row) {
-  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
-  const endDate = row.end_date || row.endDate || "";
-  const isExpired = Boolean(endDate && endDate < todayKey);
   return {
     id: row.id,
     name: row.name,
     description: row.description || "",
     category: row.category || "General Study",
-    adminId: row.admin_id || row.adminId,
-    adminName: row.admin_name || row.adminName,
-    startDate: row.start_date || row.startDate,
-    endDate,
-    dailyStartTime: row.daily_start_time || row.dailyStartTime || "19:00",
-    dailyEndTime: row.daily_end_time || row.dailyEndTime || "23:00",
-    targetDailyHours: Number(row.target_daily_hours ?? row.targetDailyHours) || 4,
+    adminId: row.admin_id,
+    adminName: row.admin_name,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    dailyStartTime: row.daily_start_time || "19:00",
+    dailyEndTime: row.daily_end_time || "23:00",
+    targetDailyHours: Number(row.target_daily_hours) || 4,
     schedule: Array.isArray(row.schedule) ? row.schedule : [],
-    maxMembers: Number(row.max_members ?? row.maxMembers) || 20,
-    isPublic: row.is_public ?? row.isPublic ?? true,
+    maxMembers: Number(row.max_members) || 20,
+    isPublic: row.is_public ?? true,
     tags: Array.isArray(row.tags) ? row.tags : [],
-    bannerColor: row.banner_color || row.bannerColor || "#3b82f6",
-    createdAt: row.created_at || row.createdAt,
-    isExpired
+    bannerColor: row.banner_color || "#3b82f6",
+    createdAt: row.created_at
   };
 }
 function mapMembershipFromDb(row) {
@@ -382,7 +374,7 @@ async function updateUser(id, updates) {
     const targetBio = updates.bio !== void 0 ? updates.bio : existingExtracted.cleanBio;
     const targetLc = updates.leetcodeUrl !== void 0 ? updates.leetcodeUrl : existingRow?.leetcode_url || existingExtracted.leetcodeUrl;
     const targetHr = updates.hackerrankUrl !== void 0 ? updates.hackerrankUrl : existingRow?.hackerrank_url || existingExtracted.hackerrankUrl;
-    const packedBio = packBioWithCodingLinks(targetBio, targetLc, targetHr, existingExtracted.dailyRoutine);
+    const packedBio = packBioWithCodingLinks(targetBio, targetLc, targetHr);
     const payload = { bio: packedBio };
     if (updates.name !== void 0) payload.name = updates.name;
     if (updates.avatarUrl !== void 0) payload.avatar_url = updates.avatarUrl;
@@ -447,36 +439,30 @@ async function getCampaigns(userId) {
     if (!error && camps) {
       const { data: members } = await supabase.from("memberships").select("campaign_id, user_id, role, status");
       const allMembers = (members || []).map(mapMembershipFromDb);
-      const todayKey2 = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
       const result2 = camps.map(mapCampaignFromDb).map((c) => {
         const approved = allMembers.filter((m) => m.campaignId === c.id && m.status === "approved");
         const userMem = userId ? allMembers.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
         const isCreator = Boolean(userId && c.adminId === userId);
-        const isExpired = Boolean(c.endDate && c.endDate < todayKey2);
         return {
           ...c,
           memberCount: approved.length,
           userStatus: isCreator ? "approved" : userMem ? userMem.status : void 0,
-          userRole: isCreator ? "admin" : userMem ? userMem.role : void 0,
-          isExpired
+          userRole: isCreator ? "admin" : userMem ? userMem.role : void 0
         };
       });
       return setToCache(cacheKey, result2, 4e3);
     }
   }
   const db = await initDb();
-  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
   const result = db.campaigns.map((c) => {
     const approvedMembers = db.memberships.filter((m) => m.campaignId === c.id && m.status === "approved");
     let userMembership = userId ? db.memberships.find((m) => m.campaignId === c.id && m.userId === userId) : void 0;
     const isCreator = Boolean(userId && c.adminId === userId);
-    const isExpired = Boolean(c.endDate && c.endDate < todayKey);
     return {
       ...c,
       memberCount: approvedMembers.length,
       userStatus: isCreator ? "approved" : userMembership ? userMembership.status : void 0,
-      userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0,
-      isExpired
+      userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0
     };
   });
   return setToCache(cacheKey, result, 4e3);
@@ -485,7 +471,6 @@ async function getCampaignById(id, userId) {
   const cacheKey = `camp_${id}_${userId || "all"}`;
   const cached = getFromCache(cacheKey);
   if (cached !== null) return cached;
-  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
   if (supabase) {
     const { data: camp, error } = await supabase.from("campaigns").select("id, name, description, category, admin_id, admin_name, start_date, end_date, daily_start_time, daily_end_time, target_daily_hours, schedule, max_members, is_public, banner_color, tags, created_at").eq("id", id).single();
     if (!error && camp) {
@@ -495,13 +480,11 @@ async function getCampaignById(id, userId) {
       const userMem = userId ? allMembers.find((m) => m.userId === userId) : void 0;
       const c = mapCampaignFromDb(camp);
       const isCreator2 = Boolean(userId && c.adminId === userId);
-      const isExpired2 = Boolean(c.endDate && c.endDate < todayKey);
       const result2 = {
         ...c,
         memberCount: approved.length,
         userStatus: isCreator2 ? "approved" : userMem ? userMem.status : void 0,
-        userRole: isCreator2 ? "admin" : userMem ? userMem.role : void 0,
-        isExpired: isExpired2
+        userRole: isCreator2 ? "admin" : userMem ? userMem.role : void 0
       };
       return setToCache(cacheKey, result2, 4e3);
     }
@@ -512,22 +495,13 @@ async function getCampaignById(id, userId) {
   const approvedMembers = db.memberships.filter((m) => m.campaignId === campaign.id && m.status === "approved");
   let userMembership = userId ? db.memberships.find((m) => m.campaignId === campaign.id && m.userId === userId) : void 0;
   const isCreator = Boolean(userId && campaign.adminId === userId);
-  const isExpired = Boolean(campaign.endDate && campaign.endDate < todayKey);
   const result = {
     ...campaign,
     memberCount: approvedMembers.length,
     userStatus: isCreator ? "approved" : userMembership ? userMembership.status : void 0,
-    userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0,
-    isExpired
+    userRole: isCreator ? "admin" : userMembership ? userMembership.role : void 0
   };
   return setToCache(cacheKey, result, 4e3);
-}
-function isCampaignExpiredInDb(campaign) {
-  if (!campaign) return false;
-  if (campaign.isExpired === true) return true;
-  if (!campaign.endDate || !campaign.endDate.trim()) return false;
-  const todayKey = get2AMAlignedDateKey(/* @__PURE__ */ new Date());
-  return campaign.endDate < todayKey;
 }
 async function createCampaign(campaign, creator) {
   invalidateCache("camp");
@@ -738,7 +712,7 @@ async function logStudyBlock(block) {
   invalidateCache("study_blocks");
   invalidateCache("leaderboard");
   if (supabase) {
-    const { error } = await supabase.from("study_blocks").insert({
+    await supabase.from("study_blocks").insert({
       id: block.id,
       user_id: block.userId,
       user_name: block.userName,
@@ -751,17 +725,10 @@ async function logStudyBlock(block) {
       subject_note: block.subjectNote || "Focus Study",
       snapshot_url: block.snapshotUrl && !block.snapshotUrl.startsWith("data:") ? block.snapshotUrl : null
     });
-    if (error) {
-      console.error("[db] Error inserting study_block into Supabase:", error);
-    }
   }
   const db = await initDb();
   db.studyBlocks.push(block);
   saveDb();
-  if (block.campaignId) {
-    getCampaignLeaderboard(block.campaignId).catch(() => {
-    });
-  }
   return block;
 }
 async function getStudyBlocksForUser(userId, campaignId) {
@@ -799,147 +766,46 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
   const cacheKey = `leaderboard_${campaignId}_${todayKey}_${tz}`;
   const cached = getFromCache(cacheKey);
   if (cached) return cached;
-  let targetHours = 4;
-  let campaignAdminId = void 0;
-  let campaignAdminName = void 0;
-  let candidateMembersMap = /* @__PURE__ */ new Map();
+  let approvedMembers = [];
   let campaignBlocks = [];
-  let userProfilesMap = /* @__PURE__ */ new Map();
+  let targetHours = 4;
+  let allUsers = [];
   if (supabase) {
-    const [campRes, memsRes] = await Promise.all([
-      supabase.from("campaigns").select("target_daily_hours, admin_id, admin_name").eq("id", campaignId).single(),
-      supabase.from("memberships").select("id, campaign_id, user_id, user_name, user_avatar_url, role, status").eq("campaign_id", campaignId)
+    const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
+      supabase.from("campaigns").select("target_daily_hours").eq("id", campaignId).single(),
+      supabase.from("memberships").select("id, campaign_id, user_id, user_name, user_avatar_url, role, status").eq("campaign_id", campaignId).eq("status", "approved"),
+      supabase.from("study_blocks").select("id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status").eq("campaign_id", campaignId).eq("status", "active").limit(25e3),
+      supabase.from("users").select("id, bio").limit(200)
     ]);
-    if (campRes.error) console.warn("[getCampaignLeaderboard] campRes error:", campRes.error);
-    if (memsRes.error) console.warn("[getCampaignLeaderboard] memsRes error:", memsRes.error);
-    if (campRes.data) {
-      targetHours = Number(campRes.data.target_daily_hours) || 4;
-      campaignAdminId = campRes.data.admin_id;
-      campaignAdminName = campRes.data.admin_name;
-    }
-    if (memsRes.data) {
-      for (const m of memsRes.data) {
-        if (m.status === "approved" || m.role === "admin" || m.user_id === campaignAdminId) {
-          const resolvedRole = m.role === "admin" || m.role === "co-admin" ? m.role : m.user_id === campaignAdminId ? "admin" : "member";
-          candidateMembersMap.set(m.user_id, {
-            userId: m.user_id,
-            userName: m.user_name || "Scholar",
-            userAvatarUrl: m.user_avatar_url || "",
-            role: resolvedRole
-          });
-        }
-      }
-    }
-    if (campaignAdminId && !candidateMembersMap.has(campaignAdminId)) {
-      candidateMembersMap.set(campaignAdminId, {
-        userId: campaignAdminId,
-        userName: campaignAdminName || "Cohort Leader",
-        userAvatarUrl: "",
-        role: "admin"
+    if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
+    if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
+    if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
+    if (usersRes.data) {
+      allUsers = usersRes.data.map((u) => {
+        const extracted = extractCodingLinks(u.bio || "");
+        return {
+          id: u.id,
+          leetcodeUrl: extracted.leetcodeUrl,
+          hackerrankUrl: extracted.hackerrankUrl,
+          dailyRoutine: extracted.dailyRoutine
+        };
       });
-    }
-    const initialCohortUserIds = Array.from(candidateMembersMap.keys());
-    const memberBlocksPromises = initialCohortUserIds.map((uid) => getStudyBlocksForUser(uid));
-    const [campaignDirectBlocks, ...memberBlocksArrays] = await Promise.all([
-      supabase ? supabase.from("study_blocks").select("id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note").eq("campaign_id", campaignId).neq("status", "idle").limit(1e4).then((r) => (r.data || []).map(mapStudyBlockFromDb)) : Promise.resolve([]),
-      ...memberBlocksPromises
-    ]);
-    const blocksMap = /* @__PURE__ */ new Map();
-    for (const b of campaignDirectBlocks) {
-      if (b && b.id) blocksMap.set(b.id, b);
-    }
-    for (const userBlks of memberBlocksArrays) {
-      if (Array.isArray(userBlks)) {
-        for (const b of userBlks) {
-          if (b && b.id) blocksMap.set(b.id, b);
-        }
-      }
-    }
-    campaignBlocks = Array.from(blocksMap.values());
-    for (const b of campaignBlocks) {
-      if (b.userId && !candidateMembersMap.has(b.userId)) {
-        const resolvedRole = b.userId === campaignAdminId ? "admin" : "member";
-        candidateMembersMap.set(b.userId, {
-          userId: b.userId,
-          userName: b.userName || "Scholar",
-          userAvatarUrl: b.userAvatarUrl || "",
-          role: resolvedRole
-        });
-      }
-    }
-    const allCohortUserIds = Array.from(candidateMembersMap.keys());
-    if (allCohortUserIds.length > 0) {
-      const { data: usersData, error: usersErr } = await supabase.from("users").select("id, name, avatar_url, bio").in("id", allCohortUserIds);
-      if (usersErr) console.warn("[getCampaignLeaderboard] usersErr:", usersErr);
-      if (usersData) {
-        for (const u of usersData) {
-          const extracted = extractCodingLinks(u.bio || "", todayKey);
-          userProfilesMap.set(u.id, {
-            id: u.id,
-            leetcodeUrl: extracted.leetcodeUrl,
-            hackerrankUrl: extracted.hackerrankUrl,
-            dailyRoutine: extracted.dailyRoutine
-          });
-          const currentMem = candidateMembersMap.get(u.id);
-          if (currentMem) {
-            if (u.name && (!currentMem.userName || currentMem.userName === "Scholar")) {
-              currentMem.userName = u.name;
-            }
-            if (u.avatar_url && !currentMem.userAvatarUrl) {
-              currentMem.userAvatarUrl = u.avatar_url;
-            }
-          }
-        }
-      }
     }
   } else {
     const db = await initDb();
     const campaign = db.campaigns.find((c) => c.id === campaignId);
     targetHours = campaign?.targetDailyHours || 4;
-    campaignAdminId = campaign?.adminId;
-    campaignAdminName = campaign?.adminName;
-    const approvedMembers = db.memberships.filter((m) => m.campaignId === campaignId && (m.status === "approved" || m.role === "admin" || m.userId === campaignAdminId));
-    for (const m of approvedMembers) {
-      const resolvedRole = m.role === "admin" || m.role === "co-admin" ? m.role : m.userId === campaignAdminId ? "admin" : "member";
-      candidateMembersMap.set(m.userId, {
-        userId: m.userId,
-        userName: m.userName,
-        userAvatarUrl: m.userAvatarUrl || "",
-        role: resolvedRole
-      });
-    }
-    if (campaignAdminId && !candidateMembersMap.has(campaignAdminId)) {
-      candidateMembersMap.set(campaignAdminId, {
-        userId: campaignAdminId,
-        userName: campaignAdminName || "Cohort Leader",
-        userAvatarUrl: "",
-        role: "admin"
-      });
-    }
-    const localMemberIds = new Set(candidateMembersMap.keys());
-    campaignBlocks = db.studyBlocks.filter((b) => (b.campaignId === campaignId || localMemberIds.has(b.userId)) && b.status !== "idle");
-    for (const b of campaignBlocks) {
-      if (b.userId && !candidateMembersMap.has(b.userId)) {
-        const resolvedRole = b.userId === campaignAdminId ? "admin" : "member";
-        candidateMembersMap.set(b.userId, {
-          userId: b.userId,
-          userName: b.userName || "Scholar",
-          userAvatarUrl: b.userAvatarUrl || "",
-          role: resolvedRole
-        });
-      }
-    }
-    for (const u of db.users) {
-      if (candidateMembersMap.has(u.id)) {
-        const extracted = extractCodingLinks(u.bio || "", todayKey);
-        userProfilesMap.set(u.id, {
-          id: u.id,
-          leetcodeUrl: u.leetcodeUrl || extracted.leetcodeUrl,
-          hackerrankUrl: u.hackerrankUrl || extracted.hackerrankUrl,
-          dailyRoutine: extracted.dailyRoutine
-        });
-      }
-    }
+    approvedMembers = db.memberships.filter((m) => m.campaignId === campaignId && m.status === "approved");
+    campaignBlocks = db.studyBlocks.filter((b) => b.campaignId === campaignId && b.status === "active");
+    allUsers = db.users.map((u) => {
+      const extracted = extractCodingLinks(u.bio || "");
+      return {
+        id: u.id,
+        leetcodeUrl: extracted.leetcodeUrl,
+        hackerrankUrl: extracted.hackerrankUrl,
+        dailyRoutine: extracted.dailyRoutine
+      };
+    });
   }
   const weekKeysSet = /* @__PURE__ */ new Set();
   const nowLocalMs = now.getTime() - tz * 60 * 1e3 - 2 * 3600 * 1e3;
@@ -949,9 +815,9 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
     weekKeysSet.add(k);
   }
   const currentMonthPrefix = todayKey.substring(0, 7);
-  const entries = Array.from(candidateMembersMap.values()).map((member) => {
+  const entries = approvedMembers.map((member) => {
     const userBlocks = campaignBlocks.filter((b) => b.userId === member.userId);
-    const userProfile = userProfilesMap.get(member.userId);
+    const userProfile = allUsers.find((u) => u.id === member.userId);
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
     let thisMonthMinutes = 0;
@@ -987,15 +853,15 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
         break;
       }
     }
-    let userTargetHours = targetHours || 4;
+    let userTargetHours = 7;
     if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
       userTargetHours = userProfile.dailyRoutine.targetHours || (userProfile.dailyRoutine.routine === "college" ? 4 : 7);
     } else if (userProfile?.dailyRoutine?.targetHours) {
       userTargetHours = userProfile.dailyRoutine.targetHours;
     } else if (userProfile?.dailyRoutine?.routine === "college") {
       userTargetHours = 4;
-    } else if (userProfile?.dailyRoutine?.routine === "no_college") {
-      userTargetHours = 7;
+    } else if (targetHours) {
+      userTargetHours = targetHours;
     }
     const todayHours = Number((todayMinutes / 60).toFixed(1));
     const targetCompleted = todayHours >= userTargetHours;
@@ -1025,26 +891,7 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
     };
   });
   const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
-  try {
-    const db = await initDb();
-    if (!db.leaderboards) db.leaderboards = {};
-    db.leaderboards[campaignId] = sorted;
-    saveDb();
-  } catch (err) {
-    console.warn("[db] Failed to save leaderboard to local db:", err);
-  }
-  if (supabase) {
-    try {
-      await supabase.from("leaderboards").upsert({
-        campaign_id: campaignId,
-        data: sorted,
-        updated_at: (/* @__PURE__ */ new Date()).toISOString()
-      });
-    } catch (lbErr) {
-      console.warn("[db] Leaderboard snapshot storage in Supabase:", lbErr);
-    }
-  }
-  return setToCache(cacheKey, sorted, 1500);
+  return setToCache(cacheKey, sorted, 4e3);
 }
 
 // src/server/auth.ts
@@ -2044,10 +1891,6 @@ app.post("/api/campaigns/:id/join", authMiddleware, async (req, res) => {
       res.status(404).json({ error: "Campaign not found" });
       return;
     }
-    if (isCampaignExpiredInDb(campaign)) {
-      res.status(400).json({ error: "This cohort has ended and is closed to new join requests." });
-      return;
-    }
     const existing = await getMembership(req.user.id, req.params.id);
     if (existing) {
       if (existing.status === "approved") {
@@ -2153,7 +1996,6 @@ app.get("/api/campaigns/:id/leaderboard", async (req, res) => {
     const tzHeader = req.headers["x-timezone-offset"] ? parseInt(req.headers["x-timezone-offset"], 10) : void 0;
     const tzOffset = !isNaN(tzOffsetQuery) ? tzOffsetQuery : !isNaN(tzHeader) ? tzHeader : -330;
     const leaderboard = await getCampaignLeaderboard(req.params.id, tzOffset);
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.json(leaderboard);
   } catch (err) {
     res.status(500).json({ error: "Failed to compute leaderboard" });
@@ -2167,14 +2009,6 @@ app.post("/api/study/block", authMiddleware, async (req, res) => {
       return;
     }
     const campaign = await getCampaignById(campaignId);
-    if (!campaign) {
-      res.status(404).json({ error: "Campaign not found" });
-      return;
-    }
-    if (isCampaignExpiredInDb(campaign)) {
-      res.status(400).json({ error: "This cohort has concluded and is now in read-only archive mode." });
-      return;
-    }
     const block = {
       id: `blk_${req.user.id}_${Date.now()}`,
       userId: req.user.id,
@@ -2199,16 +2033,10 @@ app.post("/api/study/block", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to log study block" });
   }
 });
-app.post("/api/study/session/heartbeat", authMiddleware, async (req, res) => {
+app.post("/api/study/session/heartbeat", authMiddleware, (req, res) => {
   const { campaignId, campaignName, subjectNote, startedAt } = req.body;
   if (!campaignId) {
     res.status(400).json({ error: "campaignId required" });
-    return;
-  }
-  const campaign = await getCampaignById(campaignId);
-  if (campaign && isCampaignExpiredInDb(campaign)) {
-    removeStudySession(req.user.id);
-    res.status(400).json({ error: "This cohort has concluded. Live study sessions are closed." });
     return;
   }
   touchStudySession({
@@ -2241,16 +2069,12 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
     const snapshotSizeKB = Math.round((snapshotUrl?.length || 0) / 1024);
     console.log(`[AI Proctor] verify-screen called: campaignId=${campaignId}, duration=${calculatedDuration}m, snapshotSize=${snapshotSizeKB}KB, hasGeminiKey=${Boolean(process.env.GEMINI_API_KEY)}`);
     let campaignName = "Study Campaign";
-    const campaign = await getCampaignById(campaignId);
-    if (!campaign) {
-      res.status(404).json({ error: "Campaign not found" });
-      return;
+    try {
+      const campaign = await getCampaignById(campaignId);
+      if (campaign?.name) campaignName = campaign.name;
+    } catch (cErr) {
+      console.warn("Could not fetch campaign name for proctor:", cErr);
     }
-    if (isCampaignExpiredInDb(campaign)) {
-      res.status(400).json({ error: "This cohort has concluded and is now in read-only archive mode." });
-      return;
-    }
-    campaignName = campaign.name;
     let analysis = {
       isProductiveWork: false,
       confidence: 85,

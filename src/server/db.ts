@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { User, Campaign, CampaignMembership, StudyBlock, LeaderboardEntry, Message, Role } from '../types/index.ts';
+import { User, Campaign, CampaignMembership, StudyBlock, LeaderboardEntry, Message } from '../types/index.ts';
 import { supabase } from './supabase.ts';
 
 interface DBData {
@@ -9,7 +9,6 @@ interface DBData {
   memberships: CampaignMembership[];
   studyBlocks: StudyBlock[];
   messages?: Message[];
-  leaderboards?: Record<string, LeaderboardEntry[]>;
 }
 
 const isVercel = Boolean(process.env.VERCEL);
@@ -34,7 +33,6 @@ export async function initDb(): Promise<DBData> {
         if (!Array.isArray(memoryDb.campaigns)) memoryDb.campaigns = [];
         if (!Array.isArray(memoryDb.memberships)) memoryDb.memberships = [];
         if (!Array.isArray(memoryDb.studyBlocks)) memoryDb.studyBlocks = [];
-        if (!memoryDb.leaderboards || typeof memoryDb.leaderboards !== 'object') memoryDb.leaderboards = {};
         return memoryDb;
       }
     } catch (e) {
@@ -46,8 +44,7 @@ export async function initDb(): Promise<DBData> {
     users: [],
     campaigns: [],
     memberships: [],
-    studyBlocks: [],
-    leaderboards: {}
+    studyBlocks: []
   };
   saveDb();
   return memoryDb;
@@ -66,7 +63,7 @@ export function saveDb() {
 }
 
 // Helper transformers
-export function extractCodingLinks(rawBio?: string, targetDateKey?: string): { 
+export function extractCodingLinks(rawBio?: string): { 
   cleanBio: string; 
   leetcodeUrl: string; 
   hackerrankUrl: string;
@@ -77,21 +74,10 @@ export function extractCodingLinks(rawBio?: string, targetDateKey?: string): {
   let hackerrankUrl = '';
   let dailyRoutine: { dateKey: string; routine: string; targetHours: number } | undefined = undefined;
 
-  // Extract all routine tags
-  const routineMatches = Array.from(cleanBio.matchAll(/\[routine:([^:]+):([^\]]+)\]/gi));
-  if (routineMatches.length > 0) {
-    // If targetDateKey is specified, search for that exact date first
-    let selectedMatch = targetDateKey
-      ? routineMatches.find(m => m[1].trim() === targetDateKey)
-      : undefined;
-
-    // If not found or targetDateKey not passed, pick the last (most recent) tag
-    if (!selectedMatch) {
-      selectedMatch = routineMatches[routineMatches.length - 1];
-    }
-
-    const dKey = selectedMatch[1].trim();
-    const val = selectedMatch[2].trim().toLowerCase();
+  const routineMatch = cleanBio.match(/\[routine:([^:]+):([^\]]+)\]/i);
+  if (routineMatch) {
+    const dKey = routineMatch[1].trim();
+    const val = routineMatch[2].trim().toLowerCase();
     let rName = val;
     let targetHours = 4;
 
@@ -114,26 +100,20 @@ export function extractCodingLinks(rawBio?: string, targetDateKey?: string): {
       routine: rName,
       targetHours
     };
+    cleanBio = cleanBio.replace(routineMatch[0], '').trim();
   }
 
-  // Extract LeetCode URL (last match)
-  const lcMatches = Array.from(cleanBio.matchAll(/\[leetcode:([^\]]+)\]/gi));
-  if (lcMatches.length > 0) {
-    leetcodeUrl = lcMatches[lcMatches.length - 1][1].trim();
+  const lcMatch = cleanBio.match(/\[leetcode:([^\]]+)\]/i);
+  if (lcMatch) {
+    leetcodeUrl = lcMatch[1].trim();
+    cleanBio = cleanBio.replace(lcMatch[0], '').trim();
   }
 
-  // Extract HackerRank URL (last match)
-  const hrMatches = Array.from(cleanBio.matchAll(/\[hackerrank:([^\]]+)\]/gi));
-  if (hrMatches.length > 0) {
-    hackerrankUrl = hrMatches[hrMatches.length - 1][1].trim();
+  const hrMatch = cleanBio.match(/\[hackerrank:([^\]]+)\]/i);
+  if (hrMatch) {
+    hackerrankUrl = hrMatch[1].trim();
+    cleanBio = cleanBio.replace(hrMatch[0], '').trim();
   }
-
-  // Globally remove all tags from cleanBio so tags never accumulate
-  cleanBio = cleanBio
-    .replace(/\[routine:[^\]]+\]/gi, '')
-    .replace(/\[leetcode:[^\]]+\]/gi, '')
-    .replace(/\[hackerrank:[^\]]+\]/gi, '')
-    .trim();
 
   return { cleanBio, leetcodeUrl, hackerrankUrl, dailyRoutine };
 }
@@ -144,7 +124,7 @@ export function packBioWithCodingLinks(
   hackerrankUrl?: string,
   dailyRoutine?: { dateKey: string; routine?: string; targetHours?: number }
 ): string {
-  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || '', dailyRoutine?.dateKey);
+  const { cleanBio, leetcodeUrl: existingLc, hackerrankUrl: existingHr, dailyRoutine: existingRoutine } = extractCodingLinks(bio || '');
   const finalLc = (leetcodeUrl !== undefined ? leetcodeUrl : existingLc).trim();
   const finalHr = (hackerrankUrl !== undefined ? hackerrankUrl : existingHr).trim();
   const finalRoutine = dailyRoutine !== undefined ? dailyRoutine : existingRoutine;
@@ -229,28 +209,24 @@ function mapUserFromDb(row: any): User & { passwordHash: string } {
 }
 
 function mapCampaignFromDb(row: any): Campaign {
-  const todayKey = get2AMAlignedDateKey(new Date());
-  const endDate = row.end_date || row.endDate || '';
-  const isExpired = Boolean(endDate && endDate < todayKey);
   return {
     id: row.id,
     name: row.name,
     description: row.description || '',
     category: row.category || 'General Study',
-    adminId: row.admin_id || row.adminId,
-    adminName: row.admin_name || row.adminName,
-    startDate: row.start_date || row.startDate,
-    endDate,
-    dailyStartTime: row.daily_start_time || row.dailyStartTime || '19:00',
-    dailyEndTime: row.daily_end_time || row.dailyEndTime || '23:00',
-    targetDailyHours: Number(row.target_daily_hours ?? row.targetDailyHours) || 4,
+    adminId: row.admin_id,
+    adminName: row.admin_name,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    dailyStartTime: row.daily_start_time || '19:00',
+    dailyEndTime: row.daily_end_time || '23:00',
+    targetDailyHours: Number(row.target_daily_hours) || 4,
     schedule: Array.isArray(row.schedule) ? row.schedule : [],
-    maxMembers: Number(row.max_members ?? row.maxMembers) || 20,
-    isPublic: row.is_public ?? row.isPublic ?? true,
+    maxMembers: Number(row.max_members) || 20,
+    isPublic: row.is_public ?? true,
     tags: Array.isArray(row.tags) ? row.tags : [],
-    bannerColor: row.banner_color || row.bannerColor || '#3b82f6',
-    createdAt: row.created_at || row.createdAt,
-    isExpired
+    bannerColor: row.banner_color || '#3b82f6',
+    createdAt: row.created_at
   };
 }
 
@@ -464,7 +440,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     const targetBio = updates.bio !== undefined ? updates.bio : existingExtracted.cleanBio;
     const targetLc = updates.leetcodeUrl !== undefined ? updates.leetcodeUrl : (existingRow?.leetcode_url || existingExtracted.leetcodeUrl);
     const targetHr = updates.hackerrankUrl !== undefined ? updates.hackerrankUrl : (existingRow?.hackerrank_url || existingExtracted.hackerrankUrl);
-    const packedBio = packBioWithCodingLinks(targetBio, targetLc, targetHr, existingExtracted.dailyRoutine);
+    const packedBio = packBioWithCodingLinks(targetBio, targetLc, targetHr);
 
     const payload: any = { bio: packedBio };
     if (updates.name !== undefined) payload.name = updates.name;
@@ -551,18 +527,15 @@ export async function getCampaigns(userId?: string): Promise<Campaign[]> {
 
       const allMembers = (members || []).map(mapMembershipFromDb);
 
-      const todayKey = get2AMAlignedDateKey(new Date());
       const result = camps.map(mapCampaignFromDb).map(c => {
         const approved = allMembers.filter(m => m.campaignId === c.id && m.status === 'approved');
         const userMem = userId ? allMembers.find(m => m.campaignId === c.id && m.userId === userId) : undefined;
         const isCreator = Boolean(userId && c.adminId === userId);
-        const isExpired = Boolean(c.endDate && c.endDate < todayKey);
         return {
           ...c,
           memberCount: approved.length,
           userStatus: isCreator ? 'approved' : (userMem ? userMem.status : undefined),
-          userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined),
-          isExpired
+          userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined)
         };
       });
 
@@ -571,18 +544,15 @@ export async function getCampaigns(userId?: string): Promise<Campaign[]> {
   }
 
   const db = await initDb();
-  const todayKey = get2AMAlignedDateKey(new Date());
   const result = db.campaigns.map(c => {
     const approvedMembers = db.memberships.filter(m => m.campaignId === c.id && m.status === 'approved');
     let userMembership = userId ? db.memberships.find(m => m.campaignId === c.id && m.userId === userId) : undefined;
     const isCreator = Boolean(userId && c.adminId === userId);
-    const isExpired = Boolean(c.endDate && c.endDate < todayKey);
     return {
       ...c,
       memberCount: approvedMembers.length,
       userStatus: isCreator ? 'approved' : (userMembership ? userMembership.status : undefined),
-      userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined),
-      isExpired
+      userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined)
     };
   });
   return setToCache(cacheKey, result, 4000);
@@ -592,8 +562,6 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
   const cacheKey = `camp_${id}_${userId || 'all'}`;
   const cached = getFromCache<Campaign | null>(cacheKey);
   if (cached !== null) return cached;
-
-  const todayKey = get2AMAlignedDateKey(new Date());
 
   if (supabase) {
     const { data: camp, error } = await supabase
@@ -613,13 +581,11 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
       const userMem = userId ? allMembers.find(m => m.userId === userId) : undefined;
       const c = mapCampaignFromDb(camp);
       const isCreator = Boolean(userId && c.adminId === userId);
-      const isExpired = Boolean(c.endDate && c.endDate < todayKey);
       const result: Campaign = {
         ...c,
         memberCount: approved.length,
         userStatus: isCreator ? 'approved' : (userMem ? userMem.status : undefined),
-        userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined),
-        isExpired
+        userRole: isCreator ? 'admin' : (userMem ? userMem.role : undefined)
       };
       return setToCache(cacheKey, result, 4000);
     }
@@ -631,23 +597,13 @@ export async function getCampaignById(id: string, userId?: string): Promise<Camp
   const approvedMembers = db.memberships.filter(m => m.campaignId === campaign.id && m.status === 'approved');
   let userMembership = userId ? db.memberships.find(m => m.campaignId === campaign.id && m.userId === userId) : undefined;
   const isCreator = Boolean(userId && campaign.adminId === userId);
-  const isExpired = Boolean(campaign.endDate && campaign.endDate < todayKey);
   const result: Campaign = {
     ...campaign,
     memberCount: approvedMembers.length,
     userStatus: isCreator ? 'approved' : (userMembership ? userMembership.status : undefined),
-    userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined),
-    isExpired
+    userRole: isCreator ? 'admin' : (userMembership ? userMembership.role : undefined)
   };
   return setToCache(cacheKey, result, 4000);
-}
-
-export function isCampaignExpiredInDb(campaign?: Partial<Campaign> | null): boolean {
-  if (!campaign) return false;
-  if (campaign.isExpired === true) return true;
-  if (!campaign.endDate || !campaign.endDate.trim()) return false;
-  const todayKey = get2AMAlignedDateKey(new Date());
-  return campaign.endDate < todayKey;
 }
 
 export async function createCampaign(campaign: Campaign, creator: User): Promise<Campaign> {
@@ -882,7 +838,7 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
   invalidateCache('study_blocks');
   invalidateCache('leaderboard');
   if (supabase) {
-    const { error } = await supabase.from('study_blocks').insert({
+    await supabase.from('study_blocks').insert({
       id: block.id,
       user_id: block.userId,
       user_name: block.userName,
@@ -895,19 +851,10 @@ export async function logStudyBlock(block: StudyBlock): Promise<StudyBlock> {
       subject_note: block.subjectNote || 'Focus Study',
       snapshot_url: block.snapshotUrl && !block.snapshotUrl.startsWith('data:') ? block.snapshotUrl : null
     });
-    if (error) {
-      console.error('[db] Error inserting study_block into Supabase:', error);
-    }
   }
   const db = await initDb();
   db.studyBlocks.push(block);
   saveDb();
-
-  // Recalculate and store updated leaderboard in database
-  if (block.campaignId) {
-    getCampaignLeaderboard(block.campaignId).catch(() => {});
-  }
-
   return block;
 }
 
@@ -963,190 +910,52 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   const cached = getFromCache<LeaderboardEntry[]>(cacheKey);
   if (cached) return cached;
 
-  let targetHours = 4;
-  let campaignAdminId: string | undefined = undefined;
-  let campaignAdminName: string | undefined = undefined;
-  let candidateMembersMap = new Map<string, {
-    userId: string;
-    userName: string;
-    userAvatarUrl?: string;
-    role: Role;
-  }>();
+  let approvedMembers: CampaignMembership[] = [];
   let campaignBlocks: StudyBlock[] = [];
-  let userProfilesMap = new Map<string, {
-    id: string;
-    leetcodeUrl?: string;
+  let targetHours = 4;
+  let allUsers: Array<{ 
+    id: string; 
+    leetcodeUrl?: string; 
     hackerrankUrl?: string;
     dailyRoutine?: { dateKey: string; routine: string; targetHours: number };
-  }>();
+  }> = [];
 
   if (supabase) {
-    const [campRes, memsRes] = await Promise.all([
-      supabase.from('campaigns').select('target_daily_hours, admin_id, admin_name').eq('id', campaignId).single(),
-      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId)
+    const [campRes, memsRes, blksRes, usersRes] = await Promise.all([
+      supabase.from('campaigns').select('target_daily_hours').eq('id', campaignId).single(),
+      supabase.from('memberships').select('id, campaign_id, user_id, user_name, user_avatar_url, role, status').eq('campaign_id', campaignId).eq('status', 'approved'),
+      supabase.from('study_blocks').select('id, campaign_id, user_id, user_name, user_avatar_url, duration_minutes, timestamp, status').eq('campaign_id', campaignId).eq('status', 'active').limit(25000),
+      supabase.from('users').select('id, bio').limit(200)
     ]);
-
-    if (campRes.error) console.warn('[getCampaignLeaderboard] campRes error:', campRes.error);
-    if (memsRes.error) console.warn('[getCampaignLeaderboard] memsRes error:', memsRes.error);
-
-    if (campRes.data) {
-      targetHours = Number(campRes.data.target_daily_hours) || 4;
-      campaignAdminId = campRes.data.admin_id;
-      campaignAdminName = campRes.data.admin_name;
-    }
-
-    // 1. Add approved & existing memberships
-    if (memsRes.data) {
-      for (const m of memsRes.data) {
-        if (m.status === 'approved' || m.role === 'admin' || m.user_id === campaignAdminId) {
-          const resolvedRole: Role = (m.role === 'admin' || m.role === 'co-admin') ? m.role : (m.user_id === campaignAdminId ? 'admin' : 'member');
-          candidateMembersMap.set(m.user_id, {
-            userId: m.user_id,
-            userName: m.user_name || 'Scholar',
-            userAvatarUrl: m.user_avatar_url || '',
-            role: resolvedRole
-          });
-        }
-      }
-    }
-
-    // 2. Add campaign creator if not present
-    if (campaignAdminId && !candidateMembersMap.has(campaignAdminId)) {
-      candidateMembersMap.set(campaignAdminId, {
-        userId: campaignAdminId,
-        userName: campaignAdminName || 'Cohort Leader',
-        userAvatarUrl: '',
-        role: 'admin'
+    if (campRes.data) targetHours = Number(campRes.data.target_daily_hours) || 4;
+    if (memsRes.data) approvedMembers = memsRes.data.map(mapMembershipFromDb);
+    if (blksRes.data) campaignBlocks = blksRes.data.map(mapStudyBlockFromDb);
+    if (usersRes.data) {
+      allUsers = usersRes.data.map(u => {
+        const extracted = extractCodingLinks(u.bio || '');
+        return {
+          id: u.id,
+          leetcodeUrl: extracted.leetcodeUrl,
+          hackerrankUrl: extracted.hackerrankUrl,
+          dailyRoutine: extracted.dailyRoutine
+        };
       });
-    }
-
-    // 3. Fetch study hours using getStudyBlocksForUser (exact same source that powers Study History)
-    const initialCohortUserIds = Array.from(candidateMembersMap.keys());
-    const memberBlocksPromises = initialCohortUserIds.map(uid => getStudyBlocksForUser(uid));
-    const [campaignDirectBlocks, ...memberBlocksArrays] = await Promise.all([
-      supabase 
-        ? supabase
-            .from('study_blocks')
-            .select('id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note')
-            .eq('campaign_id', campaignId)
-            .neq('status', 'idle')
-            .limit(10000)
-            .then(r => (r.data || []).map(mapStudyBlockFromDb))
-        : Promise.resolve([]),
-      ...memberBlocksPromises
-    ]);
-
-    const blocksMap = new Map<string, StudyBlock>();
-    for (const b of campaignDirectBlocks) {
-      if (b && b.id) blocksMap.set(b.id, b);
-    }
-    for (const userBlks of memberBlocksArrays) {
-      if (Array.isArray(userBlks)) {
-        for (const b of userBlks) {
-          if (b && b.id) blocksMap.set(b.id, b);
-        }
-      }
-    }
-
-    campaignBlocks = Array.from(blocksMap.values());
-
-    // 4. Include any scholar who logged study blocks in this campaign
-    for (const b of campaignBlocks) {
-      if (b.userId && !candidateMembersMap.has(b.userId)) {
-        const resolvedRole: Role = b.userId === campaignAdminId ? 'admin' : 'member';
-        candidateMembersMap.set(b.userId, {
-          userId: b.userId,
-          userName: b.userName || 'Scholar',
-          userAvatarUrl: b.userAvatarUrl || '',
-          role: resolvedRole
-        });
-      }
-    }
-
-    // 5. Targeted fetch of user profiles for everyone in this cohort
-    const allCohortUserIds = Array.from(candidateMembersMap.keys());
-    if (allCohortUserIds.length > 0) {
-      const { data: usersData, error: usersErr } = await supabase
-        .from('users')
-        .select('id, name, avatar_url, bio')
-        .in('id', allCohortUserIds);
-
-      if (usersErr) console.warn('[getCampaignLeaderboard] usersErr:', usersErr);
-
-      if (usersData) {
-        for (const u of usersData) {
-          const extracted = extractCodingLinks(u.bio || '', todayKey);
-          userProfilesMap.set(u.id, {
-            id: u.id,
-            leetcodeUrl: extracted.leetcodeUrl,
-            hackerrankUrl: extracted.hackerrankUrl,
-            dailyRoutine: extracted.dailyRoutine
-          });
-
-          const currentMem = candidateMembersMap.get(u.id);
-          if (currentMem) {
-            if (u.name && (!currentMem.userName || currentMem.userName === 'Scholar')) {
-              currentMem.userName = u.name;
-            }
-            if (u.avatar_url && !currentMem.userAvatarUrl) {
-              currentMem.userAvatarUrl = u.avatar_url;
-            }
-          }
-        }
-      }
     }
   } else {
     const db = await initDb();
     const campaign = db.campaigns.find(c => c.id === campaignId);
     targetHours = campaign?.targetDailyHours || 4;
-    campaignAdminId = campaign?.adminId;
-    campaignAdminName = campaign?.adminName;
-
-    const approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && (m.status === 'approved' || m.role === 'admin' || m.userId === campaignAdminId));
-    for (const m of approvedMembers) {
-      const resolvedRole: Role = (m.role === 'admin' || m.role === 'co-admin') ? m.role : (m.userId === campaignAdminId ? 'admin' : 'member');
-      candidateMembersMap.set(m.userId, {
-        userId: m.userId,
-        userName: m.userName,
-        userAvatarUrl: m.userAvatarUrl || '',
-        role: resolvedRole
-      });
-    }
-
-    if (campaignAdminId && !candidateMembersMap.has(campaignAdminId)) {
-      candidateMembersMap.set(campaignAdminId, {
-        userId: campaignAdminId,
-        userName: campaignAdminName || 'Cohort Leader',
-        userAvatarUrl: '',
-        role: 'admin'
-      });
-    }
-
-    const localMemberIds = new Set(candidateMembersMap.keys());
-    campaignBlocks = db.studyBlocks.filter(b => (b.campaignId === campaignId || localMemberIds.has(b.userId)) && b.status !== 'idle');
-    for (const b of campaignBlocks) {
-      if (b.userId && !candidateMembersMap.has(b.userId)) {
-        const resolvedRole: Role = b.userId === campaignAdminId ? 'admin' : 'member';
-        candidateMembersMap.set(b.userId, {
-          userId: b.userId,
-          userName: b.userName || 'Scholar',
-          userAvatarUrl: b.userAvatarUrl || '',
-          role: resolvedRole
-        });
-      }
-    }
-
-    for (const u of db.users) {
-      if (candidateMembersMap.has(u.id)) {
-        const extracted = extractCodingLinks(u.bio || '', todayKey);
-        userProfilesMap.set(u.id, {
-          id: u.id,
-          leetcodeUrl: u.leetcodeUrl || extracted.leetcodeUrl,
-          hackerrankUrl: u.hackerrankUrl || extracted.hackerrankUrl,
-          dailyRoutine: extracted.dailyRoutine
-        });
-      }
-    }
+    approvedMembers = db.memberships.filter(m => m.campaignId === campaignId && m.status === 'approved');
+    campaignBlocks = db.studyBlocks.filter(b => b.campaignId === campaignId && b.status === 'active');
+    allUsers = db.users.map(u => {
+      const extracted = extractCodingLinks(u.bio || '');
+      return {
+        id: u.id,
+        leetcodeUrl: extracted.leetcodeUrl,
+        hackerrankUrl: extracted.hackerrankUrl,
+        dailyRoutine: extracted.dailyRoutine
+      };
+    });
   }
 
   // 7-day keys set (past 7 study days)
@@ -1161,9 +970,9 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   // Month prefix: YYYY-MM based on todayKey
   const currentMonthPrefix = todayKey.substring(0, 7);
 
-  const entries: LeaderboardEntry[] = Array.from(candidateMembersMap.values()).map(member => {
+  const entries: LeaderboardEntry[] = approvedMembers.map(member => {
     const userBlocks = campaignBlocks.filter(b => b.userId === member.userId);
-    const userProfile = userProfilesMap.get(member.userId);
+    const userProfile = allUsers.find(u => u.id === member.userId);
 
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
@@ -1208,15 +1017,15 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
       }
     }
 
-    let userTargetHours = targetHours || 4;
+    let userTargetHours = 7;
     if (userProfile?.dailyRoutine && userProfile.dailyRoutine.dateKey === todayKey) {
       userTargetHours = userProfile.dailyRoutine.targetHours || (userProfile.dailyRoutine.routine === 'college' ? 4 : 7);
     } else if (userProfile?.dailyRoutine?.targetHours) {
       userTargetHours = userProfile.dailyRoutine.targetHours;
     } else if (userProfile?.dailyRoutine?.routine === 'college') {
       userTargetHours = 4;
-    } else if (userProfile?.dailyRoutine?.routine === 'no_college') {
-      userTargetHours = 7;
+    } else if (targetHours) {
+      userTargetHours = targetHours;
     }
 
     const todayHours = Number((todayMinutes / 60).toFixed(1));
@@ -1249,30 +1058,5 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
   });
 
   const sorted = entries.sort((a, b) => b.todayMinutes - a.todayMinutes);
-
-  // 1. Store computed leaderboard directly in database (local resilient store)
-  try {
-    const db = await initDb();
-    if (!db.leaderboards) db.leaderboards = {};
-    db.leaderboards[campaignId] = sorted;
-    saveDb();
-  } catch (err) {
-    console.warn('[db] Failed to save leaderboard to local db:', err);
-  }
-
-  // 2. Store computed leaderboard snapshot in Supabase PostgreSQL
-  if (supabase) {
-    try {
-      await supabase.from('leaderboards').upsert({
-        campaign_id: campaignId,
-        data: sorted,
-        updated_at: new Date().toISOString()
-      });
-    } catch (lbErr) {
-      console.warn('[db] Leaderboard snapshot storage in Supabase:', lbErr);
-    }
-  }
-
-  return setToCache(cacheKey, sorted, 1500);
+  return setToCache(cacheKey, sorted, 4000);
 }
-

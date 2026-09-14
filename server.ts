@@ -27,8 +27,7 @@ import {
   getStudyBlocksForUser,
   getCampaignLeaderboard,
   get2AMAlignedDateKey,
-  setUserDailyRoutine,
-  isCampaignExpiredInDb
+  setUserDailyRoutine
 } from './src/server/db.ts';
 import { generateToken, generateResetToken, verifyResetToken, checkPasswordStrength, authMiddleware, optionalAuthMiddleware, AuthRequest } from './src/server/auth.ts';
 import { sendPasswordResetEmail } from './src/server/email.ts';
@@ -482,11 +481,6 @@ app.post('/api/campaigns/:id/join', authMiddleware, async (req: AuthRequest, res
       return;
     }
 
-    if (isCampaignExpiredInDb(campaign)) {
-      res.status(400).json({ error: 'This cohort has ended and is closed to new join requests.' });
-      return;
-    }
-
     const existing = await getMembership(req.user!.id, req.params.id);
     if (existing) {
       if (existing.status === 'approved') {
@@ -612,7 +606,6 @@ app.get('/api/campaigns/:id/leaderboard', async (req, res) => {
     const tzOffset = !isNaN(tzOffsetQuery as number) ? tzOffsetQuery : (!isNaN(tzHeader as number) ? tzHeader : -330);
 
     const leaderboard = await getCampaignLeaderboard(req.params.id, tzOffset);
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(leaderboard);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to compute leaderboard' });
@@ -629,15 +622,6 @@ app.post('/api/study/block', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const campaign = await getCampaignById(campaignId);
-    if (!campaign) {
-      res.status(404).json({ error: 'Campaign not found' });
-      return;
-    }
-
-    if (isCampaignExpiredInDb(campaign)) {
-      res.status(400).json({ error: 'This cohort has concluded and is now in read-only archive mode.' });
-      return;
-    }
 
     const block: StudyBlock = {
       id: `blk_${req.user!.id}_${Date.now()}`,
@@ -669,17 +653,10 @@ app.post('/api/study/block', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Live Active Study Sessions (Heartbeat & Query for Serverless)
-app.post('/api/study/session/heartbeat', authMiddleware, async (req: AuthRequest, res) => {
+app.post('/api/study/session/heartbeat', authMiddleware, (req: AuthRequest, res) => {
   const { campaignId, campaignName, subjectNote, startedAt } = req.body;
   if (!campaignId) {
     res.status(400).json({ error: 'campaignId required' });
-    return;
-  }
-
-  const campaign = await getCampaignById(campaignId);
-  if (campaign && isCampaignExpiredInDb(campaign)) {
-    removeStudySession(req.user!.id);
-    res.status(400).json({ error: 'This cohort has concluded. Live study sessions are closed.' });
     return;
   }
 
@@ -720,16 +697,12 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
     console.log(`[AI Proctor] verify-screen called: campaignId=${campaignId}, duration=${calculatedDuration}m, snapshotSize=${snapshotSizeKB}KB, hasGeminiKey=${Boolean(process.env.GEMINI_API_KEY)}`);
 
     let campaignName = 'Study Campaign';
-    const campaign = await getCampaignById(campaignId);
-    if (!campaign) {
-      res.status(404).json({ error: 'Campaign not found' });
-      return;
+    try {
+      const campaign = await getCampaignById(campaignId);
+      if (campaign?.name) campaignName = campaign.name;
+    } catch (cErr) {
+      console.warn('Could not fetch campaign name for proctor:', cErr);
     }
-    if (isCampaignExpiredInDb(campaign)) {
-      res.status(400).json({ error: 'This cohort has concluded and is now in read-only archive mode.' });
-      return;
-    }
-    campaignName = campaign.name;
 
     let analysis: any = {
       isProductiveWork: false,

@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useStudy } from '../context/StudyContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
 import { getSyllabusHeadline } from '../utils/pdf.ts';
-import { isCampaignExpired } from '../utils/schedule.ts';
 import { 
   Plus, 
   Search, 
@@ -20,9 +19,7 @@ import {
   Sparkles,
   Zap,
   Layers,
-  BookOpen,
-  Archive,
-  Calendar
+  BookOpen
 } from 'lucide-react';
 
 interface CampaignsListProps {
@@ -45,7 +42,6 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
   const { activeStudySessions } = useSocket();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [pendingModalCampaign, setPendingModalCampaign] = useState<Campaign | null>(null);
 
@@ -69,16 +65,9 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
 
   const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
 
-  const activeCount = safeCampaigns.filter(c => !isCampaignExpired(c)).length;
-  const expiredCount = safeCampaigns.filter(c => isCampaignExpired(c)).length;
-
-  // Filter cohorts by search query and active/expired status filter
+  // Filter cohorts purely by search query (categories completely removed)
   const filteredCampaigns = safeCampaigns.filter(c => {
     if (!c) return false;
-    const expired = isCampaignExpired(c);
-    if (statusFilter === 'active' && expired) return false;
-    if (statusFilter === 'expired' && !expired) return false;
-
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     const nameMatch = (c.name || '').toLowerCase().includes(q);
@@ -161,90 +150,36 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
           </div>
         </div>
 
-        {/* ═══ 2. Search & Action Bar with Status Filters ═══ */}
-        <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            
-            {/* Search Input */}
-            <div className="relative w-full sm:w-96">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search cohorts by title, keyword, or tag..."
-                className="w-full bg-white/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/[0.08] rounded-2xl pl-10 pr-4 py-3 text-xs text-zinc-950 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 dark:focus:ring-white transition shadow-sm backdrop-blur-md"
-              />
-            </div>
-
-            {/* Create Cohort Action */}
-            <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
-              <span className="px-4 py-3 rounded-2xl glass-pill text-xs font-mono font-bold text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs">
-                {filteredCampaigns.length} {filteredCampaigns.length === 1 ? 'Cohort' : 'Cohorts'}
-              </span>
-
-              <button
-                onClick={onOpenCreateModal}
-                className="px-5 py-3 rounded-2xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black font-black text-xs shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 cursor-pointer border border-zinc-800 dark:border-white"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Cohort</span>
-              </button>
-            </div>
-
+        {/* ═══ 2. Search & Action Bar (Categories Removed) ═══ */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          
+          {/* Search Input */}
+          <div className="relative w-full sm:w-96">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search cohorts by title, keyword, or tag..."
+              className="w-full bg-white/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/[0.08] rounded-2xl pl-10 pr-4 py-3 text-xs text-zinc-950 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 dark:focus:ring-white transition shadow-sm backdrop-blur-md"
+            />
           </div>
 
-          {/* Status Filter Tabs (All / Active / Past Archives) */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setStatusFilter('all')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                statusFilter === 'all'
-                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs'
-                  : 'glass-pill text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-200/80 dark:border-white/[0.08]'
-              }`}
-            >
-              <span>All Cohorts</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-extrabold">
-                {safeCampaigns.length}
-              </span>
-            </button>
+          {/* Create Cohort Action */}
+          <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+            <span className="px-4 py-3 rounded-2xl glass-pill text-xs font-mono font-bold text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs">
+              {filteredCampaigns.length} {filteredCampaigns.length === 1 ? 'Cohort' : 'Cohorts'}
+            </span>
 
             <button
-              type="button"
-              onClick={() => setStatusFilter('active')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                statusFilter === 'active'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'glass-pill text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-200/80 dark:border-white/[0.08]'
-              }`}
+              onClick={onOpenCreateModal}
+              className="px-5 py-3 rounded-2xl bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black font-black text-xs shadow-md flex items-center justify-center space-x-2 transition transform active:scale-98 cursor-pointer border border-zinc-800 dark:border-white"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Active</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-extrabold">
-                {activeCount}
-              </span>
+              <Plus className="w-4 h-4" />
+              <span>Create Cohort</span>
             </button>
-
-            {expiredCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setStatusFilter('expired')}
-                className={`px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                  statusFilter === 'expired'
-                    ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-black shadow-xs'
-                    : 'glass-pill text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-200/80 dark:border-white/[0.08]'
-                }`}
-              >
-                <Archive className="w-3 h-3" />
-                <span>Past & Concluded</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-md font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-extrabold">
-                  {expiredCount}
-                </span>
-              </button>
-            )}
           </div>
+
         </div>
 
         {/* ═══ 3. Cohorts Grid (Posh Cards with Deep Elevation) ═══ */}
@@ -268,26 +203,20 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
               <GraduationCap className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <h3 className="font-extrabold text-base text-zinc-950 dark:text-white">
-                {statusFilter === 'expired' ? 'No past concluded cohorts' : 'No study cohorts found'}
-              </h3>
+              <h3 className="font-extrabold text-base text-zinc-950 dark:text-white">No study cohorts found</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
                 {searchQuery
                   ? 'Try modifying your search query.'
-                  : statusFilter === 'expired'
-                    ? 'All cohorts are currently active. Completed cohorts will appear here.'
-                    : 'Be the first to create an accountability study cohort!'}
+                  : 'Be the first to create an accountability study cohort!'}
               </p>
             </div>
-            {statusFilter !== 'expired' && (
-              <button
-                onClick={onOpenCreateModal}
-                className="inline-flex items-center space-x-1.5 px-5 py-2.5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-black text-xs font-black shadow-md hover:opacity-90 transition cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create First Cohort</span>
-              </button>
-            )}
+            <button
+              onClick={onOpenCreateModal}
+              className="inline-flex items-center space-x-1.5 px-5 py-2.5 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-black text-xs font-black shadow-md hover:opacity-90 transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create First Cohort</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -295,7 +224,6 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
               const isAdmin = camp.userRole === 'admin' || camp.userRole === 'co-admin' || camp.adminId === user?.id;
               const isApproved = isAdmin || camp.userStatus === 'approved';
               const isPending = !isAdmin && camp.userStatus === 'pending';
-              const isExpired = isCampaignExpired(camp);
               const isCurrentStudying = isStudying && activeCampaignId === camp.id;
               const activeInCamp = activeStudySessions.filter(s => s.campaignId === camp.id);
 
@@ -304,43 +232,23 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                   key={camp.id}
                   onClick={() => handleCardClick(camp)}
                   className={`group relative rounded-3xl posh-card overflow-hidden flex flex-col cursor-pointer transition-all duration-300 hover:-translate-y-1 ${
-                    isExpired
-                      ? 'border-zinc-200/80 dark:border-white/[0.08] opacity-90 hover:opacity-100 hover:shadow-xl'
-                      : isCurrentStudying
-                        ? 'border-emerald-500/80 dark:border-emerald-400/80 ring-2 ring-emerald-500/50 shadow-xl'
-                        : 'hover:shadow-2xl'
+                    isCurrentStudying
+                      ? 'border-emerald-500/80 dark:border-emerald-400/80 ring-2 ring-emerald-500/50 shadow-xl'
+                      : 'hover:shadow-2xl'
                   }`}
                 >
                   
                   {/* Top Card Header */}
                   <div className="p-5 pb-3 flex items-center justify-between border-b border-zinc-200/60 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.02]">
                     <div className="flex items-center gap-1.5">
-                      {isExpired ? (
-                        <>
-                          <span className="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-600" />
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                            {camp.category || 'Study Group'}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                            {camp.category || 'Study Group'}
-                          </span>
-                        </>
-                      )}
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                        {camp.category || 'Study Group'}
+                      </span>
                     </div>
 
-                    {/* Role / Access / Expired Badges */}
-                    <div className="flex items-center gap-1.5">
-                      {isExpired && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-zinc-200/90 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-300/80 dark:border-white/10 flex items-center gap-1">
-                          <Archive className="w-2.5 h-2.5 text-zinc-500" />
-                          <span>Concluded</span>
-                        </span>
-                      )}
-
+                    {/* Role / Access Badge */}
+                    <div>
                       {isApproved ? (
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold uppercase tracking-wider bg-zinc-950 text-white dark:bg-white dark:text-black shadow-xs">
                           {isAdmin ? 'Admin' : 'Member'}
@@ -353,7 +261,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                       ) : (
                         <span className="px-2.5 py-0.5 rounded-full glass-pill text-zinc-700 dark:text-zinc-300 text-[10px] font-bold flex items-center gap-1">
                           <Lock className="w-2.5 h-2.5" />
-                          <span>{isExpired ? 'Closed' : 'Request Access'}</span>
+                          <span>Request Access</span>
                         </span>
                       )}
                     </div>
@@ -377,21 +285,10 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                     {/* Cohort Key Metrics */}
                     <div className="pt-2 grid grid-cols-2 gap-3 border-t border-zinc-200/60 dark:border-white/[0.06] text-xs">
                       
-                      {/* Target Indicator or Concluded Date */}
+                      {/* Target Indicator */}
                       <div className="flex items-center space-x-2 text-zinc-700 dark:text-zinc-300">
-                        {isExpired ? (
-                          <>
-                            <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                            <span className="font-medium font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-                              Ended {camp.endDate}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                            <span className="font-bold font-mono text-[11px]">Flexible daily</span>
-                          </>
-                        )}
+                        <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="font-bold font-mono text-[11px]">Flexible daily</span>
                       </div>
 
                       {/* Member Capacity */}
@@ -409,13 +306,8 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                   {/* Footer Bar */}
                   <div className="px-6 py-3.5 bg-zinc-50/80 dark:bg-white/[0.03] border-t border-zinc-200/60 dark:border-white/[0.06] flex items-center justify-between">
                     
-                    {/* Live Studying or Expired Indicator */}
-                    {isExpired ? (
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium font-mono">
-                        <Archive className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                        <span>Past Archive Preserved</span>
-                      </div>
-                    ) : activeInCamp.length > 0 ? (
+                    {/* Live Studying Indicator */}
+                    {activeInCamp.length > 0 ? (
                       <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
                         <span>{activeInCamp.length} studying now</span>
@@ -426,7 +318,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
 
                     {/* Enter Action */}
                     <div className="flex items-center gap-1 text-xs font-black text-zinc-950 dark:text-white group-hover:translate-x-1 transition-transform">
-                      <span>{isExpired ? 'View Past Data' : 'Open Lounge'}</span>
+                      <span>Open Lounge</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </div>
 
@@ -440,7 +332,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
 
       </div>
 
-      {/* Access Request / Pending / Expired Modal */}
+      {/* Access Request / Pending Modal */}
       {pendingModalCampaign && (
         <div 
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
@@ -451,9 +343,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
             onClick={e => e.stopPropagation()}
           >
             <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto">
-              {isCampaignExpired(pendingModalCampaign) ? (
-                <Archive className="w-6 h-6 text-zinc-400" />
-              ) : pendingModalCampaign.userStatus === 'pending' ? (
+              {pendingModalCampaign.userStatus === 'pending' ? (
                 <Hourglass className="w-6 h-6 text-amber-500 animate-pulse" />
               ) : (
                 <Lock className="w-6 h-6 text-zinc-400" />
@@ -465,11 +355,9 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                 {pendingModalCampaign.name}
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                {isCampaignExpired(pendingModalCampaign)
-                  ? `This study cohort concluded on ${pendingModalCampaign.endDate || 'its end date'}. It is in permanent read-only archive mode and is no longer accepting new members.`
-                  : pendingModalCampaign.userStatus === 'pending'
-                    ? 'Your membership request is currently awaiting approval by the cohort admin.'
-                    : 'This cohort requires approval before accessing focus sessions and cohort channels.'}
+                {pendingModalCampaign.userStatus === 'pending'
+                  ? 'Your membership request is currently awaiting approval by the cohort admin.'
+                  : 'This cohort requires approval before accessing focus sessions and cohort channels.'}
               </p>
             </div>
 
@@ -482,7 +370,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                 Close
               </button>
 
-              {!isCampaignExpired(pendingModalCampaign) && pendingModalCampaign.userStatus !== 'pending' && (
+              {pendingModalCampaign.userStatus !== 'pending' && (
                 <button
                   type="button"
                   onClick={async () => {

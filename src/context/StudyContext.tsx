@@ -217,21 +217,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 1. Cross-device sync: Check if remote user profile has already set today's routine in database
-    if (user.dailyRoutine && user.dailyRoutine.dateKey === todayKey && user.dailyRoutine.targetHours) {
-      const remoteHours = user.dailyRoutine.targetHours;
-      const remoteRoutine = user.dailyRoutine.routine || `${remoteHours}h`;
-      setDailyTargetHoursState(remoteHours);
-      setCollegeRoutine(remoteRoutine);
-      setShowRoutineModal(false);
-      try {
-        localStorage.setItem(`study_daily_target_hours_${user.id}_${todayKey}`, String(remoteHours));
-        localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, remoteRoutine);
-      } catch {}
-      return;
-    }
-
-    // 2. Check local storage
     const savedHours = getSavedTargetHours(todayKey);
 
     if (savedHours !== null) {
@@ -261,7 +246,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } else {
-      // Prompt once per day if target is not set on server or locally
+      // Prompt once per day if target is not set
       if (hasPromptedTodayRef.current !== todayKey) {
         hasPromptedTodayRef.current = todayKey;
         setDailyTargetHoursState(null);
@@ -284,34 +269,12 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
 
-    const handleRemoteRoutine = (data: any) => {
-      if (data && data.userId === user?.id && data.targetHours) {
-        const todayKey = getTodayKey();
-        if (!data.dateKey || data.dateKey === todayKey) {
-          setDailyTargetHoursState(data.targetHours);
-          setCollegeRoutine(data.routine || `${data.targetHours}h`);
-          setShowRoutineModal(false);
-          try {
-            localStorage.setItem(`study_daily_target_hours_${user.id}_${todayKey}`, String(data.targetHours));
-            localStorage.setItem(`study_college_routine_${user.id}_${todayKey}`, data.routine || `${data.targetHours}h`);
-          } catch {}
-        }
-      }
-    };
-
-    if (socket) {
-      socket.on('study:routine_updated', handleRemoteRoutine);
-    }
-
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
-      if (socket) {
-        socket.off('study:routine_updated', handleRemoteRoutine);
-      }
     };
-  }, [user?.id, user?.dailyRoutine?.dateKey, user?.dailyRoutine?.targetHours, socket]);
+  }, [user?.id]);
 
   const setDailyTargetHours = async (hours: number) => {
     const todayKey = getTodayKey();
@@ -367,7 +330,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   // Today target hours dynamically resolved
   const todayTargetHours = dailyTargetHours !== null 
     ? dailyTargetHours 
-    : (user?.dailyRoutine?.dateKey === getTodayKey() && user.dailyRoutine.targetHours ? user.dailyRoutine.targetHours : 4);
+    : 4;
 
   const isAnalyzingRef = useRef(false);
   const sessionStartedAtRef = useRef<number>(initialSession?.sessionStartedAt || Date.now());
@@ -935,8 +898,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       sessionStartedAtRef.current = Date.now();
       lastInspectionTimestampRef.current = Date.now();
       lastCheckedElapsedSecondsRef.current = 0;
-      // First inspection occurs earlier (45-60s) for rapid feedback, subsequent checks randomized (60-120s)
-      nextRandomCheckSecondsRef.current = Math.floor(Math.random() * (60 - 45 + 1)) + 45;
+      nextRandomCheckSecondsRef.current = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
       isAnalyzingRef.current = false;
 
       // Save to localStorage for refresh persistence
@@ -1041,40 +1003,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const stopStudying = () => {
-    // If scholar studied for >= 30 seconds since last inspection, flush a final verified study block before teardown!
-    const uninspectedSec = sessionElapsedSeconds - lastCheckedElapsedSecondsRef.current;
-    const cid = activeCampaignIdRef.current;
-    const sNote = subjectNoteRef.current;
-    const cToken = tokenRef.current || token || localStorage.getItem('study_token');
-    const stream = screenStreamRef.current;
-
-    if (uninspectedSec >= 30 && stream && cid && cToken) {
-      const flushMins = Math.max(1, Math.round(uninspectedSec / 60) || 1);
-      captureScreenSnapshot(null).then(snapUrl => {
-        if (snapUrl) {
-          fetch('/api/study/verify-screen', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${cToken}`
-            },
-            body: JSON.stringify({
-              campaignId: cid,
-              subjectNote: sNote,
-              snapshotUrl: snapUrl,
-              durationMinutes: flushMins
-            })
-          }).then(res => res.json()).then(data => {
-            if (data?.block) {
-              window.dispatchEvent(new CustomEvent('study:block_logged', {
-                detail: { block: data.block, campaignId: cid, userId: user?.id }
-              }));
-            }
-          }).catch(() => {});
-        }
-      }).catch(() => {});
-    }
-
     setIsStudying(false);
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach(track => track.stop());
