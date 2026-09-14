@@ -46,7 +46,7 @@ export function normalizeHackerrankUrl(val?: string | null): string {
 export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDailyHours, isActive = true }) => {
   const { user } = useAuth();
   const { socket } = useSocket();
-  const { todayTargetHours: userDailyTarget, stats } = useStudy();
+  const { todayTargetHours: userDailyTarget, stats, refreshStats } = useStudy();
   const cacheKey = `study_leaderboard_cache_${campaignId}`;
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -81,6 +81,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
   const fetchLeaderboard = async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
+      if (refreshStats) {
+        refreshStats();
+      }
       const tzOffset = new Date().getTimezoneOffset();
       const res = await fetch(`/api/campaigns/${campaignId}/leaderboard?tzOffset=${tzOffset}&_t=${Date.now()}`, {
         headers: { 
@@ -114,14 +117,14 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     }
   }, [campaignId, isActive]);
 
-  // 15-second polling interval while active & tab visible
+  // 8-second polling interval while active & tab visible
   useEffect(() => {
     if (!isActive) return;
     const timer = setInterval(() => {
       if (!document.hidden) {
         fetchLeaderboard();
       }
-    }, 15000);
+    }, 8000);
     return () => clearInterval(timer);
   }, [campaignId, isActive]);
 
@@ -148,14 +151,14 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
 
     const handleLocalEvent = (e: any) => {
       const block = e?.detail?.block;
-      if (block && block.status === 'active') {
+      if (block && (block.status === 'active' || block.status === 'studying')) {
         const mins = Number(block.durationMinutes) || 5;
         setEntries(prev => prev.map(entry => {
           if (entry.userId === block.userId) {
             const newToday = entry.todayMinutes + mins;
-            const newWeek = entry.thisWeekMinutes + mins;
-            const newMonth = entry.thisMonthMinutes + mins;
-            const newTotal = entry.totalMinutes + mins;
+            const newWeek = (entry.thisWeekMinutes || 0) + mins;
+            const newMonth = (entry.thisMonthMinutes || 0) + mins;
+            const newTotal = (entry.totalMinutes || 0) + mins;
             return {
               ...entry,
               todayMinutes: newToday,
@@ -172,6 +175,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           return entry;
         }));
       }
+      if (refreshStats) refreshStats();
       fetchLeaderboard();
     };
 
@@ -188,7 +192,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       window.removeEventListener('study:block_logged', handleLocalEvent);
       window.removeEventListener('study:routine_updated', handleLocalRoutine);
     };
-  }, [campaignId]);
+  }, [campaignId, refreshStats]);
 
   // Socket event listeners
   useEffect(() => {
@@ -196,14 +200,14 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
 
     const handleBlockLogged = (data?: any) => {
       const block = data?.block;
-      if (block && block.status === 'active') {
+      if (block && (block.status === 'active' || block.status === 'studying')) {
         const mins = Number(block.durationMinutes) || 5;
         setEntries(prev => prev.map(entry => {
           if (entry.userId === block.userId) {
             const newToday = entry.todayMinutes + mins;
-            const newWeek = entry.thisWeekMinutes + mins;
-            const newMonth = entry.thisMonthMinutes + mins;
-            const newTotal = entry.totalMinutes + mins;
+            const newWeek = (entry.thisWeekMinutes || 0) + mins;
+            const newMonth = (entry.thisMonthMinutes || 0) + mins;
+            const newTotal = (entry.totalMinutes || 0) + mins;
             return {
               ...entry,
               todayMinutes: newToday,
@@ -220,6 +224,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
           return entry;
         }));
       }
+      if (refreshStats) refreshStats();
       fetchLeaderboard();
     };
 
@@ -295,12 +300,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
 
   const getHarmonizedEntry = (entry: LeaderboardEntry): LeaderboardEntry => {
     if (user && entry.userId === user.id && stats) {
-      const todayMinutes = Math.max(entry.todayMinutes, stats.todayMinutes || 0);
-      const thisWeekMinutes = Math.max(entry.thisWeekMinutes, stats.thisWeekMinutes || 0);
-      const thisMonthMinutes = Math.max(entry.thisMonthMinutes, stats.thisMonthMinutes || stats.todayMinutes || 0);
-      const totalMinutes = Math.max(entry.totalMinutes, stats.totalMinutes || 0);
-      const activeStreakDays = Math.max(entry.activeStreakDays, stats.activeStreakDays || stats.streakDays || 0);
-      const streakDays = Math.max(entry.streakDays, stats.streakDays || stats.activeStreakDays || 0);
+      const todayMinutes = stats.todayMinutes;
+      const thisWeekMinutes = stats.thisWeekMinutes !== undefined ? stats.thisWeekMinutes : entry.thisWeekMinutes;
+      const thisMonthMinutes = stats.thisMonthMinutes !== undefined ? stats.thisMonthMinutes : entry.thisMonthMinutes;
+      const totalMinutes = stats.totalMinutes !== undefined ? stats.totalMinutes : entry.totalMinutes;
+      const activeStreakDays = stats.activeStreakDays !== undefined ? stats.activeStreakDays : (stats.streakDays !== undefined ? stats.streakDays : entry.activeStreakDays);
+      const streakDays = stats.streakDays !== undefined ? stats.streakDays : activeStreakDays;
       const dailyTarget = getEntryDailyTarget(entry);
       const todayHours = Number((todayMinutes / 60).toFixed(1));
       const targetCompleted = todayHours >= dailyTarget;
@@ -326,7 +331,38 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     return entry;
   };
 
-  const harmonizedEntries = entries.map(getHarmonizedEntry);
+  let harmonizedEntries = entries.map(getHarmonizedEntry);
+
+  if (user && stats && !harmonizedEntries.some(e => e.userId === user.id)) {
+    const dailyTarget = userDailyTarget || targetDailyHours || 4;
+    const todayMinutes = stats.todayMinutes || 0;
+    const todayHours = Number((todayMinutes / 60).toFixed(1));
+    const targetCompleted = todayHours >= dailyTarget;
+    const progressPercentage = dailyTarget > 0 ? Math.min(100, Math.round((todayHours / dailyTarget) * 100)) : 0;
+
+    harmonizedEntries.push({
+      userId: user.id,
+      userName: user.name,
+      userAvatarUrl: user.avatarUrl,
+      leetcodeUrl: user.leetcodeUrl || '',
+      hackerrankUrl: user.hackerrankUrl || '',
+      role: 'member',
+      todayMinutes,
+      todayHours,
+      thisWeekMinutes: stats.thisWeekMinutes || todayMinutes,
+      thisWeekHours: Number(((stats.thisWeekMinutes || todayMinutes) / 60).toFixed(1)),
+      thisMonthMinutes: stats.thisMonthMinutes || todayMinutes,
+      thisMonthHours: Number(((stats.thisMonthMinutes || todayMinutes) / 60).toFixed(1)),
+      totalMinutes: stats.totalMinutes || todayMinutes,
+      totalHours: Number(((stats.totalMinutes || todayMinutes) / 60).toFixed(1)),
+      activeStreakDays: stats.activeStreakDays || stats.streakDays || 0,
+      streakDays: stats.streakDays || stats.activeStreakDays || 0,
+      targetDailyHours: dailyTarget,
+      todayTargetMet: targetCompleted,
+      targetCompleted,
+      progressPercentage
+    });
+  }
 
   const sortedEntries = [...harmonizedEntries].sort((a, b) => {
     return getMinutesForTimeframe(b, timeframe) - getMinutesForTimeframe(a, timeframe);

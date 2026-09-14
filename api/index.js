@@ -804,19 +804,19 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
     const memberUserIds = approvedMembers.map((m) => m.userId);
     const memberBlocksPromises = memberUserIds.map((uid) => getStudyBlocksForUser(uid));
     const [directCampBlocksRes, ...memberBlocksArrays] = await Promise.all([
-      supabase.from("study_blocks").select("id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note").eq("campaign_id", campaignId).neq("status", "idle").limit(1e4),
+      supabase.from("study_blocks").select("id, user_id, user_name, user_avatar_url, campaign_id, campaign_name, timestamp, duration_minutes, status, subject_note").eq("campaign_id", campaignId).eq("status", "active").limit(1e4),
       ...memberBlocksPromises
     ]);
     const blocksMap = /* @__PURE__ */ new Map();
     if (directCampBlocksRes?.data) {
       for (const b of directCampBlocksRes.data) {
-        if (b && b.id) blocksMap.set(b.id, mapStudyBlockFromDb(b));
+        if (b && b.id && b.status === "active") blocksMap.set(b.id, mapStudyBlockFromDb(b));
       }
     }
     for (const uBlocks of memberBlocksArrays) {
       if (Array.isArray(uBlocks)) {
         for (const b of uBlocks) {
-          if (b && b.id) blocksMap.set(b.id, b);
+          if (b && b.id && b.status === "active") blocksMap.set(b.id, b);
         }
       }
     }
@@ -855,7 +855,7 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
       });
     }
     const memberIdsSet = new Set(approvedMembers.map((m) => m.userId));
-    campaignBlocks = db.studyBlocks.filter((b) => (b.campaignId === campaignId || memberIdsSet.has(b.userId)) && b.status !== "idle");
+    campaignBlocks = db.studyBlocks.filter((b) => (b.campaignId === campaignId || memberIdsSet.has(b.userId)) && b.status === "active");
     allUsers = db.users.filter((u) => memberIdsSet.has(u.id)).map((u) => {
       const extracted = extractCodingLinks(u.bio || "");
       return {
@@ -875,7 +875,7 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
   }
   const currentMonthPrefix = todayKey.substring(0, 7);
   const entries = approvedMembers.map((member) => {
-    const userBlocks = campaignBlocks.filter((b) => b.userId === member.userId);
+    const userBlocks = campaignBlocks.filter((b) => b.userId === member.userId && b.status === "active");
     const userProfile = allUsers.find((u) => u.id === member.userId);
     let todayMinutes = 0;
     let thisWeekMinutes = 0;
@@ -884,6 +884,7 @@ async function getCampaignLeaderboard(campaignId, tzOffset) {
     let lastActive = void 0;
     const activeDaysSet = /* @__PURE__ */ new Set();
     userBlocks.forEach((b) => {
+      if (b.status !== "active") return;
       const bDateStr = get2AMAlignedDateKey(b.timestamp, tz);
       activeDaysSet.add(bDateStr);
       totalMinutes += b.durationMinutes;
