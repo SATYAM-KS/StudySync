@@ -527,7 +527,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
   const currentMinutes = getMinutesForTimeframe(timeframe);
   const currentHours = currentMinutes / 60;
   const targetHours = getTimeframeTargetHours(timeframe);
-  const progressPct = targetHours > 0 ? Math.min(100, Math.round((currentHours / targetHours) * 100)) : 0;
+  const progressPct = targetHours > 0 ? Math.round((currentHours / targetHours) * 100) : 0;
   const totalBlocks = filteredBlocks.length;
 
   return (
@@ -597,8 +597,10 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
               {/* Glowing Posh Progress Bar */}
               <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden p-0.5">
                 <div 
-                  className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-700 shadow-sm"
-                  style={{ width: `${progressPct}%` }}
+                  className={`h-full rounded-full transition-all duration-700 shadow-sm ${
+                    progressPct >= 100 ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-zinc-950 dark:bg-white'
+                  }`}
+                  style={{ width: `${Math.min(100, progressPct)}%` }}
                 />
               </div>
             </div>
@@ -842,8 +844,10 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({
           </div>
           <div className="w-full bg-zinc-200/80 dark:bg-zinc-800/80 h-2 rounded-full overflow-hidden p-0.5">
             <div 
-              className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-500"
-              style={{ width: `${progressPct}%` }}
+              className={`h-full rounded-full transition-all duration-500 ${
+                progressPct >= 100 ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-zinc-950 dark:bg-white'
+              }`}
+              style={{ width: `${Math.min(100, progressPct)}%` }}
             />
           </div>
         </div>

@@ -309,7 +309,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
       const dailyTarget = getEntryDailyTarget(entry);
       const todayHours = Number((todayMinutes / 60).toFixed(1));
       const targetCompleted = todayHours >= dailyTarget;
-      const progressPercentage = dailyTarget > 0 ? Math.min(100, Math.round((todayHours / dailyTarget) * 100)) : 0;
+      const progressPercentage = dailyTarget > 0 ? Math.round((todayHours / dailyTarget) * 100) : 0;
 
       return {
         ...entry,
@@ -338,7 +338,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
     const todayMinutes = stats.todayMinutes || 0;
     const todayHours = Number((todayMinutes / 60).toFixed(1));
     const targetCompleted = todayHours >= dailyTarget;
-    const progressPercentage = dailyTarget > 0 ? Math.min(100, Math.round((todayHours / dailyTarget) * 100)) : 0;
+    const progressPercentage = dailyTarget > 0 ? Math.round((todayHours / dailyTarget) * 100) : 0;
 
     harmonizedEntries.push({
       userId: user.id,
@@ -526,7 +526,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const hrs = mins / 60;
             const dailyTarget = getEntryDailyTarget(topThree[1]);
             const targetHrs = getTimeframeTargetHours(dailyTarget, timeframe);
-            const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
+            const pct = targetHrs > 0 ? Math.round((hrs / targetHrs) * 100) : 0;
             return (
               <div className="order-2 md:order-1 posh-card rounded-3xl p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden group">
                 <div className="absolute top-4 right-4 text-zinc-400 font-mono font-bold text-xs">#2</div>
@@ -568,7 +568,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const hrs = mins / 60;
             const dailyTarget = getEntryDailyTarget(topThree[0]);
             const targetHrs = getTimeframeTargetHours(dailyTarget, timeframe);
-            const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
+            const pct = targetHrs > 0 ? Math.round((hrs / targetHrs) * 100) : 0;
             return (
               <div className="order-1 md:order-2 posh-card rounded-3xl p-7 flex flex-col items-center text-center shadow-xl relative overflow-hidden md:-translate-y-3 group border-2 border-zinc-950/80 dark:border-white/40">
                 
@@ -616,7 +616,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
             const hrs = mins / 60;
             const dailyTarget = getEntryDailyTarget(topThree[2]);
             const targetHrs = getTimeframeTargetHours(dailyTarget, timeframe);
-            const pct = targetHrs > 0 ? Math.min(100, Math.round((hrs / targetHrs) * 100)) : 0;
+            const pct = targetHrs > 0 ? Math.round((hrs / targetHrs) * 100) : 0;
             return (
               <div className="order-3 md:order-3 posh-card rounded-3xl p-6 flex flex-col items-center text-center shadow-md relative overflow-hidden group">
                 <div className="absolute top-4 right-4 text-zinc-400 font-mono font-bold text-xs">#3</div>
@@ -708,7 +708,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                   const hours = minutes / 60;
                   const dailyTarget = getEntryDailyTarget(entry);
                   const targetHours = getTimeframeTargetHours(dailyTarget, timeframe);
-                  const progressPct = targetHours > 0 ? Math.min(100, Math.round((hours / targetHours) * 100)) : 0;
+                  const progressPct = targetHours > 0 ? Math.round((hours / targetHours) * 100) : 0;
 
                   return (
                     <tr key={entry.userId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
@@ -760,8 +760,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ campaignId, targetDail
                           </div>
                           <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden p-0.5">
                             <div 
-                              className="h-full rounded-full bg-zinc-950 dark:bg-white transition-all duration-300"
-                              style={{ width: `${progressPct}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                progressPct >= 100 ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-zinc-950 dark:bg-white'
+                              }`}
+                              style={{ width: `${Math.min(100, progressPct)}%` }}
                             />
                           </div>
                         </div>

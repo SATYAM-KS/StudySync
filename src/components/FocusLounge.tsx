@@ -215,7 +215,7 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
               const targetHours = todayTargetHours || 4;
               const todayTargetMins = Math.round(targetHours * 60);
               const todayCompletedMins = stats?.todayMinutes || 0;
-              const progressPct = Math.min(100, Math.round((todayCompletedMins / (todayTargetMins || 1)) * 100));
+              const progressPct = todayTargetMins > 0 ? Math.round((todayCompletedMins / todayTargetMins) * 100) : 0;
 
               return (
                 <div className="mt-6 flex flex-col items-center space-y-2 w-full max-w-sm">
@@ -229,13 +229,13 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
                   {/* Progress Bar */}
                   <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden p-0.5">
                     <div 
-                      className="h-full bg-zinc-950 dark:bg-white rounded-full transition-all duration-500 shadow-sm"
-                      style={{ width: `${Math.max(todayCompletedMins > 0 ? 4 : 0, progressPct)}%` }}
+                      className={`h-full ${progressPct >= 100 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-zinc-950 dark:bg-white'} rounded-full transition-all duration-500 shadow-sm`}
+                      style={{ width: `${Math.min(100, Math.max(todayCompletedMins > 0 ? 4 : 0, progressPct))}%` }}
                     />
                   </div>
 
                   <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono">
-                    {progressPct >= 100 ? '🎉 Daily target completed!' : `${Math.max(0, todayTargetMins - todayCompletedMins)} mins left to reach target`}
+                    {progressPct >= 100 ? (todayCompletedMins > todayTargetMins ? `🎉 Target exceeded! +${todayCompletedMins - todayTargetMins}m bonus` : '🎉 Daily target completed!') : `${Math.max(0, todayTargetMins - todayCompletedMins)} mins left to reach target`}
                   </p>
                 </div>
               );

@@ -1111,7 +1111,7 @@ export async function getCampaignLeaderboard(campaignId: string, tzOffset?: numb
 
     const todayHours = Number((todayMinutes / 60).toFixed(1));
     const targetCompleted = todayHours >= userTargetHours;
-    const progressPercentage = Math.min(100, Math.round((todayHours / (userTargetHours || 1)) * 100));
+    const progressPercentage = userTargetHours > 0 ? Math.round((todayHours / userTargetHours) * 100) : 0;
 
     return {
       userId: member.userId,
