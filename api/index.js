@@ -187,6 +187,7 @@ function mapUserFromDb(row) {
     studyGoal: row.study_goal || "",
     leetcodeUrl: row.leetcode_url || row.leetcodeUrl || extracted.leetcodeUrl || "",
     hackerrankUrl: row.hackerrank_url || row.hackerrankUrl || extracted.hackerrankUrl || "",
+    dailyRoutine: extracted.dailyRoutine,
     createdAt: row.created_at
   };
 }

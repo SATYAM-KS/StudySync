@@ -171,6 +171,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
           const parsed = parseFloat(saved);
           if (!isNaN(parsed) && parsed > 0) return parsed;
         }
+
+        // Check if user has dailyRoutine saved on backend for this exact dateKey
+        if (user.dailyRoutine && user.dailyRoutine.dateKey === key && user.dailyRoutine.targetHours > 0) {
+          try {
+            localStorage.setItem(userKey, String(user.dailyRoutine.targetHours));
+          } catch {}
+          return user.dailyRoutine.targetHours;
+        }
       }
       return null;
     } catch {
@@ -184,6 +192,14 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         const userKey = `study_college_routine_${user.id}_${key}`;
         const saved = localStorage.getItem(userKey);
         if (saved) return saved;
+
+        // Check backend dailyRoutine
+        if (user.dailyRoutine && user.dailyRoutine.dateKey === key && user.dailyRoutine.routine) {
+          try {
+            localStorage.setItem(userKey, user.dailyRoutine.routine);
+          } catch {}
+          return user.dailyRoutine.routine;
+        }
       }
       const target = getSavedTargetHours(key);
       if (target !== null) return `${target}h`;
@@ -210,10 +226,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   // Verify and trigger 2:00 AM check-in & automated day reset
   const checkDailyRoutineStatus = () => {
-    if (!user) return;
+    if (!user) {
+      setShowRoutineModal(false);
+      return;
+    }
     const todayKey = getTodayKey();
     
-    // Detect 2:00 AM boundary flip
+    // Case 1: Detect 2:00 AM live boundary flip while user is open in the app
     if (todayKey !== lastKnownTodayKeyRef.current) {
       console.log(`[StudyDayReset] 2:00 AM study cycle transition: ${lastKnownTodayKeyRef.current} -> ${todayKey}`);
       lastKnownTodayKeyRef.current = todayKey;
@@ -229,6 +248,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     const savedHours = getSavedTargetHours(todayKey);
 
     if (savedHours !== null) {
+      // User has already set their target for today's 2 AM cycle
       setDailyTargetHoursState(savedHours);
       setCollegeRoutine(`${savedHours}h`);
       setShowRoutineModal(false);
@@ -255,21 +275,46 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } else {
-      // Prompt once per day if target is not set
-      if (hasPromptedTodayRef.current !== todayKey) {
-        hasPromptedTodayRef.current = todayKey;
-        setDailyTargetHoursState(null);
-        setCollegeRoutine(null);
-        setShowRoutineModal(true);
-      }
+      // Case 2: Target is not yet set for today's 2 AM cycle
+      // Automatically pop up when user logs in for the first time after 2 AM
+      setDailyTargetHoursState(null);
+      setCollegeRoutine(null);
+      setShowRoutineModal(true);
     }
   };
 
-  // Check on login, date change, window focus, visibility change, and active 5-second interval
+  // Check on login, date change, window focus, visibility change, and active timers
   useEffect(() => {
+    if (!user) {
+      setShowRoutineModal(false);
+      return;
+    }
+
+    // Immediately run check on mount or when user authenticates
     checkDailyRoutineStatus();
 
-    const interval = setInterval(checkDailyRoutineStatus, 5000);
+    // 1. Continuous 3-second heartbeat to catch transitions immediately
+    const interval = setInterval(checkDailyRoutineStatus, 3000);
+
+    // 2. Exact 2:00:00 AM scheduled timeout
+    const scheduleExact2AM = () => {
+      const now = new Date();
+      const next2AM = new Date(now);
+      if (now.getHours() >= 2) {
+        next2AM.setDate(next2AM.getDate() + 1);
+      }
+      next2AM.setHours(2, 0, 0, 0);
+      const msUntil2AM = Math.max(50, next2AM.getTime() - now.getTime());
+
+      return setTimeout(() => {
+        console.log('[StudyDayReset] Exact 2:00:00 AM timer fired!');
+        checkDailyRoutineStatus();
+      }, msUntil2AM);
+    };
+
+    const exactTimer = scheduleExact2AM();
+
+    // 3. Tab visibility and window focus listeners
     const handleFocus = () => checkDailyRoutineStatus();
     const handleVisibility = () => {
       if (!document.hidden) checkDailyRoutineStatus();
@@ -280,6 +325,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       clearInterval(interval);
+      clearTimeout(exactTimer);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
     };

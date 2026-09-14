@@ -268,7 +268,7 @@ const MainApp: React.FC = () => {
       <DailyRoutineModal
         isOpen={showRoutineModal}
         onClose={() => setShowRoutineModal(false)}
-        currentTargetHours={todayTargetHours}
+        currentTargetHours={dailyTargetHours}
         currentRoutine={collegeRoutine}
         onSelectTargetHours={setDailyTargetHours}
         onSelectRoutine={setDailyCollegeRoutine}

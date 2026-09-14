@@ -220,7 +220,15 @@ export const FocusLounge: React.FC<FocusLoungeProps> = ({ campaign }) => {
               return (
                 <div className="mt-6 flex flex-col items-center space-y-2 w-full max-w-sm">
                   <div className="flex items-center justify-between w-full text-xs">
-                    <span className="text-zinc-400 dark:text-zinc-500 text-[11px] font-semibold uppercase tracking-wider">Today's Progress</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowRoutineModal(true)}
+                      className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white text-[11px] font-semibold uppercase tracking-wider transition cursor-pointer flex items-center gap-1 group"
+                      title="Adjust daily study target goal"
+                    >
+                      <span>Today's Target</span>
+                      <Target className="w-3 h-3 text-emerald-500 group-hover:scale-110 transition-transform" />
+                    </button>
                     <span className="font-extrabold text-zinc-950 dark:text-white font-mono text-xs">
                       {todayCompletedMins}m / {todayTargetMins}m ({progressPct}%)
                     </span>

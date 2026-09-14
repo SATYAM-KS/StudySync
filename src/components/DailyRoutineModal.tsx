@@ -116,7 +116,7 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
   };
 
   // Smart preset options based on dynamic maxHours
-  const presetOptions = [2, 4, 6, 8, maxHours]
+  const presetOptions = [2, 4, 6, 8, 10, 12]
     .filter((h, idx, self) => h >= minHours && h <= maxHours && self.indexOf(h) === idx)
     .sort((a, b) => a - b);
 
@@ -156,7 +156,7 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 dark:bg-black/85 backdrop-blur-2xl animate-in fade-in duration-200 select-none overflow-y-auto"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 dark:bg-black/85 backdrop-blur-2xl animate-in fade-in duration-200 select-none overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget && currentTargetHours) onClose();
       }}
@@ -301,7 +301,7 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="relative z-10 pt-1">
+            <div className="relative z-10 pt-1 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={() => setStep('confirm')}
@@ -310,6 +310,16 @@ export const DailyRoutineModal: React.FC<DailyRoutineModalProps> = ({
                 <span>Proceed with {selectedHours}h Goal</span>
                 <Target className="w-4 h-4 text-emerald-600" />
               </button>
+
+              {Boolean(currentTargetHours) && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-semibold transition cursor-pointer border border-white/5"
+                >
+                  Keep Current Target ({currentTargetHours}h)
+                </button>
+              )}
             </div>
 
             {/* Footer Notice */}

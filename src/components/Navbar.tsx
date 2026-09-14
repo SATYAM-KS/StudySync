@@ -13,7 +13,8 @@ import {
   User as UserIcon,
   Plus,
   Sparkles,
-  Flame
+  Flame,
+  Target
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -35,7 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const { activeStudySessions } = useSocket();
-  const { isStudying, stopStudying } = useStudy();
+  const { isStudying, stopStudying, todayTargetHours, setShowRoutineModal } = useStudy();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const activeInThisCamp = selectedCampaignId 
@@ -134,13 +135,24 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 <button
                   onClick={() => {
+                    setShowRoutineModal(true);
+                    setShowUserMenu(false);
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 rounded-xl transition cursor-pointer"
+                >
+                  <Target className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Daily Study Target ({todayTargetHours}h)</span>
+                </button>
+
+                <button
+                  onClick={() => {
                     onOpenProfile();
                     setShowUserMenu(false);
                   }}
                   className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 rounded-xl transition cursor-pointer"
                 >
                   <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
-                  <span>Profile & Target</span>
+                  <span>Profile Settings</span>
                 </button>
 
                 {isStudying && (

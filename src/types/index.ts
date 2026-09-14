@@ -11,6 +11,11 @@ export interface User {
   studyGoal?: string;
   leetcodeUrl?: string;
   hackerrankUrl?: string;
+  dailyRoutine?: {
+    dateKey: string;
+    routine: string;
+    targetHours: number;
+  };
   createdAt: string;
 }
 
