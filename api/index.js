@@ -2208,7 +2208,7 @@ app.post("/api/study/verify-screen", authMiddleware, async (req, res) => {
 app.get("/api/study/stats", authMiddleware, async (req, res) => {
   try {
     const userBlocks = await getStudyBlocksForUser(req.user.id);
-    const activeBlocks = userBlocks.filter((b) => b.status === "active");
+    const activeBlocks = userBlocks.filter((b) => b.status === "active" || b.status === "studying");
     const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset, 10) : void 0;
     const tzHeader = req.headers["x-timezone-offset"] ? parseInt(req.headers["x-timezone-offset"], 10) : void 0;
     const tzOffset = !isNaN(tzOffsetQuery) ? tzOffsetQuery : !isNaN(tzHeader) ? tzHeader : -330;
@@ -2228,6 +2228,7 @@ app.get("/api/study/stats", authMiddleware, async (req, res) => {
     let totalMinutes = 0;
     const dailyMinutesMap = {};
     const activeDaysSet = /* @__PURE__ */ new Set();
+    const cohortMap = {};
     activeBlocks.forEach((b) => {
       const dateStr = get2AMAlignedDateKey(b.timestamp, tzOffset);
       dailyMinutesMap[dateStr] = (dailyMinutesMap[dateStr] || 0) + b.durationMinutes;
@@ -2236,6 +2237,13 @@ app.get("/api/study/stats", authMiddleware, async (req, res) => {
       if (dateStr === todayKey) todayMinutes += b.durationMinutes;
       if (weekKeysSet.has(dateStr)) thisWeekMinutes += b.durationMinutes;
       if (dateStr.startsWith(currentMonthPrefix)) thisMonthMinutes += b.durationMinutes;
+      const cid = b.campaignId || "general";
+      const cname = b.campaignName || "General Focus";
+      if (!cohortMap[cid]) {
+        cohortMap[cid] = { campaignId: cid, campaignName: cname, minutes: 0, hours: 0 };
+      }
+      cohortMap[cid].minutes += b.durationMinutes;
+      cohortMap[cid].hours = Number((cohortMap[cid].minutes / 60).toFixed(1));
     });
     let currentStreak = 0;
     for (let d = 0; d < 365; d++) {
@@ -2274,7 +2282,9 @@ app.get("/api/study/stats", authMiddleware, async (req, res) => {
       activeStreakDays: currentStreak,
       recentDays,
       totalBlocksCount: userBlocks.length,
-      activeBlocksCount: activeBlocks.length
+      activeBlocksCount: activeBlocks.length,
+      cohortsCount: Object.keys(cohortMap).length,
+      cohortBreakdown: Object.values(cohortMap)
     });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user study stats" });

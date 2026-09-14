@@ -784,7 +784,7 @@ app.post('/api/study/verify-screen', authMiddleware, async (req: AuthRequest, re
 app.get('/api/study/stats', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userBlocks = await getStudyBlocksForUser(req.user!.id);
-    const activeBlocks = userBlocks.filter(b => b.status === 'active');
+    const activeBlocks = userBlocks.filter(b => b.status === 'active' || (b.status as any) === 'studying');
 
     const tzOffsetQuery = req.query.tzOffset ? parseInt(req.query.tzOffset as string, 10) : undefined;
     const tzHeader = req.headers['x-timezone-offset'] ? parseInt(req.headers['x-timezone-offset'] as string, 10) : undefined;
@@ -811,6 +811,9 @@ app.get('/api/study/stats', authMiddleware, async (req: AuthRequest, res) => {
     const dailyMinutesMap: Record<string, number> = {};
     const activeDaysSet = new Set<string>();
 
+    // Calculate per-cohort breakdown across all previous & current cohorts
+    const cohortMap: Record<string, { campaignId: string; campaignName: string; minutes: number; hours: number }> = {};
+
     activeBlocks.forEach(b => {
       const dateStr = get2AMAlignedDateKey(b.timestamp, tzOffset);
       dailyMinutesMap[dateStr] = (dailyMinutesMap[dateStr] || 0) + b.durationMinutes;
@@ -820,6 +823,14 @@ app.get('/api/study/stats', authMiddleware, async (req: AuthRequest, res) => {
       if (dateStr === todayKey) todayMinutes += b.durationMinutes;
       if (weekKeysSet.has(dateStr)) thisWeekMinutes += b.durationMinutes;
       if (dateStr.startsWith(currentMonthPrefix)) thisMonthMinutes += b.durationMinutes;
+
+      const cid = b.campaignId || 'general';
+      const cname = b.campaignName || 'General Focus';
+      if (!cohortMap[cid]) {
+        cohortMap[cid] = { campaignId: cid, campaignName: cname, minutes: 0, hours: 0 };
+      }
+      cohortMap[cid].minutes += b.durationMinutes;
+      cohortMap[cid].hours = Number((cohortMap[cid].minutes / 60).toFixed(1));
     });
 
     let currentStreak = 0;
@@ -863,7 +874,9 @@ app.get('/api/study/stats', authMiddleware, async (req: AuthRequest, res) => {
       activeStreakDays: currentStreak,
       recentDays,
       totalBlocksCount: userBlocks.length,
-      activeBlocksCount: activeBlocks.length
+      activeBlocksCount: activeBlocks.length,
+      cohortsCount: Object.keys(cohortMap).length,
+      cohortBreakdown: Object.values(cohortMap)
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to fetch user study stats' });

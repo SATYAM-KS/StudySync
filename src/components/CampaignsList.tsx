@@ -132,16 +132,26 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                 </div>
               </div>
 
-              {/* Total Focus Hours */}
-              <div className="posh-card px-5 py-3.5 rounded-2xl flex items-center space-x-3.5 flex-1 md:flex-initial shadow-md">
+              {/* Total Cohort Time (All Cohorts) */}
+              <div 
+                className="posh-card px-5 py-3.5 rounded-2xl flex items-center space-x-3.5 flex-1 md:flex-initial shadow-md"
+                title="Total recorded study time across all previous and current cohorts"
+              >
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold shrink-0 border border-emerald-500/30">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-mono font-black text-zinc-950 dark:text-white">
-                    {Number(stats?.totalHours || (stats?.totalFocusMinutes ? stats.totalFocusMinutes / 60 : 0) || (stats?.totalMinutes ? stats.totalMinutes / 60 : 0) || 0).toFixed(1)}h
+                  <div className="text-sm font-mono font-black text-zinc-950 dark:text-white flex items-center gap-1.5">
+                    <span>
+                      {Number(stats?.totalHours || (stats?.totalFocusMinutes ? stats.totalFocusMinutes / 60 : 0) || (stats?.totalMinutes ? stats.totalMinutes / 60 : 0) || 0).toFixed(1)}h
+                    </span>
+                    {stats?.cohortsCount && stats.cohortsCount > 1 ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-sans font-medium">
+                        {stats.cohortsCount} cohorts
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Total Focus</div>
+                  <div className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Total Cohort Time</div>
                 </div>
               </div>
 
@@ -226,6 +236,7 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
               const isPending = !isAdmin && camp.userStatus === 'pending';
               const isCurrentStudying = isStudying && activeCampaignId === camp.id;
               const activeInCamp = activeStudySessions.filter(s => s.campaignId === camp.id);
+              const userCohortTime = stats?.cohortBreakdown?.find(c => c.campaignId === camp.id);
 
               return (
                 <div
@@ -285,10 +296,19 @@ export const CampaignsList: React.FC<CampaignsListProps> = ({
                     {/* Cohort Key Metrics */}
                     <div className="pt-2 grid grid-cols-2 gap-3 border-t border-zinc-200/60 dark:border-white/[0.06] text-xs">
                       
-                      {/* Target Indicator */}
+                      {/* Target Indicator or Logged Study Time in this Cohort */}
                       <div className="flex items-center space-x-2 text-zinc-700 dark:text-zinc-300">
-                        <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        <span className="font-bold font-mono text-[11px]">Flexible daily</span>
+                        {userCohortTime && userCohortTime.hours > 0 ? (
+                          <div className="flex items-center space-x-1.5 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-bold" title="Your recorded focus time in this cohort">
+                            <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            <span>{userCohortTime.hours.toFixed(1)}h logged</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            <span className="font-bold font-mono text-[11px]">Flexible daily</span>
+                          </>
+                        )}
                       </div>
 
                       {/* Member Capacity */}

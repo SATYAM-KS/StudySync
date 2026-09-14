@@ -25,6 +25,13 @@ export interface LastAIAnalysis {
   timestamp: string;
 }
 
+export interface CohortTimeBreakdown {
+  campaignId: string;
+  campaignName: string;
+  minutes: number;
+  hours: number;
+}
+
 export interface StudyStats {
   todayMinutes: number;
   todayHours: number;
@@ -40,6 +47,8 @@ export interface StudyStats {
   recentDays: Array<{ date: string; dayName: string; minutes: number; hours: number }>;
   totalBlocksCount: number;
   activeBlocksCount: number;
+  cohortsCount?: number;
+  cohortBreakdown?: CohortTimeBreakdown[];
 }
 
 interface StudyContextType {
